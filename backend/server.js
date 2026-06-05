@@ -81,7 +81,7 @@ async function audit(req, client, modul, action, description, recordId = null, s
     `insert into tbl_audit_trail
      (id_pengguna, modul_sistem, jenis_aktiviti, penerangan_aktiviti, rekod_terlibat, nilai_lama, nilai_baharu, alamat_ip, peranti_pengguna, status_aktiviti)
      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-    [userId, modul, action, description, recordId, oldValue && JSON.stringify(oldValue), newValue && JSON.stringify(newValue), req.ip, req.headers['user-agent'], status]
+    [userId, modul, action, description, recordId, oldValue && JSON.stringify(oldValue), newValue && JSON.stringify(newValue), req.ip || null, req.headers?.['user-agent'] || null, status]
   );
 }
 
