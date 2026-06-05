@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans antialiased bg-gray-50 text-gray-900 transition-colors duration-200;
+  }
+  
+  /* Dark mode global overrides */
+  .dark body {
+    @apply bg-slate-900 text-gray-100;
+  }
+}
