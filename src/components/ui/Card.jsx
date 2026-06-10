@@ -1,9 +1,7 @@
-import React from 'react';
-
 export const Card = ({ children, className = '', ...props }) => {
   return (
     <div 
-      className={`bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg ${className}`}
+      className={`app-surface border rounded-lg ${className}`}
       {...props}
     >
       {children}
@@ -12,13 +10,13 @@ export const Card = ({ children, className = '', ...props }) => {
 };
 
 export const CardHeader = ({ children, className = '' }) => (
-  <div className={`px-6 py-4 border-b border-gray-200 dark:border-slate-800 ${className}`}>
+  <div className={`app-divider px-6 py-4 border-b ${className}`}>
     {children}
   </div>
 );
 
 export const CardTitle = ({ children, className = '' }) => (
-  <h3 className={`text-lg font-medium text-gray-900 dark:text-gray-100 ${className}`}>
+  <h3 className={`font-medium text-primary-token ${className}`}>
     {children}
   </h3>
 );

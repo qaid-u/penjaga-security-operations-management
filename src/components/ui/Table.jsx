@@ -1,5 +1,3 @@
-import React from 'react';
-
 export const Table = ({ children, className = '' }) => (
   <div className={`w-full overflow-x-auto ${className}`}>
     <table className="w-full text-left text-sm whitespace-nowrap">
@@ -9,31 +7,31 @@ export const Table = ({ children, className = '' }) => (
 );
 
 export const Thead = ({ children }) => (
-  <thead className="bg-gray-50/50 dark:bg-slate-800/50 text-gray-500 dark:text-gray-400">
+  <thead className="app-elevated text-tertiary-token">
     {children}
   </thead>
 );
 
 export const Th = ({ children, className = '' }) => (
-  <th className={`px-6 py-3 font-medium border-b border-gray-200 dark:border-slate-700 ${className}`}>
+  <th className={`app-divider px-6 py-3 font-medium border-b ${className}`}>
     {children}
   </th>
 );
 
 export const Tbody = ({ children }) => (
-  <tbody className="divide-y divide-gray-200 dark:divide-slate-800">
+  <tbody className="divide-y divide-[var(--color-border-subtle)]">
     {children}
   </tbody>
 );
 
 export const Tr = ({ children, className = '' }) => (
-  <tr className={`hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors ${className}`}>
+  <tr className={`transition-colors hover:bg-[var(--color-bg-hover)] ${className}`}>
     {children}
   </tr>
 );
 
 export const Td = ({ children, className = '' }) => (
-  <td className={`px-6 py-4 text-gray-700 dark:text-gray-300 ${className}`}>
+  <td className={`px-6 py-4 text-secondary-token ${className}`}>
     {children}
   </td>
 );

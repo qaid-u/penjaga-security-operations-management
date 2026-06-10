@@ -8,15 +8,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-      },
-      colors: {
-        // Deep slate for dark mode backgrounds
-        slate: {
-          850: '#1e2128',
-          900: '#15171c',
-          950: '#0b0c0f',
-        }
+        sans: ['var(--font-ui)'],
+        display: ['var(--font-display)'],
+        data: ['var(--font-data)'],
       }
     },
   },

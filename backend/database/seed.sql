@@ -11,15 +11,23 @@ insert into tbl_pengguna (id_peranan, nama_penuh, no_kad_pengenalan, no_telefon,
 (3, 'Pengawal Kumar', '990505050005', '012-3000005', 'kumar@penjaga.local', 'kumar', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif');
 
 insert into tbl_pos_kawalan (nama_pos, nama_bangunan, lokasi, waktu_operasi, status_pos) values
-('Pos Lobi Utama', 'Bangunan Sultan Ismail', 'Lobi utama', '24 Jam', 'Aktif'),
-('Pos Bilik Kawalan CCTV', 'Bangunan Sultan Ismail', 'Bilik kawalan keselamatan', '24 Jam', 'Aktif'),
-('Pos Tingkat 3 Pejabat Setiausaha Kerajaan Johor', 'Bangunan Sultan Ismail', 'Tingkat 3', '07:00-19:00', 'Aktif'),
-('Pos Tingkat 4 Hadapan Pejabat Menteri Besar Johor', 'Bangunan Sultan Ismail', 'Tingkat 4', '07:00-19:00', 'Aktif'),
-('Pos Lif LG', 'Bangunan Sultan Ismail', 'Lif aras LG', '24 Jam', 'Aktif'),
-('Pos BDARA', 'Kompleks BDARA', 'Pintu masuk BDARA', '24 Jam', 'Aktif'),
-('Pos BDMSP', 'Kompleks BDMSP', 'Pintu masuk BDMSP', '24 Jam', 'Aktif'),
-('Pos BDMIM', 'Kompleks BDMIM', 'Pintu masuk BDMIM', '24 Jam', 'Aktif'),
-('Pos UTC', 'UTC Johor', 'Lobi UTC', '08:00-22:00', 'Aktif');
+('Pos Lobi Utama', 'Bangunan Dato'' Jaafar Muhammad', 'Kota Iskandar', '24 Jam', 'Aktif'),
+('Pos Bilik Kawalan CCTV', 'Bangunan Dato'' Jaafar Muhammad', 'Kota Iskandar', '24 Jam', 'Aktif'),
+('Pos Tingkat 3 Pejabat Setiausaha Kerajaan Johor', 'Bangunan Dato'' Jaafar Muhammad', 'Kota Iskandar', '24 Jam', 'Aktif'),
+('Pos Tingkat 4 Hadapan Pejabat Menteri Besar Johor', 'Bangunan Dato'' Jaafar Muhammad', 'Kota Iskandar', '24 Jam', 'Aktif'),
+('Pos Tingkat 4 Belakang Pejabat Menteri Besar Johor', 'Bangunan Dato'' Jaafar Muhammad', 'Kota Iskandar', '24 Jam', 'Aktif'),
+('Pos Lif LG Pejabat Setiausaha Kerajaan Johor', 'Bangunan Dato'' Jaafar Muhammad', 'Kota Iskandar', '24 Jam', 'Aktif'),
+('Pos Lif LG Pejabat Menteri Besar Johor', 'Bangunan Dato'' Jaafar Muhammad', 'Kota Iskandar', '24 Jam', 'Aktif'),
+('Pos BDARA', 'Bangunan Dato'' Abdul Rahman Andak', 'Kota Iskandar', '24 Jam', 'Aktif'),
+('Pos BDMSP', 'Bangunan Dato'' Mohamad Salleh Perang', 'Kota Iskandar', '24 Jam', 'Aktif'),
+('Pos BDMIM', 'Bangunan Dato'' Muhamad Ibrahim Munsyi', 'Kota Iskandar', '24 Jam', 'Aktif'),
+('Pos Pejabat Jurutulis', 'Bangunan Sultan Ismail (BSI)', 'Kota Iskandar', '24 Jam', 'Aktif'),
+('Pos Dewan Undangan Negeri (DUN)', 'Bangunan Sultan Ismail (BSI)', 'Kota Iskandar', '24 Jam', 'Aktif'),
+('Pos C1S', 'Kabin C1S', 'Kota Iskandar', '24 Jam', 'Aktif'),
+('Pos BSI Johor Bahru', 'Bangunan Sultan Ibrahim (BSI)', 'Johor Bahru', '24 Jam', 'Aktif'),
+('Pos Rumah SS', 'Kediaman Rasmi Setiausaha Kerajaan Johor', 'Johor', '24 Jam', 'Aktif'),
+('Pos Rumah VIP', 'Rumah VIP Setiausaha Kerajaan Johor', 'Johor', '24 Jam', 'Aktif'),
+('Pos UTC', 'Kaunter UTC Pejabat Setiausaha Kerajaan Johor', 'UTC Johor', 'Hari bekerja 07:00-17:00', 'Aktif');
 
 insert into tbl_kategori_insiden (nama_kategori, tahap_keutamaan, penerangan_kategori, kata_kunci_rujukan) values
 ('Pencerobohan', 'High', 'Individu memasuki kawasan tanpa kebenaran', array['pencerobohan','ceroboh','orang asing','masuk tanpa izin']),

@@ -6,7 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "smoke": "node scripts/smoke-test.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

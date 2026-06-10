@@ -64,6 +64,19 @@ API health check:
 http://localhost:3000/api/health
 ```
 
+Readiness check with database connectivity:
+
+```bash
+http://localhost:3000/api/ready
+```
+
+Deployment smoke test:
+
+```bash
+cd backend
+npm run smoke
+```
+
 ## Run Frontend
 
 ```bash
@@ -75,6 +88,16 @@ Open:
 ```bash
 http://localhost:5173
 ```
+
+## Quality Checks
+
+Run the main local verification suite:
+
+```bash
+npm run check
+```
+
+This runs frontend/backend linting, backend syntax checks, smoke-test syntax check, and the production frontend build.
 
 ## Default Login Credentials
 
@@ -104,6 +127,21 @@ Password123!
 - User Management
 - Pos Kawalan Management
 - Notification Page
+
+## Operational Reference
+
+Jumlah anggota pembantu keselamatan bagi setiap syif:
+
+| Hari | Syif | Waktu | Jumlah Anggota |
+| --- | --- | --- | --- |
+| Hari bekerja | Pagi | 07:00 AM - 04:00 PM | 24 orang, termasuk 12 orang syif pentadbiran |
+| Hari bekerja | Petang | 02:45 PM - 11:45 PM | 12 orang |
+| Hari bekerja | Malam | 11:00 PM - 08:00 AM | 12 orang |
+| Hari tidak bekerja | Pagi | 07:00 AM - 04:00 PM | 12 orang |
+| Hari tidak bekerja | Petang | 02:45 PM - 11:45 PM | 12 orang |
+| Hari tidak bekerja | Malam | 11:00 PM - 08:00 AM | 12 orang |
+
+Senarai pos kawalan rasmi dimasukkan dalam `backend/database/seed.sql`.
 
 ## Rule-Based NLP
 
@@ -178,3 +216,7 @@ Base URL: `http://localhost:3000/api`
 - `/tindakan`
 - `/audit`
 - `/notifikasi`
+
+## Deployment
+
+See `DEPLOYMENT.md` for production environment variables, build/start steps, readiness checks, smoke testing, backups, and release checklist.
