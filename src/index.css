@@ -5,47 +5,48 @@
 @tailwind utilities;
 
 :root {
-  --color-bg-page: #0A1628;
-  --color-bg-base: #0C1E35;
-  --color-bg-content: #0F1D2E;
-  --color-bg-elevated: #112547;
-  --color-bg-input: #091320;
-  --color-bg-hover: rgba(255, 255, 255, 0.04);
-  --color-bg-active: rgba(200, 164, 21, 0.08);
+  --color-bg-page: #F5F7FA;
+  --color-bg-base: #FFFFFF;
+  --color-bg-content: #F5F7FA;
+  --color-bg-elevated: #FFFFFF;
+  --color-bg-input: #FFFFFF;
+  --color-bg-hover: #F3F6FA;
+  --color-bg-active: rgba(245, 197, 66, 0.16);
 
-  --color-border-default: rgba(255, 255, 255, 0.06);
-  --color-border-subtle: rgba(255, 255, 255, 0.04);
-  --color-border-strong: #1E3A5F;
-  --color-border-focus: #C8A415;
+  --color-border-default: #E5E7EB;
+  --color-border-subtle: #EEF2F7;
+  --color-border-strong: #D6DFEA;
+  --color-border-focus: #F5C542;
 
-  --color-brand-navy: #1B3D6F;
-  --color-brand-navy-hover: #0E4D92;
-  --color-brand-gold: #C8A415;
-  --color-brand-gold-hover: #E6BC2A;
-  --color-brand-gold-text: #0A1628;
+  --color-brand-navy: #002B5B;
+  --color-brand-navy-hover: #003D7A;
+  --color-brand-dark: #001F3F;
+  --color-brand-gold: #F5C542;
+  --color-brand-gold-hover: #FFD23F;
+  --color-brand-gold-text: #001F3F;
 
-  --color-text-primary: #E8EDF5;
-  --color-text-secondary: #7A9BBE;
-  --color-text-tertiary: #4A6880;
-  --color-text-muted: #2E4A60;
+  --color-text-primary: #1F2937;
+  --color-text-secondary: #4B5563;
+  --color-text-tertiary: #6B7280;
+  --color-text-muted: #9CA3AF;
   --color-text-on-dark: #FFFFFF;
-  --color-text-on-gold: #0A1628;
+  --color-text-on-gold: #001F3F;
 
-  --color-risk-critical: #D93025;
-  --color-risk-critical-bg: #2A0A0A;
-  --color-risk-critical-text: #F08080;
-  --color-risk-high: #E07B00;
-  --color-risk-high-bg: #2A1800;
-  --color-risk-high-text: #F0A84A;
-  --color-risk-medium: #D4A017;
-  --color-risk-medium-bg: #221600;
-  --color-risk-medium-text: #E6C455;
-  --color-risk-low: #1A7F4B;
-  --color-risk-low-bg: #0A2A1A;
-  --color-risk-low-text: #4DB87A;
-  --color-risk-info: #0E7EB5;
-  --color-risk-info-bg: #071E2E;
-  --color-risk-info-text: #62B8D9;
+  --color-risk-critical: #7F1D1D;
+  --color-risk-critical-bg: #FEE2E2;
+  --color-risk-critical-text: #7F1D1D;
+  --color-risk-high: #DC2626;
+  --color-risk-high-bg: #FEF2F2;
+  --color-risk-high-text: #B91C1C;
+  --color-risk-medium: #F59E0B;
+  --color-risk-medium-bg: #FFFBEB;
+  --color-risk-medium-text: #92400E;
+  --color-risk-low: #16A34A;
+  --color-risk-low-bg: #F0FDF4;
+  --color-risk-low-text: #166534;
+  --color-risk-info: #2563EB;
+  --color-risk-info-bg: #EFF6FF;
+  --color-risk-info-text: #1D4ED8;
 
   --color-cat-fire: #D93025;
   --color-cat-intrusion: #6B3FA0;
@@ -59,31 +60,31 @@
   --color-cat-normal: #2E4A60;
   --color-cat-normal-text: #7A9BBE;
 
-  --color-status-approved: #1A7F4B;
-  --color-status-approved-bg: #0A2A1A;
-  --color-status-approved-text: #4DB87A;
-  --color-status-rejected: #D93025;
-  --color-status-rejected-bg: #2A0A0A;
-  --color-status-rejected-text: #E07A7A;
-  --color-status-pending: #E07B00;
-  --color-status-pending-bg: #2A1800;
-  --color-status-pending-text: #F0A84A;
-  --color-status-review: #D4A017;
-  --color-status-review-bg: #221600;
-  --color-status-review-text: #E6C455;
-  --color-status-draft: #2E4A60;
-  --color-status-draft-bg: #0C1E35;
-  --color-status-draft-text: #7A9BBE;
+  --color-status-approved: #16A34A;
+  --color-status-approved-bg: #F0FDF4;
+  --color-status-approved-text: #166534;
+  --color-status-rejected: #DC2626;
+  --color-status-rejected-bg: #FEF2F2;
+  --color-status-rejected-text: #B91C1C;
+  --color-status-pending: #F59E0B;
+  --color-status-pending-bg: #FFFBEB;
+  --color-status-pending-text: #92400E;
+  --color-status-review: #2563EB;
+  --color-status-review-bg: #EFF6FF;
+  --color-status-review-text: #1D4ED8;
+  --color-status-draft: #64748B;
+  --color-status-draft-bg: #F8FAFC;
+  --color-status-draft-text: #475569;
 
-  --color-role-admin: #1B3D6F;
-  --color-role-admin-bg: #112547;
-  --color-role-admin-text: #9DC4E8;
-  --color-role-chief: #0F4D2A;
-  --color-role-chief-bg: #0A2A1A;
-  --color-role-chief-text: #4DB87A;
-  --color-role-guard: #1A1F2E;
-  --color-role-guard-bg: #0C1E35;
-  --color-role-guard-text: #7A9BBE;
+  --color-role-admin: #002B5B;
+  --color-role-admin-bg: #EFF6FF;
+  --color-role-admin-text: #002B5B;
+  --color-role-chief: #0F766E;
+  --color-role-chief-bg: #F0FDFA;
+  --color-role-chief-text: #115E59;
+  --color-role-guard: #4B5563;
+  --color-role-guard-bg: #F3F4F6;
+  --color-role-guard-text: #374151;
 
   --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
   --font-display: 'Space Grotesk', system-ui, sans-serif;
@@ -102,8 +103,8 @@
   --fw-regular: 400;
   --fw-medium: 500;
 
-  --ls-hero: -0.03em;
-  --ls-heading: -0.02em;
+  --ls-hero: 0em;
+  --ls-heading: 0em;
   --ls-body: 0em;
   --ls-label: 0.07em;
   --ls-data: 0em;
@@ -177,7 +178,9 @@
 
 @layer components {
   .app-page {
-    background: var(--color-bg-content);
+    background:
+      radial-gradient(circle at top left, rgba(245, 197, 66, 0.1), transparent 28rem),
+      linear-gradient(180deg, #F8FAFC 0%, var(--color-bg-content) 28rem);
     color: var(--color-text-primary);
   }
 
@@ -189,16 +192,22 @@
   .app-surface {
     background: var(--color-bg-base);
     border-color: var(--color-border-default);
+    animation: surface-in 180ms ease-out;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
   }
 
   .app-elevated {
     background: var(--color-bg-elevated);
     border-color: var(--color-border-default);
+    box-shadow: 0 24px 55px rgba(15, 23, 42, 0.18);
   }
 
   .app-sidebar {
-    background: var(--color-bg-base);
-    border-color: var(--color-border-strong);
+    background:
+      linear-gradient(180deg, var(--color-brand-dark), var(--color-brand-navy)),
+      var(--color-brand-navy);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--color-text-on-dark);
   }
 
   .app-divider {
@@ -206,12 +215,13 @@
   }
 
   .app-row {
-    background: var(--color-bg-base);
+    background: #FFFFFF;
     border-color: var(--color-border-default);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
   }
 
   .app-row-alert {
-    background: var(--color-risk-critical-bg);
+    background: linear-gradient(90deg, var(--color-risk-critical-bg), #FFFFFF);
     border-color: var(--color-risk-critical);
   }
 
@@ -219,35 +229,64 @@
     background: var(--color-bg-input);
     border-color: var(--color-border-default);
     color: var(--color-text-primary);
+    transition: border-color 140ms ease, box-shadow 140ms ease;
   }
 
   .app-input::placeholder {
     color: var(--color-text-tertiary);
   }
 
+  .app-input:focus {
+    border-color: var(--color-brand-gold);
+    box-shadow: 0 0 0 3px rgba(245, 197, 66, 0.25);
+  }
+
   .app-button-primary {
-    background: var(--color-brand-navy);
+    background: linear-gradient(135deg, var(--color-brand-navy), var(--color-brand-dark));
     color: var(--color-text-on-dark);
+    transition: background-color 140ms ease, transform 120ms ease, border-color 140ms ease;
+    box-shadow: 0 10px 18px rgba(0, 43, 91, 0.16);
   }
 
   .app-button-primary:hover {
-    background: var(--color-brand-navy-hover);
+    background: linear-gradient(135deg, var(--color-brand-navy-hover), var(--color-brand-navy));
+    box-shadow: 0 0 0 3px rgba(245, 197, 66, 0.24), 0 10px 18px rgba(0, 43, 91, 0.16);
   }
 
   .app-button-ghost {
-    background: var(--color-bg-base);
-    color: var(--color-text-primary);
-    border-color: var(--color-border-default);
+    background: #FFFFFF;
+    color: var(--color-brand-navy);
+    border-color: rgba(0, 43, 91, 0.22);
+    transition: background-color 140ms ease, transform 120ms ease, border-color 140ms ease;
   }
 
   .app-button-ghost:hover,
   .app-nav:hover {
-    background: var(--color-bg-hover);
+    background: rgba(245, 197, 66, 0.12);
   }
 
   .app-button-danger {
     background: var(--color-status-rejected);
     color: var(--color-text-on-dark);
+    transition: background-color 140ms ease, transform 120ms ease;
+  }
+
+  .app-button-primary:active,
+  .app-button-ghost:active,
+  .app-button-danger:active {
+    transform: scale(0.98);
+  }
+
+  .motion-pop {
+    animation: pop-in 180ms ease-out;
+  }
+
+  .motion-sheet {
+    animation: sheet-in 200ms ease-out;
+  }
+
+  .motion-highlight {
+    animation: highlight-pulse 900ms ease-out;
   }
 
   .app-nav {
@@ -255,14 +294,23 @@
   }
 
   .app-nav-active {
-    background: var(--color-bg-active);
-    color: var(--color-text-primary);
-    border-left: 3px solid var(--color-brand-gold);
+    background: rgba(245, 197, 66, 0.16);
+    color: var(--color-brand-navy);
+    border-left: 4px solid var(--color-brand-gold);
+  }
+
+  .app-sidebar .app-nav {
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .app-sidebar .app-nav-active {
+    color: #FFFFFF;
   }
 
   .brand-mark {
-    background: var(--color-brand-gold);
+    background: linear-gradient(135deg, var(--color-brand-gold), var(--color-brand-gold-hover));
     color: var(--color-text-on-gold);
+    box-shadow: 0 10px 24px rgba(245, 197, 66, 0.24);
   }
 
   .text-primary-token {
@@ -342,5 +390,120 @@
     background: var(--color-status-rejected-bg);
     color: var(--color-status-rejected-text);
     border-color: var(--color-status-rejected);
+  }
+
+  .gov-hero,
+  .login-hero {
+    position: relative;
+    overflow: hidden;
+    background:
+      linear-gradient(135deg, rgba(0, 31, 63, 0.94), rgba(0, 51, 102, 0.86)),
+      linear-gradient(120deg, var(--color-brand-dark), var(--color-brand-navy));
+  }
+
+  .gov-hero::before,
+  .login-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(90deg, rgba(245, 197, 66, 0.18) 0 2px, transparent 2px 100%),
+      linear-gradient(0deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 100%);
+    background-size: 72px 72px;
+    opacity: 0.3;
+  }
+
+  .login-hero {
+    /* Replace this file with a licensed Johor/government/security building image when available. */
+    background:
+      linear-gradient(135deg, rgba(0, 31, 63, 0.92), rgba(0, 43, 91, 0.82)),
+      url('/src/assets/johor-government-bg.jpg'),
+      linear-gradient(120deg, var(--color-brand-dark), var(--color-brand-navy));
+    background-size: cover;
+    background-position: center;
+  }
+
+  .gov-card-title {
+    position: relative;
+    padding-left: 0.85rem;
+  }
+
+  .gov-card-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.15rem;
+    bottom: 0.15rem;
+    width: 4px;
+    border-radius: 999px;
+    background: var(--color-brand-gold);
+  }
+
+  .gov-upload-panel {
+    background: linear-gradient(180deg, #FFFFFF, #F8FAFC);
+    border: 1.5px dashed rgba(0, 43, 91, 0.28);
+  }
+
+  table thead {
+    background: #EFF6FF;
+    color: var(--color-brand-navy);
+  }
+
+  table tbody tr:hover {
+    background: #F8FAFC;
+  }
+}
+
+@keyframes surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes highlight-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(200, 164, 21, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(200, 164, 21, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
   }
 }

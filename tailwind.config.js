@@ -7,6 +7,13 @@ export default {
   darkMode: 'class', // Enable manual dark mode switching via a class
   theme: {
     extend: {
+      colors: {
+        johorNavy: '#002B5B',
+        johorDarkBlue: '#001F3F',
+        johorGold: '#F5C542',
+        govBg: '#F5F7FA',
+        govText: '#1F2937',
+      },
       fontFamily: {
         sans: ['var(--font-ui)'],
         display: ['var(--font-display)'],

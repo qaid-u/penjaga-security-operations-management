@@ -1,4 +1,4 @@
-drop table if exists tbl_audit_trail, tbl_notifikasi, tbl_status_bertugas, tbl_jawapan_checklist, tbl_checklist, tbl_tindakan_susulan, tbl_pengesahan_laporan, tbl_hasil_nlp, tbl_laporan_harian, tbl_kategori_insiden, tbl_pos_kawalan, tbl_pengguna, tbl_peranan cascade;
+drop table if exists tbl_audit_trail, tbl_notifikasi, tbl_status_bertugas, tbl_jawapan_checklist, tbl_checklist, tbl_progress_tindakan, tbl_tindakan_susulan, tbl_pengesahan_laporan, tbl_hasil_nlp, tbl_laporan_harian, tbl_kategori_insiden, tbl_pos_kawalan, tbl_pengguna, tbl_peranan cascade;
 
 create table tbl_peranan (
   id_peranan serial primary key,
@@ -93,6 +93,15 @@ create table tbl_tindakan_susulan (
   tarikh_selesai date,
   catatan_tindakan text,
   tarikh_kemaskini timestamp not null default now()
+);
+
+create table tbl_progress_tindakan (
+  id_progress serial primary key,
+  id_tindakan int not null references tbl_tindakan_susulan(id_tindakan) on delete cascade,
+  id_pengguna int not null references tbl_pengguna(id_pengguna),
+  catatan_progress text not null,
+  tarikh_progress timestamp not null default now(),
+  dilihat_admin boolean not null default false
 );
 
 create table tbl_checklist (

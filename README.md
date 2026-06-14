@@ -127,6 +127,8 @@ Password123!
 - User Management
 - Pos Kawalan Management
 - Notification Page
+- Latihan NLP
+- Import Jadual CSV/PDF
 
 ## Operational Reference
 
@@ -145,6 +147,11 @@ Senarai pos kawalan rasmi dimasukkan dalam `backend/database/seed.sql`.
 
 ## Rule-Based NLP
 
+PENJAGA supports two NLP modes:
+
+- Trained ML model from `backend/ml/model/nlp-model.json`
+- Rule-based fallback using active keywords from `tbl_kategori_insiden`
+
 When a Pengawal Keselamatan submits a daily report, the backend:
 
 1. Cleans the text
@@ -157,6 +164,30 @@ When a Pengawal Keselamatan submits a daily report, the backend:
 8. Generates a short summary
 9. Saves the result into `tbl_hasil_nlp`
 10. Creates a notification for Ketua Pengawal when the risk is High or Critical
+
+Pentadbir Sistem and Ketua Pengawal can tune the active NLP keywords and risk level in the Latihan NLP screen. New reports use the latest saved keyword rules.
+
+## Train NLP Model
+
+Realistic dummy training data is stored in:
+
+```text
+backend/ml/data/nlp-training-samples.json
+```
+
+Train or retrain the local model:
+
+```bash
+npm run train:nlp
+```
+
+The generated model is saved to:
+
+```text
+backend/ml/model/nlp-model.json
+```
+
+Restart the backend after retraining so the server loads the latest model.
 
 Risk levels:
 
@@ -180,11 +211,21 @@ Base URL: `http://localhost:3000/api`
 | PATCH | `/reports/:id/review` | Ketua Pengawal |
 | GET | `/dashboard` | Pentadbir Sistem, Ketua Pengawal |
 | GET | `/guard-dashboard` | Pengawal Keselamatan |
-| GET | `/actions` | Ketua Pengawal |
-| POST | `/actions` | Ketua Pengawal |
-| PATCH | `/actions/:id` | Ketua Pengawal |
-| GET | `/notifications` | Pentadbir Sistem, Ketua Pengawal |
-| PATCH | `/notifications/:id/read` | Pentadbir Sistem, Ketua Pengawal |
+| GET | `/actions` | Pentadbir Sistem, Ketua Pengawal |
+| POST | `/actions` | Pentadbir Sistem |
+| POST | `/actions/:id/progress` | Ketua Pengawal |
+| PATCH | `/actions/:id` | Pentadbir Sistem |
+| GET | `/nlp/:reportId` | Pentadbir Sistem |
+| GET | `/nlp-training` | Pentadbir Sistem |
+| PATCH | `/nlp-training/:id` | Pentadbir Sistem |
+| GET | `/schedules` | All roles, scoped for Pengawal |
+| POST | `/schedules` | Pentadbir Sistem, Ketua Pengawal |
+| POST | `/schedules/import` | Pentadbir Sistem, Ketua Pengawal |
+| PATCH | `/schedules/:id` | Pentadbir Sistem, Ketua Pengawal |
+| PATCH | `/schedules/:id/check-in` | Pengawal Keselamatan |
+| PATCH | `/schedules/:id/check-out` | Pengawal Keselamatan |
+| GET | `/notifications` | All roles, own notifications |
+| PATCH | `/notifications/:id/read` | All roles, own notifications |
 | GET | `/audit` | Pentadbir Sistem |
 | GET | `/users` | Pentadbir Sistem |
 | POST | `/users` | Pentadbir Sistem |
@@ -201,7 +242,10 @@ Base URL: `http://localhost:3000/api`
 - Login as `amir`; submit a report containing `asap` or `terbakar`; confirm NLP shows Critical.
 - Submit a normal report containing `rondaan selesai keadaan terkawal tiada insiden`; confirm Low risk.
 - As `ketua`, approve or reject a submitted report with a comment.
-- As `ketua`, create and update a follow-up action.
+- As `ketua`, approve a High/Critical report and confirm NLP details are hidden.
+- As `ketua`, submit a follow-up progress note without changing official status.
+- As `admin`, view Ketua progress notes and update official follow-up action status.
+- As `admin`, open Analisis NLP and confirm full NLP details are visible.
 - As `admin`, create a user and disable or enable an account.
 - As `admin`, create a new pos kawalan.
 - As `admin`, open Audit Trail and confirm important actions are logged.
