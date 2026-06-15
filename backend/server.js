@@ -378,6 +378,7 @@ async function ensureProgressTable() {
       dilihat_admin boolean not null default false
     )`
   );
+  await pool.query('alter table tbl_laporan_harian add column if not exists perlu_tindakan_susulan boolean not null default false');
 }
 
 async function activeAdminCount(client) {
@@ -507,10 +508,39 @@ app.get('/api/meta', auth, async (req, res) => {
 
 app.get('/api/nlp-training', auth, requireRole(roles.admin), async (req, res) => {
   const result = await pool.query(
-    `select id_kategori_insiden, nama_kategori, tahap_keutamaan, kata_kunci_rujukan, status_kategori
+    `select id_kategori_insiden, nama_kategori, tahap_keutamaan, penerangan_kategori, kata_kunci_rujukan, status_kategori
      from tbl_kategori_insiden order by nama_kategori`
   );
   res.json(result.rows);
+});
+
+app.post('/api/nlp-training', auth, allow(roles.admin), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const keywords = Array.isArray(req.body.kata_kunci_rujukan)
+      ? req.body.kata_kunci_rujukan
+      : String(req.body.kata_kunci_rujukan || '').split(',').map((item) => item.trim()).filter(Boolean);
+    const namaKategori = String(req.body.nama_kategori || '').trim();
+    if (!namaKategori) return res.status(400).json({ message: 'Nama kategori NLP diperlukan' });
+    const result = await client.query(
+      `insert into tbl_kategori_insiden (nama_kategori, tahap_keutamaan, penerangan_kategori, kata_kunci_rujukan, status_kategori)
+       values ($1,$2,$3,$4,$5) returning *`,
+      [
+        namaKategori,
+        req.body.tahap_keutamaan || 'Low',
+        req.body.penerangan_kategori || null,
+        keywords,
+        req.body.status_kategori || 'Aktif',
+      ]
+    );
+    await audit(req, client, 'NLP Training', 'NLP rule created', 'Peraturan kata kunci NLP baharu diwujudkan', result.rows[0].id_kategori_insiden, 'Berjaya', null, result.rows[0]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    if (error.code === '23505') return res.status(409).json({ message: 'Nama kategori NLP sudah wujud' });
+    res.status(500).json({ message: error.message });
+  } finally {
+    client.release();
+  }
 });
 
 app.patch('/api/nlp-training/:id', auth, allow(roles.admin), async (req, res) => {
@@ -519,17 +549,53 @@ app.patch('/api/nlp-training/:id', auth, allow(roles.admin), async (req, res) =>
     const keywords = Array.isArray(req.body.kata_kunci_rujukan)
       ? req.body.kata_kunci_rujukan
       : String(req.body.kata_kunci_rujukan || '').split(',').map((item) => item.trim()).filter(Boolean);
+    const oldRule = (await client.query('select * from tbl_kategori_insiden where id_kategori_insiden = $1', [req.params.id])).rows[0];
     const result = await client.query(
       `update tbl_kategori_insiden
-       set tahap_keutamaan = coalesce($1, tahap_keutamaan),
-           kata_kunci_rujukan = coalesce($2, kata_kunci_rujukan),
-           status_kategori = coalesce($3, status_kategori)
-       where id_kategori_insiden = $4 returning *`,
-      [req.body.tahap_keutamaan || null, keywords.length ? keywords : null, req.body.status_kategori || null, req.params.id]
+       set nama_kategori = coalesce($1, nama_kategori),
+           tahap_keutamaan = coalesce($2, tahap_keutamaan),
+           penerangan_kategori = $3,
+           kata_kunci_rujukan = $4,
+           status_kategori = coalesce($5, status_kategori)
+       where id_kategori_insiden = $6 returning *`,
+      [
+        req.body.nama_kategori ? String(req.body.nama_kategori).trim() : null,
+        req.body.tahap_keutamaan || null,
+        req.body.penerangan_kategori || null,
+        keywords,
+        req.body.status_kategori || null,
+        req.params.id,
+      ]
     );
     if (!result.rows[0]) return res.status(404).json({ message: 'Kategori NLP tidak dijumpai' });
-    await audit(req, client, 'NLP Training', 'NLP rule updated', 'Peraturan kata kunci NLP dikemaskini', req.params.id, 'Berjaya', null, result.rows[0]);
+    await audit(req, client, 'NLP Training', 'NLP rule updated', 'Peraturan kata kunci NLP dikemaskini', req.params.id, 'Berjaya', oldRule, result.rows[0]);
     res.json(result.rows[0]);
+  } catch (error) {
+    if (error.code === '23505') return res.status(409).json({ message: 'Nama kategori NLP sudah wujud' });
+    res.status(500).json({ message: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/nlp-training/:id', auth, allow(roles.admin), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const oldRule = (await client.query('select * from tbl_kategori_insiden where id_kategori_insiden = $1', [req.params.id])).rows[0];
+    if (!oldRule) return res.status(404).json({ message: 'Kategori NLP tidak dijumpai' });
+    const used = Number((await client.query('select count(*) from tbl_laporan_harian where id_kategori_insiden = $1', [req.params.id])).rows[0].count);
+    let result;
+    if (used > 0) {
+      result = await client.query(
+        `update tbl_kategori_insiden set status_kategori = 'Tidak Aktif' where id_kategori_insiden = $1 returning *`,
+        [req.params.id]
+      );
+      await audit(req, client, 'NLP Training', 'NLP rule deactivated', 'Peraturan NLP dinyahaktif kerana sudah digunakan dalam laporan', req.params.id, 'Berjaya', oldRule, result.rows[0]);
+      return res.json({ deleted: false, deactivated: true, rule: result.rows[0] });
+    }
+    result = await client.query('delete from tbl_kategori_insiden where id_kategori_insiden = $1 returning *', [req.params.id]);
+    await audit(req, client, 'NLP Training', 'NLP rule deleted', 'Peraturan NLP dipadam', req.params.id, 'Berjaya', oldRule, null);
+    res.json({ deleted: true, deactivated: false, rule: result.rows[0] });
   } finally {
     client.release();
   }
@@ -707,12 +773,16 @@ app.post('/api/reports', auth, allow(roles.guard), upload.single('lampiran_fail'
 app.patch('/api/reports/:id/review', auth, allow(roles.chief), async (req, res) => {
   const client = await pool.connect();
   try {
-    const { status, comment } = req.body;
+    const { status, comment, requiresFollowUp } = req.body;
     const statusMap = { approved: 'Diluluskan', rejected: 'Ditolak' };
     if (!statusMap[status]) return res.status(400).json({ message: 'Status semakan tidak sah' });
     await client.query('begin');
     const oldReport = (await client.query('select * from tbl_laporan_harian where id_laporan = $1', [req.params.id])).rows[0];
-    const report = await client.query('update tbl_laporan_harian set status_laporan = $1, tarikh_kemaskini = now() where id_laporan = $2 returning *', [statusMap[status], req.params.id]);
+    const needsFollowUp = status === 'approved' && Boolean(requiresFollowUp);
+    const report = await client.query(
+      'update tbl_laporan_harian set status_laporan = $1, perlu_tindakan_susulan = $2, tarikh_kemaskini = now() where id_laporan = $3 returning *',
+      [statusMap[status], needsFollowUp, req.params.id]
+    );
     await client.query('insert into tbl_pengesahan_laporan (id_laporan, id_pengguna_pengesah, status_pengesahan, catatan_pengesahan) values ($1,$2,$3,$4)', [req.params.id, req.user.id_pengguna, statusMap[status], comment || null]);
     await client.query(
       `insert into tbl_notifikasi (id_pengguna, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan)
@@ -727,7 +797,7 @@ app.patch('/api/reports/:id/review', auth, allow(roles.chief), async (req, res) 
         status === 'approved' ? 'Low' : 'Medium',
       ]
     );
-    if (status === 'approved' && ['High', 'Critical'].includes(oldReport.tahap_risiko)) {
+    if (needsFollowUp) {
       await client.query(
         `insert into tbl_notifikasi (id_pengguna, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan)
          select id_pengguna, $1, $2, $3, $4
@@ -735,7 +805,7 @@ app.patch('/api/reports/:id/review', auth, allow(roles.chief), async (req, res) 
          where r.nama_peranan = $5`,
         [
           'Tindakan susulan diperlukan',
-          `${oldReport.tajuk_laporan} telah diluluskan dan memerlukan tindakan susulan kerana risiko ${oldReport.tahap_risiko}.`,
+          `${oldReport.tajuk_laporan} telah diluluskan dan Ketua menetapkan tindakan susulan diperlukan.`,
           'Tindakan Susulan',
           oldReport.tahap_risiko,
           roles.admin,
@@ -779,34 +849,6 @@ app.get('/api/actions', auth, allow(roles.admin, roles.chief), async (req, res) 
      order by t.tarikh_kemaskini desc`
   );
   res.json(result.rows);
-});
-
-app.get('/api/actions/export.csv', auth, allow(roles.admin, roles.chief), async (req, res) => {
-  const result = await pool.query(
-    `select t.id_tindakan, l.tajuk_laporan, l.tahap_risiko, l.status_laporan, p.nama_penuh, pos.nama_pos,
-      t.pegawai_bertanggungjawab, t.tindakan_diambil, t.status_tindakan, t.tahap_keutamaan,
-      t.tarikh_mula, t.tarikh_selesai, t.catatan_tindakan
-     from tbl_tindakan_susulan t
-     join tbl_laporan_harian l on l.id_laporan = t.id_laporan
-     join tbl_pengguna p on p.id_pengguna = l.id_pengguna
-     join tbl_pos_kawalan pos on pos.id_pos = l.id_pos
-     order by t.tarikh_kemaskini desc`
-  );
-  sendCsv(res, 'tindakan-susulan.csv', result.rows, [
-    { key: 'id_tindakan', label: 'ID' },
-    { key: 'tajuk_laporan', label: 'Laporan' },
-    { key: 'tahap_risiko', label: 'Risiko Laporan' },
-    { key: 'status_laporan', label: 'Status Laporan' },
-    { key: 'nama_penuh', label: 'Pengawal' },
-    { key: 'nama_pos', label: 'Pos' },
-    { key: 'pegawai_bertanggungjawab', label: 'Pegawai' },
-    { key: 'tindakan_diambil', label: 'Tindakan' },
-    { key: 'status_tindakan', label: 'Status' },
-    { key: 'tahap_keutamaan', label: 'Keutamaan' },
-    { key: 'tarikh_mula', label: 'Tarikh Mula' },
-    { key: 'tarikh_selesai', label: 'Tarikh Selesai' },
-    { key: 'catatan_tindakan', label: 'Catatan' },
-  ]);
 });
 
 app.post('/api/actions', auth, allow(roles.admin), async (req, res) => {
@@ -1149,18 +1191,20 @@ app.get('/api/audit', auth, allow(roles.admin), async (req, res) => {
   const client = await pool.connect();
   try {
     await audit(req, client, 'Audit Trail', 'Audit trail viewed', 'Audit trail dilihat');
-    const { user, module, activity, date, status } = req.query;
+    const { user, role, pos, module, activity, date, status } = req.query;
     const result = await client.query(
       `select a.*, p.nama_penuh, r.nama_peranan from tbl_audit_trail a
        left join tbl_pengguna p on p.id_pengguna = a.id_pengguna
        left join tbl_peranan r on r.id_peranan = p.id_peranan
        where ($1::text is null or p.nama_penuh ilike '%' || $1 || '%' or p.nama_pengguna ilike '%' || $1 || '%')
-         and ($2::text is null or a.modul_sistem ilike '%' || $2 || '%')
-         and ($3::text is null or a.jenis_aktiviti ilike '%' || $3 || '%' or a.penerangan_aktiviti ilike '%' || $3 || '%')
-         and ($4::date is null or a.tarikh_masa_aktiviti::date = $4)
-         and ($5::text is null or a.status_aktiviti = $5)
+         and ($2::text is null or r.nama_peranan = $2)
+         and ($3::text is null or a.penerangan_aktiviti ilike '%' || $3 || '%' or a.nilai_lama::text ilike '%' || $3 || '%' or a.nilai_baharu::text ilike '%' || $3 || '%')
+         and ($4::text is null or a.modul_sistem ilike '%' || $4 || '%')
+         and ($5::text is null or a.jenis_aktiviti ilike '%' || $5 || '%' or a.penerangan_aktiviti ilike '%' || $5 || '%')
+         and ($6::date is null or a.tarikh_masa_aktiviti::date = $6)
+         and ($7::text is null or a.status_aktiviti = $7)
        order by a.tarikh_masa_aktiviti desc limit 200`,
-      [user || null, module || null, activity || null, date || null, status || null]
+      [user || null, role || null, pos || null, module || null, activity || null, date || null, status || null]
     );
     res.json(result.rows);
   } finally {

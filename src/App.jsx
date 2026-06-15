@@ -119,9 +119,9 @@ function Badge({ children, tone = 'default' }) {
   return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[var(--fs-label)] font-medium ${tones[tone] || tones.default}`}>{children}</span>;
 }
 
-function Card({ title, children, action }) {
+function Card({ title, children, action, className = '' }) {
   return (
-    <section className="app-surface rounded-2xl border p-5">
+    <section className={`app-surface rounded-2xl border p-5 ${className}`}>
       {(title || action) && (
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className={title ? 'gov-card-title text-[var(--color-brand-navy)]' : ''}>{title}</h2>
@@ -163,23 +163,31 @@ function Button({ children, variant = 'primary', ...props }) {
   return <button {...props} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60 ${variants[variant]} ${props.className || ''}`}>{children}</button>;
 }
 
+function ChecklistChoice({ active, children, onClick }) {
+  return (
+    <button type="button" onClick={onClick} className={`min-h-10 rounded-lg border px-3 py-2 text-sm font-medium ${active ? 'app-button-primary' : 'app-button-ghost'}`}>
+      {active ? '✓ ' : ''}{children}
+    </button>
+  );
+}
+
 function PageHeader({ title, description, action }) {
   return (
-    <div className="gov-hero mb-5 rounded-2xl border border-[rgba(255,255,255,0.16)] p-5 shadow-lg sm:p-6">
-      <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="label-caps text-[rgba(255,255,255,0.72)]">Portal Operasi Keselamatan</p>
-          <h1 className="mt-2 text-white">{title}</h1>
-          {description && <p className="mt-2 max-w-3xl text-sm text-[rgba(255,255,255,0.82)]">{description}</p>}
+    <div className="app-surface mb-5 rounded-2xl border p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="border-l-4 border-[var(--color-brand-gold)] pl-4">
+          <p className="label-caps">PENJAGA</p>
+          <h1 className="mt-1 text-[var(--color-brand-navy)]">{title}</h1>
+          {description && <p className="mt-2 max-w-3xl text-sm">{description}</p>}
         </div>
-        {action && <div className="flex flex-wrap gap-2">{action}</div>}
+        {action && <div className="flex flex-wrap gap-2 sm:justify-end">{action}</div>}
       </div>
     </div>
   );
 }
 
 function StatCard({ label, value }) {
-  return <Card><div className="flex items-start justify-between gap-3"><div><p className="label-caps">{label}</p><p className="text-kpi mt-3">{value}</p><p className="mt-2 text-xs">Ringkasan operasi semasa</p></div><span className="brand-mark flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"><Shield size={18} /></span></div></Card>;
+  return <Card><p className="label-caps">{label}</p><p className="text-kpi mt-3">{value}</p></Card>;
 }
 
 function LoadingState({ message = 'Memuatkan data...' }) {
@@ -287,31 +295,23 @@ function Login({ auth }) {
 
   return (
     <main className="login-hero min-h-screen">
-      <div className="relative z-10 mx-auto grid min-h-screen max-w-6xl items-center gap-8 px-4 py-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="text-white">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="brand-mark flex h-12 w-12 items-center justify-center rounded-xl"><Shield size={24} /></div>
-            <div>
-              <h1 className="text-white">PENJAGA</h1>
-            </div>
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          <div className="mb-6 text-center text-white">
+            <div className="brand-mark mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"><Shield size={26} /></div>
+            <p className="label-caps text-[rgba(255,255,255,0.72)]">Portal Operasi Keselamatan</p>
+            <h1 className="mt-2 text-white">PENJAGA</h1>
+            <p className="mt-2 text-sm text-[rgba(255,255,255,0.78)]">Sistem Pengurusan Operasi Keselamatan</p>
           </div>
-          <p className="max-w-2xl text-xl font-medium text-white">Sistem Pengurusan Operasi Keselamatan Berasaskan Kepintaran Buatan</p>
-          <p className="mt-3 max-w-2xl text-sm text-[rgba(255,255,255,0.78)]">Portal rasmi untuk laporan harian, jadual bertugas, semakan ketua, tindakan susulan dan analisis NLP keselamatan.</p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-[rgba(255,255,255,0.18)] bg-white/10 p-4 text-sm backdrop-blur"><p className="font-medium text-white">Laporan</p><p className="text-[rgba(255,255,255,0.76)]">Semakan harian dan bukti bertugas.</p></div>
-            <div className="rounded-2xl border border-[rgba(255,255,255,0.18)] bg-white/10 p-4 text-sm backdrop-blur"><p className="font-medium text-white">Jadual</p><p className="text-[rgba(255,255,255,0.76)]">Penugasan syif dan pos kawalan.</p></div>
-            <div className="rounded-2xl border border-[rgba(255,255,255,0.18)] bg-white/10 p-4 text-sm backdrop-blur"><p className="font-medium text-white">Tindakan</p><p className="text-[rgba(255,255,255,0.76)]">Susulan insiden berisiko tinggi.</p></div>
-          </div>
-        </section>
-        <Card title="Log Masuk Sistem">
-          <form onSubmit={submit} className="space-y-4">
-            <Badge>Portal Rasmi Operasi Keselamatan</Badge>
-            <Field label="Nama pengguna"><Input value={username} onChange={(e) => setUsername(e.target.value)} required autoComplete="username" /></Field>
-            <Field label="Kata laluan"><PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required /></Field>
-            {error && <p className="status-error rounded-md border px-3 py-2 text-sm">{error}</p>}
-            <Button className="w-full" disabled={auth.loading}>Log Masuk</Button>
-          </form>
-        </Card>
+          <Card title="Log Masuk Sistem">
+            <form onSubmit={submit} className="space-y-4">
+              <Field label="Nama pengguna"><Input value={username} onChange={(e) => setUsername(e.target.value)} required autoComplete="username" /></Field>
+              <Field label="Kata laluan"><PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required /></Field>
+              {error && <p className="status-error rounded-md border px-3 py-2 text-sm">{error}</p>}
+              <Button className="w-full" disabled={auth.loading}>Log Masuk</Button>
+            </form>
+          </Card>
+        </div>
       </div>
     </main>
   );
@@ -325,7 +325,7 @@ function Shell({ auth, children }) {
     { to: '/pengawal', label: 'Dashboard', icon: LayoutDashboard, roles: [ROLE.guard] },
     { to: '/jadual', label: 'Jadual Bertugas', icon: CalendarDays, roles: [] },
     { to: '/laporan', label: 'Hantar Laporan', icon: FileText, roles: [ROLE.guard] },
-    { to: '/semakan', label: 'Semakan Laporan', icon: FileCheck, roles: [ROLE.chief] },
+    { to: '/semakan', label: 'Semakan Laporan', icon: FileCheck, roles: [ROLE.admin, ROLE.chief] },
     { to: '/tindakan', label: 'Tindakan Susulan', icon: ClipboardCheck, roles: [ROLE.admin, ROLE.chief] },
     { to: '/nlp', label: 'Analisis NLP', icon: Brain, roles: [ROLE.admin] },
     { to: '/audit', label: 'Audit Trail', icon: History, roles: [ROLE.admin] },
@@ -348,7 +348,7 @@ function Shell({ auth, children }) {
         <div className="flex min-h-20 items-center justify-between border-b border-white/10 px-5">
           <div className="flex items-center gap-3 font-medium">
             <span className="brand-mark flex h-10 w-10 items-center justify-center rounded-xl"><Shield size={20} /></span>
-            <span><span className="block text-white">PENJAGA</span><span className="block text-[11px] font-normal text-white/60">Operasi Keselamatan AI</span></span>
+            <span><span className="block text-white">PENJAGA</span><span className="block text-[11px] font-normal text-white/60">Operasi Keselamatan</span></span>
           </div>
           <button className="lg:hidden" onClick={() => setOpen(false)}><X size={20} /></button>
         </div>
@@ -364,22 +364,23 @@ function Shell({ auth, children }) {
         </nav>
       </aside>
       <div className="min-w-0 flex-1">
-        <header className="app-surface app-divider flex min-h-16 items-center justify-between border-b px-4 lg:px-6">
-          <button className="lg:hidden" onClick={() => setOpen(true)}><Menu size={22} /></button>
+        <header className="app-surface app-divider flex min-h-16 items-center gap-3 border-b px-3 sm:px-4 lg:px-6">
+          <button className="shrink-0 lg:hidden" onClick={() => setOpen(true)} aria-label="Buka menu"><Menu size={22} /></button>
           <div className="hidden min-w-0 lg:block">
-            <p className="label-caps">Sistem Pengurusan Operasi Keselamatan Berasaskan Kepintaran Buatan</p>
-            <p className="font-medium text-primary-token">Portal Pentadbiran PENJAGA</p>
+            <p className="label-caps">Sistem Pengurusan Operasi Keselamatan</p>
+            <p className="font-medium text-primary-token">Panel Operasi PENJAGA</p>
           </div>
-          <div className="ml-auto flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-medium text-primary-token">{auth.user?.nama_penuh}</p>
-              <Badge>{auth.user?.nama_peranan}</Badge>
+          <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
+            <div className="min-w-0 text-right">
+              <p className="truncate text-sm font-medium text-primary-token">{auth.user?.nama_penuh}</p>
+              <span className="block truncate text-[11px] font-medium text-tertiary-token sm:hidden">{auth.user?.nama_peranan}</span>
+              <span className="hidden sm:inline-flex"><Badge>{auth.user?.nama_peranan}</Badge></span>
             </div>
-            <Button variant="ghost" onClick={doLogout}><LogOut size={16} /> Logout</Button>
+            <Button variant="ghost" onClick={doLogout} className="min-h-10 shrink-0 px-3" aria-label="Logout"><LogOut size={16} /><span className="hidden sm:inline">Logout</span></Button>
           </div>
         </header>
-        <main className="app-page mx-auto min-h-[calc(100vh-7.5rem)] max-w-7xl p-4 lg:p-6">{children}</main>
-        <footer className="app-surface app-divider border-t px-4 py-4 text-center text-sm text-tertiary-token lg:px-6">PENJAGA © 2026 | Sistem Pengurusan Operasi Keselamatan</footer>
+        <main className="app-page mx-auto min-h-[calc(100vh-7.5rem)] max-w-screen-2xl p-4 lg:p-6">{children}</main>
+        <footer className="app-surface app-divider border-t px-4 py-4 text-center text-sm text-tertiary-token lg:px-6">PENJAGA (c) 2026 | Sistem Pengurusan Operasi Keselamatan</footer>
       </div>
       <nav className="app-surface fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t px-1 py-2 lg:hidden">
         {mobileNav.map((item) => {
@@ -387,7 +388,7 @@ function Shell({ auth, children }) {
           return (
             <NavLink key={item.to} to={item.to} className={({ isActive }) => `flex min-h-14 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-medium ${isActive ? 'app-nav-active' : 'app-nav'}`}>
               <Icon size={18} />
-              <span>{item.label.replace('Dashboard Saya', 'Dashboard').replace('Jadual Bertugas', 'Jadual').replace('Laporan Harian', 'Laporan').replace('Semakan Laporan', 'Semakan').replace('Tindakan Susulan', 'Tindakan').replace('Audit Trail', 'Audit').replace('Pos Kawalan', 'Pos')}</span>
+              <span className="max-w-full truncate px-1">{item.label.replace('Dashboard Saya', 'Dashboard').replace('Jadual Bertugas', 'Jadual').replace('Hantar Laporan', 'Laporan').replace('Laporan Harian', 'Laporan').replace('Semakan Laporan', 'Semakan').replace('Tindakan Susulan', 'Tindakan').replace('Audit Trail', 'Audit').replace('Pengurusan Pengguna', 'Pengguna').replace('Pos Kawalan', 'Pos')}</span>
             </NavLink>
           );
         })}
@@ -433,29 +434,29 @@ function Dashboard() {
     ['Laporan dengan bukti', data.cards.laporan_berlampiran],
   ];
   return (
-    <div className="space-y-5">
+    <div className="desktop-ops space-y-5">
       <PageHeader title="Dashboard Analitik" description="Pantau laporan, risiko, tindakan dan jadual operasi keselamatan." />
       <FilterPanel>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-[180px_1fr_180px]">
           <Input type="date" value={filters.date} onChange={(e) => setFilters({ ...filters, date: e.target.value })} />
           <Select value={filters.location} onChange={(e) => setFilters({ ...filters, location: e.target.value })}><option value="">Semua lokasi</option>{meta.posts.map((p) => <option key={p.id_pos} value={p.id_pos}>{p.nama_pos}</option>)}</Select>
           <Select value={filters.risk} onChange={(e) => setFilters({ ...filters, risk: e.target.value })}><option value="">Semua risiko</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></Select>
         </div>
       </FilterPanel>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">{cards.map(([label, value]) => <StatCard key={label} label={label} value={value} />)}</div>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-[1fr_1fr_0.9fr]">
         <Card title="Kategori Insiden">
-          <ResponsiveContainer width="100%" height={260}><BarChart data={data.byCategory}><CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" /><XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} /><YAxis allowDecimals={false} tick={{ fill: 'var(--color-text-secondary)' }} /><Tooltip /><Bar dataKey="value" fill="var(--color-brand-navy)" /></BarChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={240}><BarChart data={data.byCategory}><CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" /><XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} /><YAxis allowDecimals={false} tick={{ fill: 'var(--color-text-secondary)' }} /><Tooltip /><Bar dataKey="value" fill="var(--color-brand-navy)" /></BarChart></ResponsiveContainer>
         </Card>
         <Card title="Taburan Risiko">
-          <ResponsiveContainer width="100%" height={260}><PieChart><Pie data={data.byRisk} dataKey="value" nameKey="name" outerRadius={90} label>{data.byRisk.map((entry) => <Cell key={entry.name} fill={riskColors[entry.name] || 'var(--color-risk-info)'} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={240}><PieChart><Pie data={data.byRisk} dataKey="value" nameKey="name" outerRadius={86} label>{data.byRisk.map((entry) => <Cell key={entry.name} fill={riskColors[entry.name] || 'var(--color-risk-info)'} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer>
         </Card>
-        <Card title="Trend Laporan Mengikut Tarikh">
-          <ResponsiveContainer width="100%" height={260}><LineChart data={data.trend}><CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" /><XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} /><YAxis allowDecimals={false} tick={{ fill: 'var(--color-text-secondary)' }} /><Tooltip /><Line type="monotone" dataKey="laporan" stroke="var(--color-brand-gold)" strokeWidth={2} /></LineChart></ResponsiveContainer>
+        <Card title="Trend Laporan Mengikut Tarikh" className="xl:col-span-1">
+          <ResponsiveContainer width="100%" height={240}><LineChart data={data.trend}><CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" /><XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} /><YAxis allowDecimals={false} tick={{ fill: 'var(--color-text-secondary)' }} /><Tooltip /><Line type="monotone" dataKey="laporan" stroke="var(--color-brand-gold)" strokeWidth={2} /></LineChart></ResponsiveContainer>
         </Card>
-        <Card title="Ringkasan Kata Kunci NLP">
+        <Card title="Ringkasan Kata Kunci NLP" className="xl:col-span-3">
           <div className="flex flex-wrap gap-2">{data.keywords.map((item) => <Badge key={item.keyword}>{item.keyword} ({item.value})</Badge>)}</div>
-          <div className="mt-5 space-y-2">{data.latest.map((item) => <div key={item.id_laporan} className="app-row flex items-center justify-between rounded-md border p-3 text-sm"><span>{item.tajuk_laporan} - {item.nama_pos}</span><Badge tone={item.tahap_risiko}>{item.tahap_risiko}</Badge></div>)}</div>
+          <div className="mt-5 grid gap-2 xl:grid-cols-2">{data.latest.map((item) => <div key={item.id_laporan} className="app-row flex items-center justify-between rounded-md border p-3 text-sm"><span>{item.tajuk_laporan} - {item.nama_pos}</span><Badge tone={item.tahap_risiko}>{item.tahap_risiko}</Badge></div>)}</div>
         </Card>
       </div>
     </div>
@@ -548,6 +549,7 @@ function DailyReport() {
       notifySuccess('Gambar bukti ditangkap');
     }, 'image/jpeg', 0.9);
   };
+  const getChecklistValue = (id) => form.checklist.find((item) => item.id_checklist === id);
   const setChecklist = (id, key, value) => setForm((prev) => ({ ...prev, checklist: [...prev.checklist.filter((i) => i.id_checklist !== id), { ...(prev.checklist.find((i) => i.id_checklist === id) || { id_checklist: id, jawapan: 'Ya' }), [key]: value }] }));
   const submit = async (event) => {
     event.preventDefault();
@@ -590,7 +592,19 @@ function DailyReport() {
           <Field label="Kandungan laporan"><Textarea required rows={6} value={form.kandungan_laporan || ''} onChange={(e) => setForm({ ...form, kandungan_laporan: e.target.value })} /></Field>
           <div className="space-y-2">
             <p className="label-caps">Bahagian 3: Checklist</p>
-            {meta.checklist.map((item) => <div key={item.id_checklist} className="app-row grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_120px_1fr]"><span className="text-sm">{item.nama_checklist}</span><Select onChange={(e) => setChecklist(item.id_checklist, 'jawapan', e.target.value)}><option>Ya</option><option>Tidak</option><option>Tidak Berkaitan</option></Select><Input placeholder="Catatan" onChange={(e) => setChecklist(item.id_checklist, 'catatan', e.target.value)} /></div>)}
+            <p className="text-sm">Tekan pilihan untuk setiap pemeriksaan. Item yang belum disentuh akan dianggap “Ya” semasa dihantar.</p>
+            {meta.checklist.map((item) => {
+              const current = getChecklistValue(item.id_checklist)?.jawapan || 'Ya';
+              return (
+                <div key={item.id_checklist} className="app-row grid gap-3 rounded-md border p-3">
+                  <span className="text-sm font-medium text-primary-token">{item.nama_checklist}</span>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {['Ya', 'Tidak', 'Tidak Berkaitan'].map((answer) => <ChecklistChoice key={answer} active={current === answer} onClick={() => setChecklist(item.id_checklist, 'jawapan', answer)}>{answer}</ChecklistChoice>)}
+                  </div>
+                  <Input placeholder="Catatan jika perlu" value={getChecklistValue(item.id_checklist)?.catatan || ''} onChange={(e) => setChecklist(item.id_checklist, 'catatan', e.target.value)} />
+                </div>
+              );
+            })}
           </div>
           <div className="gov-upload-panel space-y-3 rounded-2xl p-4">
             <p className="label-caps">Bahagian 4: Lampiran bukti</p>
@@ -635,51 +649,97 @@ function DailyReport() {
 function ReportDetailContent({ detail }) {
   if (!detail) return null;
   return (
-    <div className="space-y-4 text-sm">
-      <div>
-        <h3>{detail.report.tajuk_laporan}</h3>
-        <div className="mt-1 flex flex-wrap gap-2">
-          <Badge tone={statusTone(detail.report.status_laporan)}>{detail.report.status_laporan}</Badge>
-          <Badge tone={detail.report.tahap_risiko}>{detail.report.tahap_risiko}</Badge>
+    <div className="report-document space-y-5 text-sm">
+      <div className="border-b pb-4">
+        <p className="label-caps">Dokumen Laporan Harian</p>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-[var(--color-brand-navy)]">{detail.report.tajuk_laporan}</h2>
+            <p className="text-data">No. Laporan: {detail.report.id_laporan}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge tone={statusTone(detail.report.status_laporan)}>{detail.report.status_laporan}</Badge>
+            <Badge tone={detail.report.tahap_risiko}>{detail.report.tahap_risiko}</Badge>
+          </div>
         </div>
-        <p className="mt-2">{detail.report.nama_penuh} - {detail.report.nama_pos} - {detail.report.syif}</p>
-        <p className="mt-2">{detail.report.kandungan_laporan}</p>
-        {detail.report.lampiran_fail && <a className="text-primary-token mt-2 inline-flex items-center gap-1 font-medium underline" href={`${API_ORIGIN}${detail.report.lampiran_fail}`} target="_blank" rel="noreferrer"><Paperclip size={14} /> Buka lampiran bukti</a>}
       </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="document-field"><span>Pengawal</span><strong>{detail.report.nama_penuh || '-'}</strong></div>
+        <div className="document-field"><span>Pos Kawalan</span><strong>{detail.report.nama_pos || '-'}</strong></div>
+        <div className="document-field"><span>Syif</span><strong>{detail.report.syif || '-'}</strong></div>
+        <div className="document-field"><span>Tarikh / Masa</span><strong>{detail.report.tarikh_laporan?.slice(0, 10) || '-'} {detail.report.masa_laporan || ''}</strong></div>
+      </div>
+
+      <section>
+        <p className="document-section-title">Kandungan Laporan</p>
+        <div className="document-box whitespace-pre-wrap">{detail.report.kandungan_laporan}</div>
+        {detail.report.lampiran_fail && <a className="text-primary-token mt-3 inline-flex items-center gap-1 font-medium underline" href={`${API_ORIGIN}${detail.report.lampiran_fail}`} target="_blank" rel="noreferrer"><Paperclip size={14} /> Buka lampiran bukti</a>}
+      </section>
+
       <ReportLifecycle report={detail.report} actions={detail.actions} />
-      {detail.report.kategori_dikesan && <div className="app-row rounded-md border p-3">
-        <p className="font-medium text-primary-token">Analisis NLP</p>
-        <p>Kategori: {detail.report.kategori_dikesan || '-'}</p>
-        <p>Skor risiko: <span className="text-data">{detail.report.skor_risiko ?? '-'}</span> - <Badge tone={detail.report.tahap_risiko}>{detail.report.tahap_risiko}</Badge></p>
-        <p>Kata kunci: {(detail.report.kata_kunci_dikesan || []).join(', ') || '-'}</p>
-        <p>Keyakinan: {Number(detail.report.tahap_keyakinan || 0).toFixed(2)}</p>
-      </div>}
-      <div>
-        <p className="mb-2 font-medium text-primary-token">Checklist</p>
-        {detail.checklist.length ? detail.checklist.map((item) => <div key={item.id_jawapan} className="app-row mb-2 rounded-md border p-3"><span className="font-medium text-primary-token">{item.nama_checklist}</span><p>{item.jawapan}{item.catatan ? ` - ${item.catatan}` : ''}</p></div>) : <p>Tiada checklist direkodkan.</p>}
-      </div>
-      <div>
-        <p className="mb-2 font-medium text-primary-token">Sejarah Semakan</p>
-        {detail.reviews.length ? detail.reviews.map((item) => <div key={item.id_pengesahan} className="app-row mb-2 rounded-md border p-3"><span className="font-medium text-primary-token">{item.status_pengesahan}</span><p>{item.catatan_pengesahan || '-'}</p><p className="text-data">{item.nama_penuh} - {new Date(item.tarikh_pengesahan).toLocaleString()}</p></div>) : <p>Belum disemak.</p>}
-      </div>
-      <div>
-        <p className="mb-2 font-medium text-primary-token">Tindakan Susulan</p>
-        {detail.actions.length ? detail.actions.map((item) => <div key={item.id_tindakan} className="app-row mb-2 rounded-md border p-3"><span className="font-medium text-primary-token">{item.tahap_keutamaan}</span><p>{item.tindakan_diambil}</p><p className="text-data">{item.pegawai_bertanggungjawab} - {item.status_tindakan}</p></div>) : <p>Tiada tindakan susulan.</p>}
-      </div>
+
+      {detail.report.kategori_dikesan && (
+        <section>
+          <p className="document-section-title">Analisis NLP</p>
+          <div className="grid gap-3 md:grid-cols-4">
+            <div className="document-field"><span>Kategori</span><strong>{detail.report.kategori_dikesan || '-'}</strong></div>
+            <div className="document-field"><span>Skor Risiko</span><strong>{detail.report.skor_risiko ?? '-'}</strong></div>
+            <div className="document-field"><span>Tahap Risiko</span><Badge tone={detail.report.tahap_risiko}>{detail.report.tahap_risiko}</Badge></div>
+            <div className="document-field"><span>Keyakinan</span><strong>{Number(detail.report.tahap_keyakinan || 0).toFixed(2)}</strong></div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">{(detail.report.kata_kunci_dikesan || []).length ? detail.report.kata_kunci_dikesan.map((keyword) => <Badge key={keyword}>{keyword}</Badge>) : <Badge>Tiada kata kunci</Badge>}</div>
+        </section>
+      )}
+
+      <section>
+        <p className="document-section-title">Checklist Pemeriksaan</p>
+        {detail.checklist.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead><tr><th className="py-2">Item</th><th>Jawapan</th><th>Catatan</th></tr></thead>
+              <tbody>{detail.checklist.map((item) => <tr key={item.id_jawapan} className="app-divider border-b"><td className="py-2">{item.nama_checklist}</td><td>{item.jawapan}</td><td>{item.catatan || '-'}</td></tr>)}</tbody>
+            </table>
+          </div>
+        ) : <p>Tiada checklist direkodkan.</p>}
+      </section>
+
+      <section>
+        <p className="document-section-title">Sejarah Semakan</p>
+        {detail.reviews.length ? detail.reviews.map((item) => <div key={item.id_pengesahan} className="document-box mb-2"><strong>{item.status_pengesahan}</strong><p>{item.catatan_pengesahan || '-'}</p><p className="text-data">{item.nama_penuh} - {new Date(item.tarikh_pengesahan).toLocaleString()}</p></div>) : <p>Belum disemak.</p>}
+      </section>
+
+      <section>
+        <p className="document-section-title">Tindakan Susulan</p>
+        {detail.actions.length ? detail.actions.map((item) => <div key={item.id_tindakan} className="document-box mb-2"><div className="flex flex-wrap gap-2"><Badge tone={item.tahap_keutamaan}>{item.tahap_keutamaan}</Badge><Badge tone={statusTone(item.status_tindakan)}>{item.status_tindakan}</Badge></div><p className="mt-2">{item.tindakan_diambil}</p><p className="text-data">{item.pegawai_bertanggungjawab}</p></div>) : <p>Tiada tindakan susulan.</p>}
+      </section>
     </div>
   );
 }
 
-function ReviewReports() {
+function ReviewReports({ auth }) {
+  const canReviewReports = auth.user?.nama_peranan === ROLE.chief;
   const [reports, setReports] = useState([]);
   const [comments, setComments] = useState({});
+  const [followUpFlags, setFollowUpFlags] = useState({});
+  const [pinnedReports, setPinnedReports] = useState([]);
   const [detail, setDetail] = useState(null);
   const [confirmReview, setConfirmReview] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('Dihantar');
+  const [reviewFilters, setReviewFilters] = useState({ status: 'Dihantar', search: '', post: '', shift: '', risk: '', date: '' });
   const navigate = useNavigate();
   const load = useCallback(() => api.get('/reports').then((res) => setReports(res.data)), []);
   useEffect(() => { load(); }, [load]);
-  const visibleReports = reports.filter((report) => statusFilter === 'Semua' || report.status_laporan === statusFilter);
+  const postOptions = [...new Set(reports.map((report) => report.nama_pos).filter(Boolean))].sort();
+  const visibleReports = reports.filter((report) => {
+    const search = reviewFilters.search.trim().toLowerCase();
+    const matchesSearch = !search || [report.tajuk_laporan, report.nama_penuh, report.nama_pos, report.kandungan_laporan].some((value) => String(value || '').toLowerCase().includes(search));
+    const matchesStatus = reviewFilters.status === 'Semua' || report.status_laporan === reviewFilters.status;
+    const matchesPost = !reviewFilters.post || report.nama_pos === reviewFilters.post;
+    const matchesShift = !reviewFilters.shift || report.syif === reviewFilters.shift;
+    const matchesRisk = !reviewFilters.risk || report.tahap_risiko === reviewFilters.risk;
+    const matchesDate = !reviewFilters.date || report.tarikh_laporan?.slice(0, 10) === reviewFilters.date;
+    return matchesSearch && matchesStatus && matchesPost && matchesShift && matchesRisk && matchesDate;
+  }).sort((a, b) => Number(pinnedReports.includes(b.id_laporan)) - Number(pinnedReports.includes(a.id_laporan)));
   const loadDetail = async (id) => {
     try {
       const { data } = await api.get(`/reports/${id}`);
@@ -691,8 +751,9 @@ function ReviewReports() {
   };
   const review = async (id, status) => {
     try {
-      await api.patch(`/reports/${id}/review`, { status, comment: comments[id] || '' });
+      await api.patch(`/reports/${id}/review`, { status, comment: comments[id] || '', requiresFollowUp: Boolean(followUpFlags[id]) });
       setComments((prev) => ({ ...prev, [id]: '' }));
+      setFollowUpFlags((prev) => ({ ...prev, [id]: false }));
       setConfirmReview(null);
       notifySuccess(status === 'approved' ? 'Laporan diluluskan' : 'Laporan ditolak');
       await load();
@@ -702,47 +763,61 @@ function ReviewReports() {
     }
   };
   return (
-    <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-      <Card title="Semakan Laporan" action={<Button variant="ghost" onClick={() => downloadCsv('/reports/export.csv', 'laporan-harian.csv')}><Download size={16} /> CSV</Button>}>
-        <div className="mb-4 grid gap-2 sm:grid-cols-4">
-          {['Dihantar', 'Diluluskan', 'Ditolak', 'Semua'].map((status) => <Button key={status} variant={statusFilter === status ? 'primary' : 'ghost'} onClick={() => setStatusFilter(status)}>{status}</Button>)}
+    <div className="desktop-ops">
+      <Card title={canReviewReports ? 'Semakan Laporan' : 'Pemantauan Laporan'} action={<Button variant="ghost" onClick={() => downloadCsv('/reports/export.csv', 'laporan-harian.csv')}><Download size={16} /> CSV</Button>}>
+        {!canReviewReports && <AlertMessage type="success">Admin boleh membaca dan memantau laporan, tetapi kelulusan atau penolakan laporan hanya dibuat oleh Ketua Pengawal.</AlertMessage>}
+        <div className="mb-4 grid gap-2 sm:grid-cols-4 xl:max-w-3xl">
+          {['Dihantar', 'Diluluskan', 'Ditolak', 'Semua'].map((status) => <Button key={status} variant={reviewFilters.status === status ? 'primary' : 'ghost'} onClick={() => setReviewFilters({ ...reviewFilters, status })}>{status}</Button>)}
         </div>
+        <div className="mb-4 grid gap-2 md:grid-cols-3 xl:grid-cols-[minmax(260px,1fr)_220px_140px_150px_160px]">
+          <Input placeholder="Cari tajuk, pengawal, pos" value={reviewFilters.search} onChange={(e) => setReviewFilters({ ...reviewFilters, search: e.target.value })} className="xl:col-span-1" />
+          <Select value={reviewFilters.post} onChange={(e) => setReviewFilters({ ...reviewFilters, post: e.target.value })}><option value="">Semua pos</option>{postOptions.map((post) => <option key={post}>{post}</option>)}</Select>
+          <Select value={reviewFilters.shift} onChange={(e) => setReviewFilters({ ...reviewFilters, shift: e.target.value })}><option value="">Semua syif</option><option>Pagi</option><option>Petang</option><option>Malam</option></Select>
+          <Select value={reviewFilters.risk} onChange={(e) => setReviewFilters({ ...reviewFilters, risk: e.target.value })}><option value="">Semua risiko</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></Select>
+          <Input type="date" value={reviewFilters.date} onChange={(e) => setReviewFilters({ ...reviewFilters, date: e.target.value })} />
+        </div>
+        <p className="mb-3 text-sm text-secondary-token">{visibleReports.length} daripada {reports.length} laporan dipaparkan.</p>
         {visibleReports.length ? visibleReports.map((r) => (
-          <article key={r.id_laporan} className={`mb-3 rounded-md border p-4 ${['High', 'Critical'].includes(r.tahap_risiko) ? 'app-row-alert' : 'app-row'}`}>
+          <article key={r.id_laporan} className={`desktop-record mb-3 rounded-md border p-4 ${['High', 'Critical'].includes(r.tahap_risiko) ? 'app-row-alert' : 'app-row'}`}>
             <div className="flex flex-wrap justify-between gap-2">
               <div>
                 <h3>{r.tajuk_laporan}</h3>
                 <p className="text-data">{r.nama_penuh} - {r.nama_pos} - {r.tarikh_laporan?.slice(0, 10)} {r.masa_laporan}</p>
               </div>
               <div className="flex flex-wrap gap-2">
+                {pinnedReports.includes(r.id_laporan) && <Badge>Dipin</Badge>}
                 <Badge tone={statusTone(r.status_laporan)}>{r.status_laporan}</Badge>
                 <Badge tone={r.tahap_risiko}>{r.tahap_risiko}</Badge>
               </div>
             </div>
-            <p className="mt-2 text-sm">{r.kandungan_laporan}</p>
+            <p className="desktop-clamp mt-2 text-sm">{r.kandungan_laporan}</p>
             <p className="mt-2 text-sm"><span className="font-medium text-primary-token">Risiko ringkas:</span> <Badge tone={r.tahap_risiko}>{r.tahap_risiko}</Badge></p>
-            {r.status_laporan === 'Diluluskan' && ['High', 'Critical'].includes(r.tahap_risiko) && !r.ada_tindakan_susulan && <AlertMessage>Laporan ini sudah diluluskan dan memerlukan tindakan susulan.</AlertMessage>}
+            {r.status_laporan === 'Diluluskan' && r.perlu_tindakan_susulan && !r.ada_tindakan_susulan && <AlertMessage>Laporan ini sudah diluluskan dan ditanda memerlukan tindakan susulan.</AlertMessage>}
             {r.lampiran_fail && <a className="text-primary-token mt-2 inline-flex items-center gap-1 text-sm font-medium underline" href={`${API_ORIGIN}${r.lampiran_fail}`} target="_blank" rel="noreferrer"><Paperclip size={14} /> Lampiran bukti</a>}
-            <div className="mt-3 grid gap-2 sm:grid-cols-[auto_1fr_auto_auto]">
+            <div className="mt-3 grid gap-2 sm:grid-cols-[auto_auto_1fr_auto_auto]">
+              <Button variant="ghost" onClick={() => setPinnedReports((current) => current.includes(r.id_laporan) ? current.filter((id) => id !== r.id_laporan) : [...current, r.id_laporan])}>{pinnedReports.includes(r.id_laporan) ? 'Nyahpin' : 'Pin'}</Button>
               <Button variant="ghost" onClick={() => loadDetail(r.id_laporan)}><Eye size={16} /> Detail</Button>
-              <Input placeholder="Catatan semakan" value={comments[r.id_laporan] || ''} onChange={(e) => setComments({ ...comments, [r.id_laporan]: e.target.value })} />
-              {r.status_laporan === 'Dihantar' && <Button onClick={() => setConfirmReview({ id: r.id_laporan, status: 'approved', title: r.tajuk_laporan })}>Lulus</Button>}
-              {r.status_laporan === 'Dihantar' && <Button variant="danger" onClick={() => setConfirmReview({ id: r.id_laporan, status: 'rejected', title: r.tajuk_laporan })}>Tolak</Button>}
-              {r.status_laporan === 'Diluluskan' && ['High', 'Critical'].includes(r.tahap_risiko) && <Button onClick={() => navigate('/tindakan')}>Tindakan</Button>}
+              {canReviewReports && <Input placeholder="Catatan semakan" value={comments[r.id_laporan] || ''} onChange={(e) => setComments({ ...comments, [r.id_laporan]: e.target.value })} />}
+              {canReviewReports && r.status_laporan === 'Dihantar' && <Button onClick={() => setConfirmReview({ id: r.id_laporan, status: 'approved', title: r.tajuk_laporan })}>Lulus</Button>}
+              {canReviewReports && r.status_laporan === 'Dihantar' && <Button variant="danger" onClick={() => setConfirmReview({ id: r.id_laporan, status: 'rejected', title: r.tajuk_laporan })}>Tolak</Button>}
+              {r.status_laporan === 'Diluluskan' && r.perlu_tindakan_susulan && <Button onClick={() => navigate('/tindakan')}>Tindakan</Button>}
             </div>
+            {canReviewReports && r.status_laporan === 'Dihantar' && (
+              <label className="mt-3 flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={Boolean(followUpFlags[r.id_laporan])} onChange={(e) => setFollowUpFlags({ ...followUpFlags, [r.id_laporan]: e.target.checked })} />
+                Tandakan laporan ini memerlukan tindakan susulan oleh Admin selepas diluluskan
+              </label>
+            )}
           </article>
         )) : <EmptyState title="Tiada laporan" description="Tiada laporan untuk status yang dipilih." />}
       </Card>
-      <Card title={detail ? `Detail Laporan #${detail.report.id_laporan}` : 'Detail Laporan'}>
-        {!detail ? <p className="text-sm">Pilih laporan untuk melihat checklist, sejarah semakan dan tindakan susulan.</p> : <ReportDetailContent detail={detail} />}
-      </Card>
       {detail && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(0,0,0,0.55)] p-0 sm:items-center sm:p-4">
-          <div className="app-elevated motion-sheet max-h-[92vh] w-full overflow-y-auto rounded-t-lg border p-4 shadow-xl sm:max-w-3xl sm:rounded-lg">
-            <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="app-elevated motion-sheet max-h-[94vh] w-full overflow-y-auto rounded-t-lg border p-4 shadow-xl sm:max-w-5xl sm:rounded-lg lg:p-6">
+            <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex items-start justify-between gap-3 border-b bg-white px-4 py-4 lg:-mx-6 lg:-mt-6 lg:px-6">
               <div>
-                <h2>Detail Laporan #{detail.report.id_laporan}</h2>
-                <p className="text-sm">Maklumat penuh laporan harian pengawal.</p>
+                <h2>Dokumen Laporan #{detail.report.id_laporan}</h2>
+                <p className="text-sm">Paparan lengkap laporan harian untuk semakan Ketua dan pemantauan Admin.</p>
               </div>
               <Button variant="ghost" onClick={() => setDetail(null)}><X size={16} /> Tutup</Button>
             </div>
@@ -769,6 +844,7 @@ function FollowUp({ auth }) {
   const [actions, setActions] = useState([]);
   const [form, setForm] = useState({ status_tindakan: 'Baru', tahap_keutamaan: 'High' });
   const [filters, setFilters] = useState({ status: '', priority: '', search: '' });
+  const [reportSearch, setReportSearch] = useState('');
   const [notes, setNotes] = useState({});
   const [progressNotes, setProgressNotes] = useState({});
   const load = useCallback(() => Promise.all([api.get('/reports'), api.get('/actions')]).then(([r, a]) => { setReports(r.data.filter((x) => ['High', 'Critical'].includes(x.tahap_risiko))); setActions(a.data); }), []);
@@ -805,46 +881,47 @@ function FollowUp({ auth }) {
     }
   };
 
-  const actionSummary = {
-    total: actions.length,
-    open: actions.filter((a) => a.status_tindakan !== 'Selesai').length,
-    critical: actions.filter((a) => a.tahap_keutamaan === 'Critical' && a.status_tindakan !== 'Selesai').length,
-    completed: actions.filter((a) => a.status_tindakan === 'Selesai').length,
-  };
-  const reportsNeedingAction = reports.filter((report) => report.status_laporan === 'Diluluskan' && !report.ada_tindakan_susulan);
+  const reportsNeedingAction = reports.filter((report) => report.status_laporan === 'Diluluskan' && report.perlu_tindakan_susulan && !report.ada_tindakan_susulan);
+  const filteredReportsForAction = reportsNeedingAction.filter((report) => {
+    const search = reportSearch.trim().toLowerCase();
+    if (!search) return true;
+    return [report.tajuk_laporan, report.nama_penuh, report.nama_pos, report.tahap_risiko, report.tarikh_laporan]
+      .some((value) => String(value || '').toLowerCase().includes(search));
+  });
   const filteredActions = actions.filter((action) => {
     const search = filters.search.toLowerCase();
     const matchesSearch = !search || [action.tajuk_laporan, action.pegawai_bertanggungjawab, action.nama_pos, action.nama_penuh, action.tindakan_diambil].some((value) => String(value || '').toLowerCase().includes(search));
     const matchesStatus = !filters.status || action.status_tindakan === filters.status;
-    const matchesPriority = !filters.priority || action.tahap_keutamaan === filters.priority;
-    return matchesSearch && matchesStatus && matchesPriority;
+    return matchesSearch && matchesStatus;
   });
 
   return (
-    <div className="space-y-5">
+    <div className="desktop-ops space-y-5">
       <PageHeader
         title="Tindakan Susulan"
         description={canManageFollowUp ? 'Admin mengurus, mengemas kini dan menutup tindakan untuk insiden berisiko.' : 'Ketua boleh memantau tindakan susulan selepas laporan diluluskan.'}
-        action={<Button variant="ghost" onClick={() => downloadCsv('/actions/export.csv', 'tindakan-susulan.csv')}><Download size={16} /> CSV</Button>}
       />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard label="Jumlah" value={actionSummary.total} />
-        <StatCard label="Belum Selesai" value={actionSummary.open} />
-        <StatCard label="Kritikal Aktif" value={actionSummary.critical} />
-        <StatCard label="Selesai" value={actionSummary.completed} />
-      </div>
+      {canManageFollowUp ? (
+        <AlertMessage type="success">Aliran tindakan: pilih laporan yang telah diluluskan, cipta tindakan susulan, semak progress Ketua, kemudian ubah status rasmi bila tindakan benar-benar bergerak atau selesai.</AlertMessage>
+      ) : (
+        <AlertMessage type="success">Ketua hanya menghantar progress/catatan kepada Admin. Status rasmi tindakan kekal dikawal oleh Pentadbir Sistem.</AlertMessage>
+      )}
       {reportsNeedingAction.length > 0 && (
         <AlertMessage>{reportsNeedingAction.length} laporan High/Critical telah diluluskan tetapi belum ada tindakan susulan. Admin perlu cipta dan kemas kini tindakan.</AlertMessage>
       )}
-      <div className={`grid gap-5 ${canManageFollowUp ? 'lg:grid-cols-[0.8fr_1.2fr]' : ''}`}>
-        {canManageFollowUp && <Card title="Tambah Tindakan">
+      <div className={`grid gap-5 ${canManageFollowUp ? 'xl:grid-cols-[420px_minmax(0,1fr)] 2xl:grid-cols-[460px_minmax(0,1fr)]' : ''}`}>
+        {canManageFollowUp && <Card title="Tambah Tindakan" className="desktop-sticky-panel">
           <form onSubmit={create} className="space-y-3">
+            <Field label="Cari laporan">
+              <Input placeholder="Cari tajuk, pengawal, pos atau risiko" value={reportSearch} onChange={(e) => setReportSearch(e.target.value)} />
+            </Field>
             <Field label="Laporan">
               <Select required value={form.id_laporan || ''} onChange={(e) => setForm({ ...form, id_laporan: e.target.value })}>
-                <option value="">Pilih laporan</option>
-                {reports.map((r) => <option key={r.id_laporan} value={r.id_laporan}>{r.tajuk_laporan} - {r.tahap_risiko}</option>)}
+                <option value="">Pilih laporan diluluskan</option>
+                {filteredReportsForAction.map((r) => <option key={r.id_laporan} value={r.id_laporan}>{r.tajuk_laporan} - {r.nama_pos} - {r.tahap_risiko}</option>)}
               </Select>
             </Field>
+            {!filteredReportsForAction.length && <AlertMessage type="success">Tiada laporan diluluskan yang sepadan dan memerlukan tindakan susulan.</AlertMessage>}
             <Field label="Pegawai bertanggungjawab"><Input required value={form.pegawai_bertanggungjawab || ''} onChange={(e) => setForm({ ...form, pegawai_bertanggungjawab: e.target.value })} /></Field>
             <Field label="Tindakan diambil"><Textarea required rows={4} value={form.tindakan_diambil || ''} onChange={(e) => setForm({ ...form, tindakan_diambil: e.target.value })} /></Field>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -857,15 +934,15 @@ function FollowUp({ auth }) {
         </Card>}
         <div className="space-y-5">
           <FilterPanel>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_220px]">
               <Input placeholder="Cari laporan, pegawai, pos" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
               <Select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}><option value="">Semua status</option><option>Baru</option><option>Dalam Tindakan</option><option>Selesai</option></Select>
-              <Select value={filters.priority} onChange={(e) => setFilters({ ...filters, priority: e.target.value })}><option value="">Semua keutamaan</option><option>Medium</option><option>High</option><option>Critical</option></Select>
             </div>
           </FilterPanel>
           <Card title="Senarai Tindakan">
+            <p className="mb-3 text-sm text-secondary-token">{filteredActions.length} daripada {actions.length} tindakan dipaparkan.</p>
             {filteredActions.length ? filteredActions.map((a) => (
-              <div key={a.id_tindakan} className={`mb-3 rounded-md border p-4 text-sm ${a.tahap_keutamaan === 'Critical' && a.status_tindakan !== 'Selesai' ? 'app-row-alert' : 'app-row'}`}>
+              <div key={a.id_tindakan} className={`desktop-record mb-3 rounded-md border p-4 text-sm ${a.tahap_keutamaan === 'Critical' && a.status_tindakan !== 'Selesai' ? 'app-row-alert' : 'app-row'}`}>
                 <div className="flex flex-wrap justify-between gap-2">
                   <div>
                     <span className="font-medium text-primary-token">{a.tajuk_laporan}</span>
@@ -1067,30 +1144,44 @@ function SchedulePage({ auth }) {
 
 function AuditTrail() {
   const [rows, setRows] = useState([]);
-  const [filters, setFilters] = useState({ user: '', module: '', activity: '', date: '', status: '' });
+  const [meta, setMeta] = useState({ roles: [], posts: [] });
+  const [users, setUsers] = useState([]);
+  const [filters, setFilters] = useState({ user: '', role: '', pos: '', module: '', activity: '', date: '', status: '' });
   const load = useCallback(() => api.get('/audit', { params: filters }).then((res) => setRows(res.data)), [filters]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    Promise.all([api.get('/meta'), api.get('/users')]).then(([m, u]) => {
+      setMeta(m.data);
+      setUsers(u.data);
+    });
+  }, []);
   return (
-    <Card title="Audit Trail" action={<Button variant="ghost" onClick={() => downloadCsv('/audit/export.csv', 'audit-trail.csv')}><Download size={16} /> CSV</Button>}>
-      <div className="mb-3 grid gap-2 md:grid-cols-5">
-        <Input placeholder="User" value={filters.user} onChange={(e) => setFilters({ ...filters, user: e.target.value })} />
-        <Input placeholder="Modul" value={filters.module} onChange={(e) => setFilters({ ...filters, module: e.target.value })} />
-        <Input placeholder="Aktiviti" value={filters.activity} onChange={(e) => setFilters({ ...filters, activity: e.target.value })} />
-        <Input type="date" value={filters.date} onChange={(e) => setFilters({ ...filters, date: e.target.value })} />
-        <Select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}><option value="">Semua status</option><option>Berjaya</option><option>Gagal</option></Select>
-      </div>
-      <div className="space-y-3 md:hidden">
-        {rows.length ? rows.map((r) => (
-          <div key={r.id_audit} className="app-row rounded-md border p-3 text-sm">
-            <p className="text-data">{new Date(r.tarikh_masa_aktiviti).toLocaleString()}</p>
-            <p className="font-medium text-primary-token">{r.jenis_aktiviti}</p>
-            <p>{r.modul_sistem} - {r.status_aktiviti}</p>
-            <p>{r.nama_penuh || '-'} - {r.nama_peranan || '-'}</p>
-          </div>
-        )) : <EmptyState title="Tiada audit" description="Log audit akan dipaparkan selepas aktiviti sistem." />}
-      </div>
-      <div className="hidden overflow-x-auto md:block"><table className="w-full text-left text-sm"><thead><tr className="app-divider border-b"><th className="py-2">Masa</th><th>User</th><th>Role</th><th>Aktiviti</th><th>Modul</th><th>Status</th></tr></thead><tbody>{rows.map((r) => <tr key={r.id_audit} className="app-divider border-b"><td className="text-data py-2">{new Date(r.tarikh_masa_aktiviti).toLocaleString()}</td><td>{r.nama_penuh || '-'}</td><td>{r.nama_peranan || '-'}</td><td>{r.jenis_aktiviti}</td><td>{r.modul_sistem}</td><td>{r.status_aktiviti}</td></tr>)}</tbody></table></div>
-    </Card>
+    <div className="desktop-ops">
+      <Card title="Audit Trail" action={<Button variant="ghost" onClick={() => downloadCsv('/audit/export.csv', 'audit-trail.csv')}><Download size={16} /> CSV</Button>}>
+        <AlertMessage type="success">Gunakan penapis ini untuk semak aktiviti mengikut pengguna, peranan, pos, modul atau status sebelum membuka log yang panjang.</AlertMessage>
+        <div className="mb-3 grid gap-2 md:grid-cols-4 xl:grid-cols-[1fr_180px_220px_150px_1fr_150px_130px]">
+          <Select value={filters.user} onChange={(e) => setFilters({ ...filters, user: e.target.value })}><option value="">Semua pengguna</option>{users.map((user) => <option key={user.id_pengguna} value={user.nama_penuh}>{user.nama_penuh}</option>)}</Select>
+          <Select value={filters.role} onChange={(e) => setFilters({ ...filters, role: e.target.value })}><option value="">Semua peranan</option>{meta.roles.map((role) => <option key={role.id_peranan} value={role.nama_peranan}>{role.nama_peranan}</option>)}</Select>
+          <Select value={filters.pos} onChange={(e) => setFilters({ ...filters, pos: e.target.value })}><option value="">Semua pos</option>{meta.posts.map((post) => <option key={post.id_pos} value={post.nama_pos}>{post.nama_pos}</option>)}</Select>
+          <Input placeholder="Modul" value={filters.module} onChange={(e) => setFilters({ ...filters, module: e.target.value })} />
+          <Input placeholder="Aktiviti" value={filters.activity} onChange={(e) => setFilters({ ...filters, activity: e.target.value })} />
+          <Input type="date" value={filters.date} onChange={(e) => setFilters({ ...filters, date: e.target.value })} />
+          <Select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}><option value="">Semua status</option><option>Berjaya</option><option>Gagal</option></Select>
+        </div>
+        <p className="mb-3 text-sm text-secondary-token">{rows.length} rekod audit terkini dipaparkan.</p>
+        <div className="space-y-3 md:hidden">
+          {rows.length ? rows.map((r) => (
+            <div key={r.id_audit} className="app-row rounded-md border p-3 text-sm">
+              <p className="text-data">{new Date(r.tarikh_masa_aktiviti).toLocaleString()}</p>
+              <p className="font-medium text-primary-token">{r.jenis_aktiviti}</p>
+              <p>{r.modul_sistem} - {r.status_aktiviti}</p>
+              <p>{r.nama_penuh || '-'} - {r.nama_peranan || '-'}</p>
+            </div>
+          )) : <EmptyState title="Tiada audit" description="Log audit akan dipaparkan selepas aktiviti sistem." />}
+        </div>
+        <div className="desktop-table-scroll hidden overflow-x-auto md:block"><table className="w-full text-left text-sm"><thead><tr className="app-divider border-b"><th className="py-2">Masa</th><th>User</th><th>Role</th><th>Aktiviti</th><th>Modul</th><th>Status</th></tr></thead><tbody>{rows.map((r) => <tr key={r.id_audit} className="app-divider border-b"><td className="text-data py-2">{new Date(r.tarikh_masa_aktiviti).toLocaleString()}</td><td>{r.nama_penuh || '-'}</td><td>{r.nama_peranan || '-'}</td><td>{r.jenis_aktiviti}</td><td>{r.modul_sistem}</td><td>{r.status_aktiviti}</td></tr>)}</tbody></table></div>
+      </Card>
+    </div>
   );
 }
 
@@ -1107,13 +1198,19 @@ function NotificationsPage({ auth }) {
 function NlpTrainingPage() {
   const [rules, setRules] = useState([]);
   const [reports, setReports] = useState([]);
+  const [nlpFilters, setNlpFilters] = useState({ search: '', post: '', shift: '', risk: '', status: '' });
+  const [pinnedNlpReports, setPinnedNlpReports] = useState([]);
   const [selectedNlp, setSelectedNlp] = useState(null);
   const [edits, setEdits] = useState({});
+  const [newRule, setNewRule] = useState({ nama_kategori: '', tahap_keutamaan: 'Low', penerangan_kategori: '', kata_kunci_rujukan: '', status_kategori: 'Aktif' });
   const [saving, setSaving] = useState(null);
+  const [confirmDeleteRule, setConfirmDeleteRule] = useState(null);
   const load = useCallback(() => api.get('/nlp-training').then((res) => {
     setRules(res.data);
     setEdits(Object.fromEntries(res.data.map((item) => [item.id_kategori_insiden, {
+      nama_kategori: item.nama_kategori,
       tahap_keutamaan: item.tahap_keutamaan,
+      penerangan_kategori: item.penerangan_kategori || '',
       kata_kunci_rujukan: (item.kata_kunci_rujukan || []).join(', '),
       status_kategori: item.status_kategori,
     }])));
@@ -1130,12 +1227,28 @@ function NlpTrainingPage() {
     }
   };
   const updateEdit = (id, patch) => setEdits((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
+  const createRule = async (event) => {
+    event.preventDefault();
+    setSaving('new');
+    try {
+      await api.post('/nlp-training', newRule);
+      setNewRule({ nama_kategori: '', tahap_keutamaan: 'Low', penerangan_kategori: '', kata_kunci_rujukan: '', status_kategori: 'Aktif' });
+      notifySuccess('Kategori NLP baharu ditambah');
+      load();
+    } catch (error) {
+      notifyError(error, 'Kategori NLP gagal ditambah');
+    } finally {
+      setSaving(null);
+    }
+  };
   const save = async (id) => {
     setSaving(id);
     try {
       const current = edits[id];
       await api.patch(`/nlp-training/${id}`, {
+        nama_kategori: current.nama_kategori,
         tahap_keutamaan: current.tahap_keutamaan,
+        penerangan_kategori: current.penerangan_kategori,
         kata_kunci_rujukan: current.kata_kunci_rujukan,
         status_kategori: current.status_kategori,
       });
@@ -1147,23 +1260,61 @@ function NlpTrainingPage() {
       setSaving(null);
     }
   };
+  const deleteRule = async () => {
+    if (!confirmDeleteRule) return;
+    setSaving(confirmDeleteRule.id_kategori_insiden);
+    try {
+      const { data } = await api.delete(`/nlp-training/${confirmDeleteRule.id_kategori_insiden}`);
+      notifySuccess(data.deactivated ? 'Kategori NLP dinyahaktif kerana sudah digunakan dalam laporan' : 'Kategori NLP dipadam');
+      setConfirmDeleteRule(null);
+      load();
+    } catch (error) {
+      notifyError(error, 'Kategori NLP gagal dipadam');
+    } finally {
+      setSaving(null);
+    }
+  };
+  const filteredNlpReports = reports.filter((report) => {
+    const search = nlpFilters.search.trim().toLowerCase();
+    const matchesSearch = !search || [report.tajuk_laporan, report.nama_penuh, report.nama_pos].some((value) => String(value || '').toLowerCase().includes(search));
+    const matchesPost = !nlpFilters.post || report.nama_pos === nlpFilters.post;
+    const matchesShift = !nlpFilters.shift || report.syif === nlpFilters.shift;
+    const matchesRisk = !nlpFilters.risk || report.tahap_risiko === nlpFilters.risk;
+    const matchesStatus = !nlpFilters.status || report.status_laporan === nlpFilters.status;
+    return matchesSearch && matchesPost && matchesShift && matchesRisk && matchesStatus;
+  }).sort((a, b) => Number(pinnedNlpReports.includes(b.id_laporan)) - Number(pinnedNlpReports.includes(a.id_laporan)));
+  const nlpPostOptions = [...new Set(reports.map((report) => report.nama_pos).filter(Boolean))].sort();
   return (
-    <div className="space-y-5">
+    <div className="desktop-ops space-y-5">
       <PageHeader title="Analisis NLP" description="Pentadbir Sistem boleh melihat keputusan NLP penuh dan melatih kata kunci model operasi." />
-      <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+      <AlertMessage type="success">Tujuan halaman ini: semak bagaimana sistem mengklasifikasikan laporan, lihat kata kunci/skor risiko, dan kemas kini kata kunci rujukan supaya laporan baharu lebih tepat. Halaman ini bukan tempat untuk meluluskan laporan atau menutup tindakan.</AlertMessage>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_460px] 2xl:grid-cols-[minmax(0,1fr)_520px]">
         <Card title="Senarai Laporan">
-          {reports.length ? reports.map((report) => (
-            <div key={report.id_laporan} className="app-row mb-2 grid gap-3 rounded-xl border p-3 text-sm md:grid-cols-[1fr_auto]">
+          <div className="mb-3 space-y-2">
+            <Input placeholder="Cari laporan, pengawal atau pos" value={nlpFilters.search} onChange={(e) => setNlpFilters({ ...nlpFilters, search: e.target.value })} />
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <Select value={nlpFilters.post} onChange={(e) => setNlpFilters({ ...nlpFilters, post: e.target.value })}><option value="">Pilih pos</option>{nlpPostOptions.map((post) => <option key={post}>{post}</option>)}</Select>
+              <Select value={nlpFilters.shift} onChange={(e) => setNlpFilters({ ...nlpFilters, shift: e.target.value })}><option value="">Pilih syif</option><option>Pagi</option><option>Petang</option><option>Malam</option></Select>
+              <Select value={nlpFilters.risk} onChange={(e) => setNlpFilters({ ...nlpFilters, risk: e.target.value })}><option value="">Semua risiko</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></Select>
+              <Select value={nlpFilters.status} onChange={(e) => setNlpFilters({ ...nlpFilters, status: e.target.value })}><option value="">Semua status</option><option>Dihantar</option><option>Diluluskan</option><option>Ditolak</option></Select>
+            </div>
+          </div>
+          <p className="mb-3 text-sm text-secondary-token">{filteredNlpReports.length} daripada {reports.length} laporan dipaparkan.</p>
+          {filteredNlpReports.length ? filteredNlpReports.map((report) => (
+            <div key={report.id_laporan} className="desktop-record app-row mb-2 grid gap-3 rounded-xl border p-3 text-sm md:grid-cols-[1fr_auto]">
               <div>
                 <p className="font-medium text-primary-token">{report.tajuk_laporan}</p>
-                <p>{report.nama_penuh} - {report.nama_pos}</p>
-                <div className="mt-2 flex flex-wrap gap-2"><Badge tone={report.tahap_risiko}>{report.tahap_risiko}</Badge><Badge tone={statusTone(report.status_laporan)}>{report.status_laporan}</Badge></div>
+                <p>{report.nama_penuh} - {report.nama_pos} - {report.syif}</p>
+                <div className="mt-2 flex flex-wrap gap-2">{pinnedNlpReports.includes(report.id_laporan) && <Badge>Dipin</Badge>}<Badge tone={report.tahap_risiko}>{report.tahap_risiko}</Badge><Badge tone={statusTone(report.status_laporan)}>{report.status_laporan}</Badge></div>
               </div>
-              <Button variant="ghost" onClick={() => openNlp(report.id_laporan)}><Eye size={16} /> NLP</Button>
+              <div className="flex flex-wrap gap-2 md:justify-end">
+                <Button variant="ghost" onClick={() => setPinnedNlpReports((current) => current.includes(report.id_laporan) ? current.filter((id) => id !== report.id_laporan) : [...current, report.id_laporan])}>{pinnedNlpReports.includes(report.id_laporan) ? 'Nyahpin' : 'Pin'}</Button>
+                <Button variant="ghost" onClick={() => openNlp(report.id_laporan)}><Eye size={16} /> NLP</Button>
+              </div>
             </div>
           )) : <EmptyState title="Tiada laporan" description="Laporan harian akan dipaparkan di sini." />}
         </Card>
-        <Card title="Keputusan NLP Penuh">
+        <Card title="Keputusan NLP Penuh" className="desktop-sticky-panel">
           {selectedNlp ? (
             <div className="space-y-4 text-sm">
               <div><p className="label-caps">Laporan</p><h3>{selectedNlp.tajuk_laporan}</h3><p>{selectedNlp.kandungan_laporan}</p></div>
@@ -1181,23 +1332,49 @@ function NlpTrainingPage() {
         </Card>
       </div>
       <AlertMessage type="success">Perubahan latihan di bawah digunakan untuk laporan baharu selepas disimpan. Tambah istilah lapangan sebenar seperti nama insiden, lokasi biasa, atau perkataan yang selalu digunakan pengawal.</AlertMessage>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <Card title="Tambah Kategori NLP Baharu">
+        <form onSubmit={createRule} className="space-y-3">
+          <div className="grid gap-3 lg:grid-cols-[1fr_180px_160px]">
+            <Field label="Nama kategori"><Input required value={newRule.nama_kategori} onChange={(e) => setNewRule({ ...newRule, nama_kategori: e.target.value })} placeholder="Contoh: Gangguan Awam" /></Field>
+            <Field label="Tahap risiko"><Select value={newRule.tahap_keutamaan} onChange={(e) => setNewRule({ ...newRule, tahap_keutamaan: e.target.value })}><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></Select></Field>
+            <Field label="Status"><Select value={newRule.status_kategori} onChange={(e) => setNewRule({ ...newRule, status_kategori: e.target.value })}><option>Aktif</option><option>Tidak Aktif</option></Select></Field>
+          </div>
+          <Field label="Penerangan"><Input value={newRule.penerangan_kategori} onChange={(e) => setNewRule({ ...newRule, penerangan_kategori: e.target.value })} placeholder="Kegunaan kategori ini dalam laporan operasi" /></Field>
+          <Field label="Kata kunci rujukan"><Textarea rows={3} required value={newRule.kata_kunci_rujukan} onChange={(e) => setNewRule({ ...newRule, kata_kunci_rujukan: e.target.value })} placeholder="Pisahkan dengan koma. Contoh: kekecohan, bergaduh, enggan patuh arahan" /></Field>
+          <Button disabled={saving === 'new'}>{saving === 'new' ? 'Menambah...' : 'Tambah NLP'}</Button>
+        </form>
+      </Card>
+      <div className="grid gap-4 xl:grid-cols-3">
         {rules.length ? rules.map((rule) => {
           const edit = edits[rule.id_kategori_insiden] || {};
           return (
             <Card key={rule.id_kategori_insiden} title={rule.nama_kategori} action={<Badge tone={edit.tahap_keutamaan}>{edit.tahap_keutamaan}</Badge>}>
               <div className="space-y-3">
+                <Field label="Nama kategori"><Input value={edit.nama_kategori || ''} onChange={(e) => updateEdit(rule.id_kategori_insiden, { nama_kategori: e.target.value })} /></Field>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Tahap risiko"><Select value={edit.tahap_keutamaan || 'Low'} onChange={(e) => updateEdit(rule.id_kategori_insiden, { tahap_keutamaan: e.target.value })}><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></Select></Field>
                   <Field label="Status"><Select value={edit.status_kategori || 'Aktif'} onChange={(e) => updateEdit(rule.id_kategori_insiden, { status_kategori: e.target.value })}><option>Aktif</option><option>Tidak Aktif</option></Select></Field>
                 </div>
+                <Field label="Penerangan"><Input value={edit.penerangan_kategori || ''} onChange={(e) => updateEdit(rule.id_kategori_insiden, { penerangan_kategori: e.target.value })} /></Field>
                 <Field label="Kata kunci rujukan"><Textarea rows={4} value={edit.kata_kunci_rujukan || ''} onChange={(e) => updateEdit(rule.id_kategori_insiden, { kata_kunci_rujukan: e.target.value })} /></Field>
-                <Button onClick={() => save(rule.id_kategori_insiden)} disabled={saving === rule.id_kategori_insiden}>{saving === rule.id_kategori_insiden ? 'Menyimpan...' : 'Simpan latihan'}</Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => save(rule.id_kategori_insiden)} disabled={saving === rule.id_kategori_insiden}>{saving === rule.id_kategori_insiden ? 'Menyimpan...' : 'Simpan latihan'}</Button>
+                  <Button variant="danger" onClick={() => setConfirmDeleteRule(rule)} disabled={saving === rule.id_kategori_insiden}>Padam</Button>
+                </div>
               </div>
             </Card>
           );
         }) : <LoadingState message="Memuatkan peraturan NLP..." />}
       </div>
+      <ConfirmModal
+        open={!!confirmDeleteRule}
+        title="Padam kategori NLP?"
+        message={`Kategori "${confirmDeleteRule?.nama_kategori || ''}" akan dipadam jika belum digunakan. Jika sudah digunakan dalam laporan, sistem akan nyahaktifkan kategori ini supaya rekod lama kekal selamat.`}
+        confirmLabel="Padam"
+        danger
+        onCancel={() => setConfirmDeleteRule(null)}
+        onConfirm={deleteRule}
+      />
     </div>
   );
 }
@@ -1299,7 +1476,7 @@ function App() {
         <Route path="/pengawal" element={<Protected auth={auth} roles={[ROLE.guard]}><GuardDashboard /></Protected>} />
         <Route path="/jadual" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief, ROLE.guard]}><SchedulePage auth={auth} /></Protected>} />
         <Route path="/laporan" element={<Protected auth={auth} roles={[ROLE.guard]}><DailyReport /></Protected>} />
-        <Route path="/semakan" element={<Protected auth={auth} roles={[ROLE.chief]}><ReviewReports /></Protected>} />
+        <Route path="/semakan" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief]}><ReviewReports auth={auth} /></Protected>} />
         <Route path="/tindakan" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief]}><FollowUp auth={auth} /></Protected>} />
         <Route path="/nlp" element={<Protected auth={auth} roles={[ROLE.admin]}><NlpTrainingPage /></Protected>} />
         <Route path="/audit" element={<Protected auth={auth} roles={[ROLE.admin]}><AuditTrail /></Protected>} />
