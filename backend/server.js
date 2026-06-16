@@ -1807,7 +1807,7 @@ app.get('/api/dashboard', auth, allow(roles.admin, roles.chief), async (req, res
     const where = `where ($1::date is null or l.tarikh_laporan = $1)
       and ($2::int is null or l.id_pos = $2)
       and ($3::text is null or l.tahap_risiko = $3)`;
-    const [cards, byCategory, byRisk, trend, latest, keywords] = await Promise.all([
+    const [cards, priority, byCategory, byRisk, trend, latest, keywords] = await Promise.all([
       client.query(`select
         (select count(*)::int from tbl_laporan_harian l ${where}) total_laporan,
         (select count(*)::int from tbl_laporan_harian l ${where} and l.tahap_risiko in ('High','Critical')) risiko_tinggi,
@@ -1815,13 +1815,21 @@ app.get('/api/dashboard', auth, allow(roles.admin, roles.chief), async (req, res
         (select count(*)::int from tbl_pengguna p join tbl_peranan r on r.id_peranan = p.id_peranan where r.nama_peranan = $4 and p.status_akaun = 'Aktif') pengawal_aktif,
         (select count(*)::int from tbl_status_bertugas where tarikh = current_date) jadual_hari_ini,
         (select count(*)::int from tbl_laporan_harian l ${where} and l.lampiran_fail is not null) laporan_berlampiran`, [...filters, roles.guard]),
+      client.query(`select
+        (select count(*)::int from tbl_laporan_harian where status_laporan = 'Dihantar') laporan_menunggu_semakan,
+        (select count(*)::int from tbl_laporan_harian where status_laporan = 'Dihantar' and tahap_risiko in ('High','Critical')) laporan_kritikal_menunggu,
+        (select count(*)::int from tbl_laporan_harian l where l.status_laporan = 'Diluluskan' and l.perlu_tindakan_susulan = true and not exists(select 1 from tbl_tindakan_susulan t where t.id_laporan = l.id_laporan)) laporan_perlu_tindakan,
+        (select count(*)::int from tbl_tindakan_susulan where status_tindakan <> 'Selesai') tindakan_terbuka,
+        (select count(*)::int from tbl_progress_tindakan where perlu_respon_ketua = true) permintaan_kemaskini_ketua,
+        (select count(*)::int from tbl_notifikasi where id_pengguna = $1 and status_bacaan <> 'Dibaca') notifikasi_belum_dibaca`,
+        [req.user.id_pengguna]),
       client.query(`select coalesce(n.kategori_dikesan,'Belum dianalisis') name, count(*)::int value from tbl_laporan_harian l left join tbl_hasil_nlp n on n.id_laporan = l.id_laporan ${where} group by 1 order by 2 desc`, filters),
       client.query(`select l.tahap_risiko name, count(*)::int value from tbl_laporan_harian l ${where} group by l.tahap_risiko order by 2 desc`, filters),
       client.query(`select l.tarikh_laporan::text date, count(*)::int laporan from tbl_laporan_harian l ${where} group by l.tarikh_laporan order by l.tarikh_laporan`, filters),
       client.query(`select l.id_laporan, l.tajuk_laporan, l.tahap_risiko, l.tarikh_laporan, pos.nama_pos from tbl_laporan_harian l join tbl_pos_kawalan pos on pos.id_pos = l.id_pos ${where} and l.tahap_risiko in ('High','Critical') order by l.tarikh_dicipta desc limit 5`, filters),
       client.query(`select keyword, count(*)::int value from tbl_laporan_harian l join tbl_hasil_nlp n on n.id_laporan = l.id_laporan, unnest(n.kata_kunci_dikesan) keyword ${where} group by keyword order by value desc limit 8`, filters),
     ]);
-    res.json({ cards: cards.rows[0], byCategory: byCategory.rows, byRisk: byRisk.rows, trend: trend.rows, latest: latest.rows, keywords: keywords.rows });
+    res.json({ cards: cards.rows[0], priority: priority.rows[0], byCategory: byCategory.rows, byRisk: byRisk.rows, trend: trend.rows, latest: latest.rows, keywords: keywords.rows });
   } finally {
     client.release();
   }
@@ -1831,13 +1839,20 @@ app.get('/api/guard-dashboard', auth, allow(roles.guard), async (req, res) => {
   const client = await pool.connect();
   try {
     await audit(req, client, 'Dashboard', 'Dashboard accessed', 'Dashboard pengawal dibuka');
-    const [summary, latest, duty] = await Promise.all([
+    const [summary, todayStatus, latest, duty] = await Promise.all([
       client.query(`select
         count(*)::int total_laporan,
         count(*) filter (where status_laporan = 'Dihantar')::int menunggu_semakan,
         count(*) filter (where status_laporan = 'Diluluskan')::int diluluskan,
-        count(*) filter (where tahap_risiko in ('High','Critical'))::int risiko_tinggi
+        count(*) filter (where tahap_risiko in ('High','Critical'))::int risiko_tinggi,
+        count(*) filter (where status_laporan = 'Ditolak')::int ditolak
         from tbl_laporan_harian where id_pengguna = $1`, [req.user.id_pengguna]),
+      client.query(`select
+        (select count(*)::int from tbl_status_bertugas where id_pengguna = $1 and tarikh = current_date) tugasan_hari_ini,
+        (select count(*)::int from tbl_laporan_harian where id_pengguna = $1 and tarikh_laporan = current_date) laporan_hari_ini,
+        (select count(*)::int from tbl_laporan_harian where id_pengguna = $1 and status_laporan = 'Ditolak') laporan_ditolak,
+        (select count(*)::int from tbl_notifikasi where id_pengguna = $1 and status_bacaan <> 'Dibaca') notifikasi_belum_dibaca`,
+        [req.user.id_pengguna]),
       client.query(`select l.*, pos.nama_pos, n.kategori_dikesan, n.skor_risiko from tbl_laporan_harian l
         join tbl_pos_kawalan pos on pos.id_pos = l.id_pos
         left join tbl_hasil_nlp n on n.id_laporan = l.id_laporan
@@ -1845,7 +1860,7 @@ app.get('/api/guard-dashboard', auth, allow(roles.guard), async (req, res) => {
       client.query(`select s.*, pos.nama_pos from tbl_status_bertugas s join tbl_pos_kawalan pos on pos.id_pos = s.id_pos
         where s.id_pengguna = $1 order by s.tarikh desc, s.masa_mula desc limit 3`, [req.user.id_pengguna]),
     ]);
-    res.json({ summary: summary.rows[0], latest: latest.rows, duty: duty.rows });
+    res.json({ summary: summary.rows[0], today: todayStatus.rows[0], latest: latest.rows, duty: duty.rows });
   } finally {
     client.release();
   }

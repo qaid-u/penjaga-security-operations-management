@@ -284,6 +284,20 @@ function StatCard({ label, value }) {
   return <Card><p className="label-caps">{label}</p><p className="text-kpi mt-3">{value}</p></Card>;
 }
 
+function ActionTile({ title, value, description, tone = 'default', action }) {
+  return (
+    <button type="button" onClick={action} className={`app-row w-full rounded-xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${tone === 'urgent' ? 'app-row-alert' : ''}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-primary-token">{title}</p>
+          <p className="mt-1 text-xs text-secondary-token">{description}</p>
+        </div>
+        <span className="text-2xl font-bold text-[var(--color-brand-navy)]">{value}</span>
+      </div>
+    </button>
+  );
+}
+
 function LoadingState({ message = 'Memuatkan data...' }) {
   return <Card><p>{message}</p></Card>;
 }
@@ -523,7 +537,7 @@ function Protected({ auth, roles, children }) {
   return <Shell auth={auth}>{children}</Shell>;
 }
 
-function Dashboard() {
+function Dashboard({ auth }) {
   const [data, setData] = useState(null);
   const [meta, setMeta] = useState({ posts: [] });
   const [filters, setFilters] = useState({ date: '', location: '', risk: '' });
@@ -532,17 +546,52 @@ function Dashboard() {
   useEffect(() => { api.get('/meta').then((res) => setMeta(res.data)); }, []);
   useEffect(() => { load(); }, [load]);
   if (!data) return <LoadingState message="Memuatkan dashboard..." />;
-  const cards = [
+  const isChief = auth.user?.nama_peranan === ROLE.chief;
+  const isAdmin = auth.user?.nama_peranan === ROLE.admin;
+  const analyticCards = [
     ['Total laporan harian', data.cards.total_laporan],
     ['Laporan berisiko tinggi', data.cards.risiko_tinggi],
     ['Tindakan belum selesai', data.cards.tindakan_belum_selesai],
-    ['Pengawal aktif', data.cards.pengawal_aktif],
-    ['Jadual hari ini', data.cards.jadual_hari_ini],
     ['Laporan dengan bukti', data.cards.laporan_berlampiran],
   ];
+  const chiefCards = [
+    ['Laporan menunggu', data.priority.laporan_menunggu_semakan],
+    ['Laporan kritikal', data.priority.laporan_kritikal_menunggu],
+    ['Tindakan terbuka', data.priority.tindakan_terbuka],
+    ['Jadual hari ini', data.cards.jadual_hari_ini],
+  ];
+  if (isChief) {
+    return (
+      <div className="desktop-ops space-y-5">
+        <PageHeader title="Dashboard Ketua Pengawal" description="Fokus kepada laporan yang perlu disemak, tugasan jadual dan komunikasi tindakan susulan." action={<Button variant="ghost" onClick={() => navigate('/semakan')}><FileCheck size={16} /> Semakan Laporan</Button>} />
+        <Card title="Tindakan Ketua Hari Ini">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <ActionTile title="Laporan Menunggu Semakan" value={data.priority.laporan_menunggu_semakan} description="Lulus/tolak laporan dan tentukan tindakan susulan." tone={data.priority.laporan_menunggu_semakan > 0 ? 'urgent' : 'default'} action={() => navigate('/semakan')} />
+            <ActionTile title="Laporan Kritikal" value={data.priority.laporan_kritikal_menunggu} description="High/Critical yang perlu didahulukan." tone={data.priority.laporan_kritikal_menunggu > 0 ? 'urgent' : 'default'} action={() => navigate('/semakan')} />
+            <ActionTile title="Kemaskini Tindakan" value={data.priority.permintaan_kemaskini_ketua} description="Permintaan Admin yang menunggu maklum balas Ketua." tone={data.priority.permintaan_kemaskini_ketua > 0 ? 'urgent' : 'default'} action={() => navigate('/tindakan')} />
+            <ActionTile title="Jadual Bertugas" value={data.cards.jadual_hari_ini} description="Semak tugasan dan liputan pos hari ini." action={() => navigate('/jadual')} />
+          </div>
+        </Card>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{chiefCards.map(([label, value]) => <StatCard key={label} label={label} value={value} />)}</div>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Card title="Laporan Risiko Perlu Perhatian">
+            {data.latest.length ? data.latest.map((item) => <div key={item.id_laporan} className="app-row mb-2 flex items-center justify-between gap-3 rounded-md border p-3 text-sm"><span>{item.tajuk_laporan} - {item.nama_pos}</span><Badge tone={item.tahap_risiko}>{item.tahap_risiko}</Badge></div>) : <EmptyState title="Tiada laporan kritikal" description="Laporan risiko tinggi akan dipaparkan di sini." />}
+          </Card>
+          <Card title="Akses Pantas">
+            <div className="grid gap-2">
+              <Button variant="ghost" onClick={() => navigate('/semakan')}><FileCheck size={16} /> Semak laporan masuk</Button>
+              <Button variant="ghost" onClick={() => navigate('/jadual')}><CalendarDays size={16} /> Urus jadual bertugas</Button>
+              <Button variant="ghost" onClick={() => navigate('/tindakan')}><ClipboardCheck size={16} /> Balas kemaskini tindakan</Button>
+              <Button variant="ghost" onClick={() => navigate('/notifikasi')}><Bell size={16} /> Buka notifikasi</Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="desktop-ops space-y-5">
-      <PageHeader title="Dashboard Analitik" description="Pantau laporan, risiko, tindakan dan jadual operasi keselamatan." action={<Button variant="ghost" onClick={() => navigate('/jadual')}><CalendarDays size={16} /> Buka Jadual Bertugas</Button>} />
+      <PageHeader title="Dashboard Analitik Admin" description="Pantau trend laporan, taburan risiko, tindakan susulan dan prestasi NLP operasi." action={<Button variant="ghost" onClick={() => navigate('/nlp')}><Brain size={16} /> Analisis NLP</Button>} />
       <FilterPanel>
         <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-[180px_1fr_180px]">
           <Input type="date" value={filters.date} onChange={(e) => setFilters({ ...filters, date: e.target.value })} />
@@ -550,11 +599,15 @@ function Dashboard() {
           <Select value={filters.risk} onChange={(e) => setFilters({ ...filters, risk: e.target.value })}><option value="">Semua risiko</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></Select>
         </div>
       </FilterPanel>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">{cards.map(([label, value]) => (
-        label === 'Jadual hari ini'
-          ? <button key={label} type="button" onClick={() => navigate('/jadual')} className="text-left"><StatCard label={label} value={value} /></button>
-          : <StatCard key={label} label={label} value={value} />
-      ))}</div>
+      <Card title="Tindakan Perlu Dibuat">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {isAdmin && <ActionTile title="Perlu Tindakan Admin" value={data.priority.laporan_perlu_tindakan} description="Laporan diluluskan Ketua tetapi belum ada tindakan susulan." tone={data.priority.laporan_perlu_tindakan > 0 ? 'urgent' : 'default'} action={() => navigate('/tindakan')} />}
+          <ActionTile title="Tindakan Terbuka" value={data.priority.tindakan_terbuka} description="Isu susulan yang masih belum selesai." tone={data.priority.tindakan_terbuka > 0 ? 'urgent' : 'default'} action={() => navigate('/tindakan')} />
+          <ActionTile title="Permintaan Kemaskini" value={data.priority.permintaan_kemaskini_ketua} description="Permintaan Admin kepada Ketua yang masih aktif." action={() => navigate('/tindakan')} />
+          <ActionTile title="Notifikasi Baharu" value={data.priority.notifikasi_belum_dibaca} description="Makluman sistem yang belum dibaca." action={() => navigate('/notifikasi')} />
+        </div>
+      </Card>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{analyticCards.map(([label, value]) => <StatCard key={label} label={label} value={value} />)}</div>
       <div className="grid gap-4 xl:grid-cols-[1fr_1fr_0.9fr]">
         <Card title="Kategori Insiden">
           <ResponsiveContainer width="100%" height={240}><BarChart data={data.byCategory}><CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" /><XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} /><YAxis allowDecimals={false} tick={{ fill: 'var(--color-text-secondary)' }} /><Tooltip /><Bar dataKey="value" fill="var(--color-brand-navy)" /></BarChart></ResponsiveContainer>
@@ -576,6 +629,7 @@ function Dashboard() {
 
 function GuardDashboard() {
   const [data, setData] = useState(null);
+  const navigate = useNavigate();
   useEffect(() => { api.get('/guard-dashboard').then((res) => setData(res.data)); }, []);
   if (!data) return <LoadingState message="Memuatkan dashboard pengawal..." />;
   const cards = [
@@ -587,6 +641,14 @@ function GuardDashboard() {
   return (
     <div className="space-y-5">
       <PageHeader title="Dashboard Pengawal" description="Semak jadual, laporan dan status tugasan anda." />
+      <Card title="Tugasan Perlu Dibuat">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <ActionTile title="Tugasan Hari Ini" value={data.today.tugasan_hari_ini} description="Semak pos, syif dan status bertugas anda." tone={data.today.tugasan_hari_ini > 0 ? 'default' : 'urgent'} action={() => navigate('/jadual')} />
+          <ActionTile title="Laporan Hari Ini" value={data.today.laporan_hari_ini} description={data.today.laporan_hari_ini > 0 ? 'Laporan harian telah direkodkan.' : 'Hantar laporan selepas tugasan/rondaan.'} tone={data.today.laporan_hari_ini > 0 ? 'default' : 'urgent'} action={() => navigate('/laporan')} />
+          <ActionTile title="Laporan Ditolak" value={data.today.laporan_ditolak} description="Semak laporan yang perlu pembetulan." tone={data.today.laporan_ditolak > 0 ? 'urgent' : 'default'} action={() => navigate('/laporan')} />
+          <ActionTile title="Notifikasi Baharu" value={data.today.notifikasi_belum_dibaca} description="Makluman Ketua/Admin yang belum dibaca." action={() => navigate('/notifikasi')} />
+        </div>
+      </Card>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{cards.map(([label, value]) => <StatCard key={label} label={label} value={value} />)}</div>
       <div className="grid gap-5 lg:grid-cols-2">
         <Card title="Status Bertugas">{data.duty.length ? data.duty.map((d) => <div key={d.id_status} className="app-row mb-2 rounded-md border p-3 text-sm"><span className="font-medium text-primary-token">{d.nama_pos}</span><p>{d.tarikh?.slice(0, 10)} - {d.syif} - {d.status_bertugas}</p></div>) : <EmptyState title="Tiada jadual" description="Belum ada tugasan bertugas untuk dipaparkan." />}</Card>
@@ -1966,7 +2028,7 @@ function App() {
       />
       <Routes>
         <Route path="/login" element={auth.user ? <Navigate to={defaultPath} replace /> : <Login auth={auth} />} />
-        <Route path="/dashboard" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief]}><Dashboard /></Protected>} />
+        <Route path="/dashboard" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief]}><Dashboard auth={auth} /></Protected>} />
         <Route path="/pengawal" element={<Protected auth={auth} roles={[ROLE.guard]}><GuardDashboard /></Protected>} />
         <Route path="/jadual" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief, ROLE.guard]}><SchedulePage auth={auth} /></Protected>} />
         <Route path="/laporan" element={<Protected auth={auth} roles={[ROLE.guard]}><DailyReport /></Protected>} />
