@@ -20,6 +20,28 @@ insert into tbl_pengguna (id_peranan, nama_penuh, no_kad_pengenalan, no_telefon,
 (3, 'Pengawal Izzat', '901212120012', '012-3000012', 'izzat@penjaga.local', 'izzat', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
 (3, 'Pengawal Liyana', '891313130013', '012-3000013', 'liyana@penjaga.local', 'liyana', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif');
 
+insert into tbl_pengguna (id_peranan, nama_penuh, no_kad_pengenalan, no_telefon, emel, nama_pengguna, kata_laluan, status_akaun) values
+(3, 'Pengawal Zulkifli', '880101010014', '012-3000014', 'zulkifli@penjaga.local', 'zulkifli', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Aisyah', '890202020015', '012-3000015', 'aisyah@penjaga.local', 'aisyah', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Syafiq', '900303030016', '012-3000016', 'syafiq@penjaga.local', 'syafiq', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Kavitha', '910404040017', '012-3000017', 'kavitha@penjaga.local', 'kavitha', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Azlan', '920505050018', '012-3000018', 'azlan@penjaga.local', 'azlan', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Nurul', '930606060019', '012-3000019', 'nurul@penjaga.local', 'nurul', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Daniel', '940707070020', '012-3000020', 'daniel@penjaga.local', 'daniel', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Hidayah', '950808080021', '012-3000021', 'hidayah@penjaga.local', 'hidayah', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Lokman', '960909090022', '012-3000022', 'lokman@penjaga.local', 'lokman', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Priya', '971010100023', '012-3000023', 'priya@penjaga.local', 'priya', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Syahmi', '981111110024', '012-3000024', 'syahmi@penjaga.local', 'syahmi', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Intan', '991212120025', '012-3000025', 'intan@penjaga.local', 'intan', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Firdaus', '870113130026', '012-3000026', 'firdaus@penjaga.local', 'firdaus', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Salmah', '860214140027', '012-3000027', 'salmah@penjaga.local', 'salmah', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Ganesan', '850315150028', '012-3000028', 'ganesan@penjaga.local', 'ganesan', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Iman', '840416160029', '012-3000029', 'iman@penjaga.local', 'iman', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Roslan', '830517170030', '012-3000030', 'roslan@penjaga.local', 'roslan', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Amirah', '820618180031', '012-3000031', 'amirah@penjaga.local', 'amirah', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Vijay', '810719190032', '012-3000032', 'vijay@penjaga.local', 'vijay', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif'),
+(3, 'Pengawal Nabila', '800820200033', '012-3000033', 'nabila@penjaga.local', 'nabila', '$2b$10$9Lo0uAtINIJStdbyFpxxN.pbdkklKScVMsUbFYxlIdG1iMGKsxyDi', 'Aktif');
+
 insert into tbl_pos_kawalan (nama_pos, nama_bangunan, lokasi, waktu_operasi, status_pos) values
 ('Pos Lobi Utama', 'Bangunan Dato'' Jaafar Muhammad', 'Kota Iskandar', '24 Jam', 'Aktif'),
 ('Pos Bilik Kawalan CCTV', 'Bangunan Dato'' Jaafar Muhammad', 'Kota Iskandar', '24 Jam', 'Aktif'),
@@ -160,6 +182,40 @@ insert into tbl_status_bertugas (id_pengguna, id_pos, tarikh, syif, status_bertu
 (8, 5, current_date + interval '2 day', 'Pagi', 'Dijadualkan', '07:00', '16:00'),
 (9, 10, current_date + interval '2 day', 'Petang', 'Dijadualkan', '14:45', '23:45'),
 (10, 16, current_date + interval '2 day', 'Malam', 'Dijadualkan', '23:00', '08:00');
+
+insert into tbl_keperluan_pos (id_pos, syif, bilangan_diperlukan, status_aktif) values
+(1, 'Pagi', 2, true), (1, 'Petang', 1, true), (1, 'Malam', 1, true),
+(2, 'Pagi', 1, true), (2, 'Petang', 1, true), (2, 'Malam', 1, true),
+(3, 'Pagi', 1, true), (4, 'Pagi', 1, true), (5, 'Pagi', 1, true),
+(6, 'Pagi', 1, true), (7, 'Pagi', 1, true), (8, 'Pagi', 1, true),
+(9, 'Malam', 1, true), (10, 'Petang', 1, true), (11, 'Office Hour', 1, true),
+(12, 'Office Hour', 1, true), (13, 'Malam', 1, true), (14, 'Malam', 1, true),
+(15, 'Pagi', 1, true), (16, 'Malam', 1, true), (17, 'Office Hour', 1, true);
+
+insert into tbl_jadual_mingguan (tarikh_mula, tarikh_tamat, tajuk_jadual, status_jadual, dicipta_oleh, disahkan_oleh, tarikh_disahkan, catatan) values
+(current_date, current_date + interval '6 day', 'Jadual Mingguan Operasi Keselamatan', 'Disahkan', 2, 1, current_timestamp, 'Contoh jadual mingguan berdasarkan pos sebenar Kota Iskandar dan Johor Bahru.');
+
+insert into tbl_jadual_bertugas (id_jadual_mingguan, id_pengguna, id_pos, tarikh_tugas, syif, masa_mula, masa_tamat, status_bertugas, catatan, dicipta_oleh) values
+(1, 3, 1, current_date, 'Pagi', '07:00', '16:00', 'Hadir', 'Liputan lobi utama.', 2),
+(1, 4, 2, current_date, 'Pagi', '07:00', '16:00', 'Dijadualkan', 'Pantau bilik kawalan CCTV.', 2),
+(1, 5, 4, current_date, 'Malam', '23:00', '08:00', 'Dijadualkan', 'Kawalan pejabat MB.', 2),
+(1, 6, 8, current_date + interval '1 day', 'Pagi', '07:00', '16:00', 'Dijadualkan', 'BDARA.', 2),
+(1, 7, 9, current_date + interval '1 day', 'Malam', '23:00', '08:00', 'Dijadualkan', 'BDMSP.', 2),
+(1, 8, 11, current_date + interval '2 day', 'Office Hour', '07:00', '17:00', 'Dijadualkan', 'Pejabat Jurutulis.', 2),
+(1, 9, 13, current_date + interval '2 day', 'Malam', '23:00', '08:00', 'Dijadualkan', 'Kabin C1S.', 2),
+(1, 10, 16, current_date + interval '3 day', 'Malam', '23:00', '08:00', 'Tidak Hadir', 'Rumah VIP.', 2),
+(1, 11, 17, current_date + interval '3 day', 'Office Hour', '07:00', '17:00', 'Dijadualkan', 'UTC hari bekerja.', 2);
+
+insert into tbl_kehadiran_tugas (id_jadual, id_pengguna, masa_check_in, masa_check_out, status_kehadiran, catatan) values
+(1, 3, current_timestamp - interval '1 hour', null, 'Hadir', 'Check-in contoh.'),
+(2, 4, null, null, 'Belum Hadir', null),
+(3, 5, null, null, 'Belum Hadir', null),
+(4, 6, null, null, 'Belum Hadir', null),
+(5, 7, null, null, 'Belum Hadir', null),
+(6, 8, null, null, 'Belum Hadir', null),
+(7, 9, null, null, 'Belum Hadir', null),
+(8, 10, null, null, 'Tidak Hadir', 'Contoh tidak hadir untuk ringkasan.'),
+(9, 11, null, null, 'Belum Hadir', null);
 
 insert into tbl_notifikasi (id_pengguna, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan) values
 (2, 'Laporan kritikal', 'Asap dikesan di bilik utiliti kolej kediaman.', 'Risiko Tinggi', 'Critical'),

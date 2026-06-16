@@ -243,10 +243,22 @@ function PasswordInput({ value, onChange, required = false }) {
 }
 
 function statusTone(status) {
-  if (['Diluluskan', 'Selesai', 'Aktif'].includes(status)) return 'Low';
-  if (['Ditolak', 'Tidak Hadir', 'Tidak Aktif'].includes(status)) return 'Critical';
-  if (['Dihantar', 'Dalam Semakan', 'Dalam Tindakan'].includes(status)) return 'Medium';
+  if (['Diluluskan', 'Selesai', 'Aktif', 'Disahkan', 'Hadir'].includes(status)) return 'Low';
+  if (['Ditolak', 'Tidak Hadir', 'Tidak Aktif', 'Lewat'].includes(status)) return 'Critical';
+  if (['Dihantar', 'Dalam Semakan', 'Dalam Tindakan', 'Draf', 'Dijadualkan'].includes(status)) return 'Medium';
+  if (['Dikunci'].includes(status)) return 'High';
   return 'default';
+}
+
+const shiftTimes = {
+  Pagi: { start: '07:00', end: '16:00', label: '07:00-16:00' },
+  Petang: { start: '14:45', end: '23:45', label: '14:45-23:45' },
+  Malam: { start: '23:00', end: '08:00', label: '23:00-08:00' },
+  'Office Hour': { start: '07:00', end: '17:00', label: '07:00-17:00' },
+};
+
+function shiftTimeLabel(shift) {
+  return shiftTimes[shift]?.label || 'Masa belum ditetapkan';
 }
 
 function ReportLifecycle({ report, actions = [] }) {
@@ -323,7 +335,7 @@ function Shell({ auth, children }) {
   const nav = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [ROLE.admin, ROLE.chief] },
     { to: '/pengawal', label: 'Dashboard', icon: LayoutDashboard, roles: [ROLE.guard] },
-    { to: '/jadual', label: 'Jadual Bertugas', icon: CalendarDays, roles: [] },
+    { to: '/jadual', label: 'Jadual Bertugas', icon: CalendarDays, roles: [ROLE.admin, ROLE.chief, ROLE.guard] },
     { to: '/laporan', label: 'Hantar Laporan', icon: FileText, roles: [ROLE.guard] },
     { to: '/semakan', label: 'Semakan Laporan', icon: FileCheck, roles: [ROLE.admin, ROLE.chief] },
     { to: '/tindakan', label: 'Tindakan Susulan', icon: ClipboardCheck, roles: [ROLE.admin, ROLE.chief] },
@@ -421,6 +433,7 @@ function Dashboard() {
   const [data, setData] = useState(null);
   const [meta, setMeta] = useState({ posts: [] });
   const [filters, setFilters] = useState({ date: '', location: '', risk: '' });
+  const navigate = useNavigate();
   const load = useCallback(() => api.get('/dashboard', { params: filters }).then((res) => setData(res.data)), [filters]);
   useEffect(() => { api.get('/meta').then((res) => setMeta(res.data)); }, []);
   useEffect(() => { load(); }, [load]);
@@ -435,7 +448,7 @@ function Dashboard() {
   ];
   return (
     <div className="desktop-ops space-y-5">
-      <PageHeader title="Dashboard Analitik" description="Pantau laporan, risiko, tindakan dan jadual operasi keselamatan." />
+      <PageHeader title="Dashboard Analitik" description="Pantau laporan, risiko, tindakan dan jadual operasi keselamatan." action={<Button variant="ghost" onClick={() => navigate('/jadual')}><CalendarDays size={16} /> Buka Jadual Bertugas</Button>} />
       <FilterPanel>
         <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-[180px_1fr_180px]">
           <Input type="date" value={filters.date} onChange={(e) => setFilters({ ...filters, date: e.target.value })} />
@@ -443,7 +456,11 @@ function Dashboard() {
           <Select value={filters.risk} onChange={(e) => setFilters({ ...filters, risk: e.target.value })}><option value="">Semua risiko</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></Select>
         </div>
       </FilterPanel>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">{cards.map(([label, value]) => <StatCard key={label} label={label} value={value} />)}</div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">{cards.map(([label, value]) => (
+        label === 'Jadual hari ini'
+          ? <button key={label} type="button" onClick={() => navigate('/jadual')} className="text-left"><StatCard label={label} value={value} /></button>
+          : <StatCard key={label} label={label} value={value} />
+      ))}</div>
       <div className="grid gap-4 xl:grid-cols-[1fr_1fr_0.9fr]">
         <Card title="Kategori Insiden">
           <ResponsiveContainer width="100%" height={240}><BarChart data={data.byCategory}><CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" /><XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} /><YAxis allowDecimals={false} tick={{ fill: 'var(--color-text-secondary)' }} /><Tooltip /><Bar dataKey="value" fill="var(--color-brand-navy)" /></BarChart></ResponsiveContainer>
@@ -986,158 +1003,381 @@ function FollowUp({ auth }) {
 
 function SchedulePage({ auth }) {
   const canManage = [ROLE.admin, ROLE.chief].includes(auth.user?.nama_peranan);
+  const isAdmin = auth.user?.nama_peranan === ROLE.admin;
+  const today = new Date().toISOString().slice(0, 10);
   const [meta, setMeta] = useState({ posts: [], guards: [] });
-  const [rows, setRows] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [filters, setFilters] = useState({ date: '', pos: '', guard: '', status: '', q: '' });
-  const [summaryFilters, setSummaryFilters] = useState({ date: new Date().toISOString().slice(0, 10), shift: 'Pagi' });
-  const [form, setForm] = useState({ tarikh: new Date().toISOString().slice(0, 10), syif: 'Pagi', status_bertugas: 'Dijadualkan' });
+  const [selectedWeekId, setSelectedWeekId] = useState('');
+  const [selectedWeek, setSelectedWeek] = useState(null);
+  const [coverage, setCoverage] = useState(null);
+  const [requirements, setRequirements] = useState([]);
+  const [mySchedule, setMySchedule] = useState([]);
+  const [requirementForm, setRequirementForm] = useState({ id_pos: '', syif: 'Pagi', bilangan_diperlukan: 1, status_aktif: true });
+  const [quickDate, setQuickDate] = useState(today);
+  const [assignmentFilters, setAssignmentFilters] = useState({ post: '', shift: '', status: 'need' });
+  const [assignmentForm, setAssignmentForm] = useState(null);
+  const [conflict, setConflict] = useState(null);
   const [importFile, setImportFile] = useState(null);
-  const [importing, setImporting] = useState(false);
-  const [error, setError] = useState('');
-  const load = useCallback(() => api.get('/schedules', { params: filters }).then((res) => setRows(res.data)), [filters]);
-  const loadSummary = useCallback(() => api.get('/schedules/summary', { params: summaryFilters }).then((res) => setSummary(res.data)), [summaryFilters]);
-  useEffect(() => { api.get('/meta').then((res) => setMeta(res.data)); }, []);
-  useEffect(() => { load(); }, [load]);
-  useEffect(() => { if (canManage) loadSummary(); }, [canManage, loadSummary]);
-  const create = async (event) => {
-    event.preventDefault();
-    setError('');
-    try {
-      await api.post('/schedules', { ...form, id_pengguna: Number(form.id_pengguna), id_pos: Number(form.id_pos) });
-      setForm({ tarikh: form.tarikh, syif: 'Pagi', status_bertugas: 'Dijadualkan' });
-      notifySuccess('Jadual bertugas disimpan');
-      load();
-      loadSummary();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Jadual gagal disimpan');
-      notifyError(err, 'Jadual gagal disimpan');
-    }
+  const [pdfFile, setPdfFile] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const loadMeta = useCallback(() => api.get('/meta').then((res) => setMeta(res.data)), []);
+  const loadWeeks = useCallback(() => api.get('/jadual/mingguan').then((res) => {
+    setSelectedWeekId((current) => current || String(res.data[0]?.id_jadual_mingguan || ''));
+  }), []);
+  const loadWeekData = useCallback(async () => {
+    if (!selectedWeekId) return;
+    const [week, summary] = await Promise.all([
+      api.get(`/jadual/mingguan/${selectedWeekId}`),
+      api.get(`/jadual/mingguan/${selectedWeekId}/coverage-summary`),
+    ]);
+    setSelectedWeek(week.data);
+    setCoverage(summary.data);
+  }, [selectedWeekId]);
+  const loadMySchedule = useCallback(() => api.get('/jadual/my-schedule').then((res) => setMySchedule(res.data)), []);
+  const loadRequirements = useCallback(() => api.get('/jadual/keperluan-pos').then((res) => setRequirements(res.data)), []);
+
+  useEffect(() => { loadMeta(); }, [loadMeta]);
+  useEffect(() => { if (canManage) loadRequirements(); }, [canManage, loadRequirements]);
+  useEffect(() => { canManage ? loadWeeks() : loadMySchedule(); }, [canManage, loadWeeks, loadMySchedule]);
+  useEffect(() => {
+    if (!canManage || !selectedWeekId) return;
+    Promise.all([
+      api.get(`/jadual/mingguan/${selectedWeekId}`),
+      api.get(`/jadual/mingguan/${selectedWeekId}/coverage-summary`),
+    ]).then(([week, summary]) => {
+      setSelectedWeek(week.data);
+      setCoverage(summary.data);
+    });
+  }, [canManage, selectedWeekId]);
+  const assignmentRows = useMemo(() => {
+    const rows = coverage?.coverageByPost || [];
+    return rows.filter((row) => {
+      const shortage = Math.max(0, Number(row.required) - Number(row.assigned));
+      const matchesPost = !assignmentFilters.post || String(row.id_pos) === String(assignmentFilters.post);
+      const matchesShift = !assignmentFilters.shift || row.syif === assignmentFilters.shift;
+      const matchesStatus = assignmentFilters.status === 'all' || (assignmentFilters.status === 'need' ? shortage > 0 : shortage === 0);
+      return matchesPost && matchesShift && matchesStatus;
+    });
+  }, [assignmentFilters, coverage]);
+
+  const openAssignment = (assignment = null) => {
+    const baseDate = selectedWeek?.tarikh_mula?.slice(0, 10) || today;
+    setConflict(null);
+    setAssignmentForm(assignment ? {
+      id_jadual: assignment.id_jadual,
+      tarikh_tugas: assignment.tarikh_tugas?.slice(0, 10),
+      syif: assignment.syif,
+      masa_mula: assignment.masa_mula?.slice(0, 5),
+      masa_tamat: assignment.masa_tamat?.slice(0, 5),
+      id_pos: assignment.id_pos,
+      id_pengguna: assignment.id_pengguna,
+      catatan: assignment.catatan || '',
+    } : {
+      tarikh_tugas: baseDate,
+      syif: 'Pagi',
+      masa_mula: '07:00',
+      masa_tamat: '16:00',
+      id_pos: '',
+      id_pengguna: '',
+      catatan: '',
+    });
   };
-  const updateStatus = async (id, status_bertugas) => { try { await api.patch(`/schedules/${id}`, { status_bertugas }); notifySuccess(`Status jadual: ${status_bertugas}`); load(); loadSummary(); } catch (error) { notifyError(error, 'Status jadual gagal dikemas kini'); } };
-  const importSchedule = async (event) => {
+
+  const openAssignmentForRequirement = (requirement) => {
+    const times = shiftTimes[requirement.syif] || shiftTimes.Pagi;
+    setConflict(null);
+    setAssignmentForm({
+      tarikh_tugas: quickDate || selectedWeek?.tarikh_mula?.slice(0, 10) || today,
+      syif: requirement.syif,
+      masa_mula: times.start,
+      masa_tamat: times.end,
+      id_pos: requirement.id_pos,
+      id_pengguna: '',
+      catatan: '',
+    });
+  };
+
+  const checkConflict = async (form = assignmentForm) => {
+    if (!form?.id_pengguna || !form?.id_pos || !selectedWeekId) return null;
+    const { data } = await api.post('/jadual/check-conflict', { ...form, id_jadual_mingguan: Number(selectedWeekId) });
+    setConflict(data);
+    return data;
+  };
+
+  const saveAssignment = async (event) => {
     event.preventDefault();
-    if (!importFile) return notifyError({ message: 'Pilih fail CSV atau PDF dahulu' });
-    setImporting(true);
+    const result = await checkConflict();
+    if (result && !result.ok) return notifyError({ message: result.critical.join('. ') }, 'Konflik jadual dikesan');
+    setSaving(true);
     try {
-      const data = new FormData();
-      data.append('jadual_fail', importFile);
-      const response = await api.post('/schedules/import', data, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setImportFile(null);
-      event.target.reset();
-      notifySuccess(response.data.message || `Import selesai: ${response.data.imported} berjaya, ${response.data.skipped} dilangkau`);
-      load();
-      loadSummary();
-    } catch (err) {
-      notifyError(err, 'Import jadual gagal');
+      if (assignmentForm.id_jadual) await api.put(`/jadual/assignments/${assignmentForm.id_jadual}`, assignmentForm);
+      else await api.post(`/jadual/mingguan/${selectedWeekId}/assignments`, assignmentForm);
+      notifySuccess('Tugasan jadual disimpan');
+      setAssignmentForm(null);
+      await loadWeekData();
+    } catch (error) {
+      notifyError(error, 'Tugasan jadual gagal disimpan');
     } finally {
-      setImporting(false);
-    }
-  };
-  const guardCheck = async (id, action) => {
-    try {
-      await api.patch(`/schedules/${id}/${action}`);
-      notifySuccess(action === 'check-in' ? 'Anda mula bertugas' : 'Tugasan ditamatkan');
-      load();
-    } catch (err) {
-      notifyError(err, 'Status bertugas gagal dikemas kini');
+      setSaving(false);
     }
   };
 
-  return (
-    <div className="space-y-5">
-      <PageHeader title="Jadual Bertugas" description={canManage ? 'Pantau liputan pos, jumlah anggota dan tugasan syif.' : 'Semak jadual dan kemas kini status bertugas anda.'} />
-      {canManage && (
-        <Card title="Ringkasan Liputan Syif">
-          <div className="mb-4 grid gap-2 sm:grid-cols-2">
-            <Input type="date" value={summaryFilters.date} onChange={(e) => setSummaryFilters({ ...summaryFilters, date: e.target.value })} />
-            <Select value={summaryFilters.shift} onChange={(e) => setSummaryFilters({ ...summaryFilters, shift: e.target.value })}><option>Pagi</option><option>Petang</option><option>Malam</option></Select>
-          </div>
-          {summary ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-                <StatCard label="Keperluan" value={summary.required} />
-                <StatCard label="Ditugaskan" value={summary.assigned} />
-                <StatCard label="Kekurangan" value={summary.shortage} />
-                <StatCard label="Bertugas" value={summary.activeDuty} />
-                <StatCard label="Tidak hadir" value={summary.absent} />
-              </div>
-              {!summary.isSufficient && <AlertMessage>Syif ini belum cukup anggota: kurang {summary.shortage} orang.</AlertMessage>}
-              {summary.uncoveredPosts.length > 0 ? (
-                <div>
-                  <p className="mb-2 font-medium text-primary-token">Pos belum diliputi</p>
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {summary.uncoveredPosts.slice(0, 8).map((post) => <div key={post.id_pos} className="app-row rounded-md border p-3 text-sm"><span className="font-medium text-primary-token">{post.nama_pos}</span><p>{post.nama_bangunan}</p></div>)}
+  const deleteAssignment = async (id) => {
+    try {
+      await api.delete(`/jadual/assignments/${id}`);
+      notifySuccess('Tugasan jadual dipadam');
+      await loadWeekData();
+    } catch (error) {
+      notifyError(error, 'Tugasan jadual gagal dipadam');
+    }
+  };
+
+  const saveRequirement = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await api.post('/jadual/keperluan-pos', {
+        ...requirementForm,
+        id_pos: Number(requirementForm.id_pos),
+        bilangan_diperlukan: Number(requirementForm.bilangan_diperlukan),
+      });
+      notifySuccess('Keperluan pos dikemas kini');
+      setRequirementForm({ id_pos: '', syif: 'Pagi', bilangan_diperlukan: 1, status_aktif: true });
+      await loadRequirements();
+      if (selectedWeekId) await loadWeekData();
+    } catch (error) {
+      notifyError(error, 'Keperluan pos gagal dikemas kini');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateWeekStatus = async (action) => {
+    try {
+      await api.post(`/jadual/mingguan/${selectedWeekId}/${action}`);
+      notifySuccess(action === 'confirm' ? 'Jadual disahkan' : action === 'lock' ? 'Jadual dikunci' : 'Jadual dibuka kunci');
+      await loadWeeks();
+      await loadWeekData();
+    } catch (error) {
+      notifyError(error, 'Status jadual gagal dikemas kini');
+    }
+  };
+
+  const uploadScheduleFile = async (event, type) => {
+    event.preventDefault();
+    const file = type === 'csv' ? importFile : pdfFile;
+    if (!file) return notifyError({ message: 'Pilih fail dahulu' });
+    const body = new FormData();
+    body.append('jadual_fail', file);
+    setSaving(true);
+    try {
+      const endpoint = type === 'csv' ? 'import-csv' : 'upload-pdf';
+      const { data } = await api.post(`/jadual/mingguan/${selectedWeekId}/${endpoint}`, body, { headers: { 'Content-Type': 'multipart/form-data' } });
+      notifySuccess(type === 'csv' ? `Import CSV selesai: ${data.imported} tugasan` : 'PDF rujukan dimuat naik');
+      setImportFile(null);
+      setPdfFile(null);
+      event.target.reset();
+      await loadWeekData();
+    } catch (error) {
+      notifyError(error, type === 'csv' ? 'Import CSV gagal' : 'Muat naik PDF gagal');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const guardCheck = async (id, action) => {
+    try {
+      await api.post(`/jadual/assignments/${id}/${action}`);
+      notifySuccess(action === 'check-in' ? 'Check-in berjaya' : 'Check-out berjaya');
+      await loadMySchedule();
+    } catch (error) {
+      notifyError(error, 'Status kehadiran gagal dikemas kini');
+    }
+  };
+
+  if (!canManage) {
+    return (
+      <div className="space-y-5">
+        <PageHeader title="Jadual Bertugas Saya" description="Lihat tugasan pos, syif, masa dan status kehadiran anda." />
+        <Card title="Tugasan Saya">
+          {mySchedule.length ? mySchedule.map((item) => {
+            const dutyDate = item.tarikh_tugas?.slice(0, 10);
+            const canCheckIn = dutyDate === today && !item.masa_check_in;
+            const canCheckOut = dutyDate === today && item.masa_check_in && !item.masa_check_out;
+            return (
+              <div key={item.id_jadual} className="app-row mb-3 rounded-md border p-4 text-sm">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-primary-token">{item.nama_pos}</p>
+                    <p>{item.nama_bangunan || item.lokasi || '-'}</p>
+                    <p className="text-data">{dutyDate} - {item.syif} - {item.masa_mula?.slice(0, 5)} hingga {item.masa_tamat?.slice(0, 5)}</p>
                   </div>
+                  <Badge tone={statusTone(item.status_bertugas)}>{item.status_kehadiran || item.status_bertugas}</Badge>
                 </div>
-              ) : <AlertMessage type="success">Semua pos aktif mempunyai tugasan untuk syif ini.</AlertMessage>}
-            </div>
-          ) : <LoadingState message="Memuatkan ringkasan jadual..." />}
-        </Card>
-      )}
-      <Card title="Tapisan Jadual">
-        <div className="grid gap-2 md:grid-cols-5">
-          <Input type="date" value={filters.date} onChange={(e) => setFilters({ ...filters, date: e.target.value })} />
-          <Select value={filters.pos} onChange={(e) => setFilters({ ...filters, pos: e.target.value })}><option value="">Semua pos</option>{meta.posts.map((p) => <option key={p.id_pos} value={p.id_pos}>{p.nama_pos}</option>)}</Select>
-          {canManage && <Select value={filters.guard} onChange={(e) => setFilters({ ...filters, guard: e.target.value })}><option value="">Semua pengawal</option>{meta.guards.map((g) => <option key={g.id_pengguna} value={g.id_pengguna}>{g.nama_penuh}</option>)}</Select>}
-          {canManage && <Input placeholder="Cari nama pengawal" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />}
-          <Select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}><option value="">Semua status</option><option>Dijadualkan</option><option>Bertugas</option><option>Selesai</option><option>Tidak Hadir</option></Select>
-        </div>
-      </Card>
-      <div className={`grid gap-5 ${canManage ? 'lg:grid-cols-[0.75fr_1.25fr]' : ''}`}>
-        {canManage && (
-          <div className="space-y-5">
-            <Card title="Import Jadual CSV/PDF">
-              <form onSubmit={importSchedule} className="space-y-3">
-                <Field label="Fail jadual"><Input type="file" accept=".csv,.pdf,text/csv,application/pdf" onChange={(e) => setImportFile(e.target.files?.[0] || null)} /></Field>
-                <p className="text-sm">CSV boleh import automatik dengan header: nama_pengguna, id_pos, tarikh, syif, masa_mula, masa_tamat. PDF disimpan sebagai rujukan audit.</p>
-                <Button disabled={importing}><Upload size={16} /> {importing ? 'Mengimport...' : 'Import jadual'}</Button>
-              </form>
-            </Card>
-            <Card title="Tambah Jadual">
-              <form onSubmit={create} className="space-y-3">
-                <Field label="Pengawal"><Select required value={form.id_pengguna || ''} onChange={(e) => setForm({ ...form, id_pengguna: e.target.value })}><option value="">Pilih pengawal</option>{meta.guards.map((g) => <option key={g.id_pengguna} value={g.id_pengguna}>{g.nama_penuh}</option>)}</Select></Field>
-                <Field label="Pos kawalan"><Select required value={form.id_pos || ''} onChange={(e) => setForm({ ...form, id_pos: e.target.value })}><option value="">Pilih pos</option>{meta.posts.map((p) => <option key={p.id_pos} value={p.id_pos}>{p.nama_pos}</option>)}</Select></Field>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Tarikh"><Input type="date" required value={form.tarikh} onChange={(e) => setForm({ ...form, tarikh: e.target.value })} /></Field>
-                  <Field label="Syif"><Select value={form.syif} onChange={(e) => setForm({ ...form, syif: e.target.value })}><option>Pagi</option><option>Petang</option><option>Malam</option></Select></Field>
-                  <Field label="Masa mula"><Input type="time" value={form.masa_mula || ''} onChange={(e) => setForm({ ...form, masa_mula: e.target.value })} /></Field>
-                  <Field label="Masa tamat"><Input type="time" value={form.masa_tamat || ''} onChange={(e) => setForm({ ...form, masa_tamat: e.target.value })} /></Field>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {canCheckIn && <Button onClick={() => guardCheck(item.id_jadual, 'check-in')}>Check-in</Button>}
+                  {canCheckOut && <Button onClick={() => guardCheck(item.id_jadual, 'check-out')}>Check-out</Button>}
                 </div>
-                {error && <p className="status-error rounded-md border px-3 py-2 text-sm">{error}</p>}
-                <Button>Simpan jadual</Button>
-              </form>
-            </Card>
-          </div>
-        )}
-        <Card title="Senarai Jadual">
-          {rows.length ? rows.map((s) => (
-            <div key={s.id_status} className="app-row mb-3 grid gap-3 rounded-md border p-4 text-sm md:grid-cols-[1fr_auto]">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-primary-token">{s.nama_penuh}</span>
-                  <Badge>{s.status_bertugas}</Badge>
-                </div>
-                <p>{s.nama_pos} - {s.nama_bangunan || s.lokasi || '-'}</p>
-                <p className="text-data">{s.tarikh?.slice(0, 10)} - {s.syif} - {s.masa_mula || '--:--'} hingga {s.masa_tamat || '--:--'}</p>
               </div>
-              {canManage && (
-                <div className="flex flex-wrap gap-2 md:justify-end">
-                  <Button variant="ghost" onClick={() => updateStatus(s.id_status, 'Bertugas')}>Bertugas</Button>
-                  <Button variant="ghost" onClick={() => updateStatus(s.id_status, 'Selesai')}>Selesai</Button>
-                  <Button variant="danger" onClick={() => updateStatus(s.id_status, 'Tidak Hadir')}>Tidak Hadir</Button>
-                </div>
-              )}
-              {!canManage && (
-                <div className="flex flex-wrap gap-2 md:justify-end">
-                  {s.status_bertugas !== 'Bertugas' && s.status_bertugas !== 'Selesai' && <Button onClick={() => guardCheck(s.id_status, 'check-in')}>Mula Bertugas</Button>}
-                  {s.status_bertugas === 'Bertugas' && <Button onClick={() => guardCheck(s.id_status, 'check-out')}>Tamat Bertugas</Button>}
-                </div>
-              )}
-            </div>
-          )) : <p className="text-sm">Tiada jadual dijumpai.</p>}
+            );
+          }) : <EmptyState title="Tiada jadual" description="Jadual anda akan dipaparkan selepas Ketua/Admin membuat tugasan." />}
         </Card>
       </div>
+    );
+  }
+
+  const lockedForChief = auth.user?.nama_peranan === ROLE.chief && selectedWeek?.status_jadual === 'Dikunci';
+
+  return (
+    <div className="desktop-ops space-y-5">
+      <PageHeader title="Pengurusan Jadual Bertugas Berasaskan Templat Mingguan" description="Rancang jadual mingguan mengikut tarikh, syif, pos dan pengawal tanpa algoritma automatik." />
+      <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <div className="space-y-5">
+          {selectedWeek && <Card title="Status Jadual Semasa">
+            <div className="space-y-2 text-sm">
+              <Badge tone={statusTone(selectedWeek.status_jadual)}>{selectedWeek.status_jadual}</Badge>
+              <p>{selectedWeek.tarikh_mula?.slice(0, 10)} hingga {selectedWeek.tarikh_tamat?.slice(0, 10)}</p>
+              {selectedWeek.catatan && <p>{selectedWeek.catatan}</p>}
+              <div className="flex flex-wrap gap-2">
+                {isAdmin && <Button variant="ghost" onClick={() => updateWeekStatus('confirm')}>Sahkan</Button>}
+                {isAdmin && <Button variant="ghost" onClick={() => updateWeekStatus('lock')}>Kunci</Button>}
+                {isAdmin && <Button variant="ghost" onClick={() => updateWeekStatus('unlock')}>Buka Kunci</Button>}
+              </div>
+              {lockedForChief && <AlertMessage>Jadual dikunci. Ketua tidak boleh mengubah tugasan sehingga Admin membuka kunci.</AlertMessage>}
+            </div>
+          </Card>}
+
+          <Card title="Tetapan Keperluan Pos">
+            <form onSubmit={saveRequirement} className="space-y-3">
+              <Field label="Pos kawalan"><Select required value={requirementForm.id_pos} onChange={(e) => setRequirementForm({ ...requirementForm, id_pos: e.target.value })}><option value="">Pilih pos</option>{meta.posts.map((post) => <option key={post.id_pos} value={post.id_pos}>{post.nama_pos}</option>)}</Select></Field>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Syif"><Select value={requirementForm.syif} onChange={(e) => setRequirementForm({ ...requirementForm, syif: e.target.value })}><option value="Pagi">Pagi ({shiftTimeLabel('Pagi')})</option><option value="Petang">Petang ({shiftTimeLabel('Petang')})</option><option value="Malam">Malam ({shiftTimeLabel('Malam')})</option><option value="Office Hour">Office Hour ({shiftTimeLabel('Office Hour')})</option></Select></Field>
+                <Field label="Bilangan pengawal"><Input type="number" min="0" value={requirementForm.bilangan_diperlukan} onChange={(e) => setRequirementForm({ ...requirementForm, bilangan_diperlukan: e.target.value })} /></Field>
+              </div>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={requirementForm.status_aktif} onChange={(e) => setRequirementForm({ ...requirementForm, status_aktif: e.target.checked })} /> Aktif untuk liputan</label>
+              <Button disabled={saving}>Simpan keperluan</Button>
+            </form>
+            <p className="mt-3 text-sm">Keperluan ini menentukan berapa orang perlu dijadualkan untuk setiap pos dan syif. Aktif sekarang: {requirements.filter((item) => item.status_aktif).length} tetapan.</p>
+          </Card>
+
+          {isAdmin && selectedWeekId && <Card title="Import / Rujukan">
+            <form onSubmit={(e) => uploadScheduleFile(e, 'csv')} className="mb-4 space-y-2">
+              <Field label="CSV jadual"><Input type="file" accept=".csv,text/csv" onChange={(e) => setImportFile(e.target.files?.[0] || null)} /></Field>
+              <Button disabled={saving}><Upload size={16} /> Import CSV</Button>
+            </form>
+            <form onSubmit={(e) => uploadScheduleFile(e, 'pdf')} className="space-y-2">
+              <Field label="PDF rujukan"><Input type="file" accept=".pdf,application/pdf" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} /></Field>
+              <Button variant="ghost" disabled={saving}><Upload size={16} /> Muat naik PDF</Button>
+            </form>
+          </Card>}
+        </div>
+
+        <div className="space-y-5">
+          {coverage && <Card title="Ringkasan Liputan">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+              <StatCard label="Keperluan" value={coverage.totalRequired} />
+              <StatCard label="Ditugaskan" value={coverage.totalAssigned} />
+              <StatCard label="Kekurangan" value={coverage.shortage} />
+              <StatCard label="Sedang Hadir" value={coverage.activeDutyCount} />
+              <StatCard label="Tidak Hadir" value={coverage.absentGuardCount} />
+            </div>
+            {coverage.uncoveredPosts?.length > 0 && <AlertMessage>{coverage.uncoveredPosts.length} kombinasi pos/syif belum mempunyai pengawal.</AlertMessage>}
+          </Card>}
+
+          {coverage && <Card title="Keperluan Pos & Tugasan Pengawal">
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <p className="font-semibold">Cara guna ringkas</p>
+              <p>1. Pilih tarikh tugasan. 2. Semak pos yang bertanda Perlu tambah. 3. Klik Tugaskan pengawal dan pilih nama pengawal.</p>
+            </div>
+            <div className="mb-4 grid gap-3 rounded-lg border bg-white p-3 md:grid-cols-[180px_1fr_160px_170px]">
+              <Field label="Tarikh tugasan"><Input type="date" value={quickDate} onChange={(e) => setQuickDate(e.target.value)} /></Field>
+              <Field label="Cari ikut pos"><Select value={assignmentFilters.post} onChange={(e) => setAssignmentFilters({ ...assignmentFilters, post: e.target.value })}><option value="">Semua pos</option>{meta.posts.map((post) => <option key={post.id_pos} value={post.id_pos}>{post.nama_pos}</option>)}</Select></Field>
+              <Field label="Syif dan masa"><Select value={assignmentFilters.shift} onChange={(e) => setAssignmentFilters({ ...assignmentFilters, shift: e.target.value })}><option value="">Semua syif</option><option value="Pagi">Pagi ({shiftTimeLabel('Pagi')})</option><option value="Petang">Petang ({shiftTimeLabel('Petang')})</option><option value="Malam">Malam ({shiftTimeLabel('Malam')})</option><option value="Office Hour">Office Hour ({shiftTimeLabel('Office Hour')})</option></Select></Field>
+              <Field label="Paparan"><Select value={assignmentFilters.status} onChange={(e) => setAssignmentFilters({ ...assignmentFilters, status: e.target.value })}><option value="need">Perlu tambah</option><option value="complete">Cukup lengkap</option><option value="all">Semua</option></Select></Field>
+            </div>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+              <p className="text-secondary-token">{assignmentRows.length} pos/syif dipaparkan. Fokus utama ialah pos yang belum cukup pengawal.</p>
+              <Button variant="ghost" onClick={() => setAssignmentFilters({ post: '', shift: '', status: 'need' })}>Reset penapis</Button>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {assignmentRows.length ? assignmentRows.map((row) => {
+                const shortage = Math.max(0, Number(row.required) - Number(row.assigned));
+                const isCovered = shortage === 0;
+                return (
+                  <div key={`${row.id_pos}-${row.syif}`} className={`rounded-lg border p-4 text-sm shadow-sm ${isCovered ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-base font-semibold text-primary-token">{row.nama_pos}</p>
+                        <p className="text-secondary-token">Syif {row.syif}</p>
+                        <p className="mt-1 inline-flex rounded-md bg-white px-2 py-1 text-xs font-semibold text-primary-token">Masa {shiftTimeLabel(row.syif)}</p>
+                      </div>
+                      <Badge tone={isCovered ? 'Low' : 'Medium'}>{isCovered ? 'Cukup' : 'Perlu tambah'}</Badge>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-md bg-white p-2"><p className="text-lg font-bold text-primary-token">{row.required}</p><p className="text-xs text-secondary-token">Perlu</p></div>
+                      <div className="rounded-md bg-white p-2"><p className="text-lg font-bold text-primary-token">{row.assigned}</p><p className="text-xs text-secondary-token">Ada</p></div>
+                      <div className="rounded-md bg-white p-2"><p className={`text-lg font-bold ${shortage ? 'text-amber-700' : 'text-green-700'}`}>{shortage}</p><p className="text-xs text-secondary-token">Kurang</p></div>
+                    </div>
+                    {shortage > 0 && <AlertMessage>Tambah {shortage} pengawal untuk lengkapkan pos ini.</AlertMessage>}
+                    {row.assigned_guards?.length > 0 ? (
+                      <div className="mt-3 space-y-2">
+                        <p className="label-caps">Pengawal ditugaskan</p>
+                        {row.assigned_guards.map((guard) => (
+                          <div key={guard.id_jadual} className="rounded-md border bg-white p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <p className="font-medium text-primary-token">{guard.nama_penuh}</p>
+                                <p className="text-data">{guard.tarikh_tugas?.slice(0, 10)} - {guard.masa_mula?.slice(0, 5)} hingga {guard.masa_tamat?.slice(0, 5)}</p>
+                              </div>
+                              <Badge tone={statusTone(guard.status_bertugas)}>{guard.status_bertugas}</Badge>
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <Button variant="ghost" onClick={() => openAssignment({ ...guard, id_pos: row.id_pos, syif: row.syif })} disabled={lockedForChief}>Edit</Button>
+                              <Button variant="danger" onClick={() => deleteAssignment(guard.id_jadual)} disabled={lockedForChief}>Padam</Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="mt-3 rounded-md border border-dashed bg-white p-3 text-secondary-token">Belum ada pengawal ditugaskan untuk pos dan syif ini.</p>}
+                    <Button className="mt-3 w-full justify-center sm:w-auto" variant={shortage ? 'primary' : 'ghost'} onClick={() => openAssignmentForRequirement(row)} disabled={!selectedWeekId || lockedForChief}>{shortage ? 'Tugaskan pengawal sekarang' : 'Tambah pengawal lain'}</Button>
+                  </div>
+                );
+              }) : <EmptyState title="Tiada pos untuk paparan ini" description="Cuba pilih Semua atau tukar penapis pos/syif." />}
+            </div>
+          </Card>}
+        </div>
+      </div>
+
+      {assignmentForm && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(0,0,0,0.55)] p-0 sm:items-center sm:p-4">
+          <div className="app-elevated motion-sheet max-h-[92vh] w-full overflow-y-auto rounded-t-lg border p-4 shadow-xl sm:max-w-2xl sm:rounded-lg">
+            <div className="mb-4 flex justify-between gap-3">
+              <div><h2>{assignmentForm.id_jadual ? 'Edit Tugasan' : 'Tambah Tugasan'}</h2><p className="text-sm">Semak konflik sebelum simpan tugasan.</p></div>
+              <Button variant="ghost" onClick={() => setAssignmentForm(null)}><X size={16} /> Tutup</Button>
+            </div>
+            <form onSubmit={saveAssignment} className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Tarikh"><Input type="date" required value={assignmentForm.tarikh_tugas} onChange={(e) => setAssignmentForm({ ...assignmentForm, tarikh_tugas: e.target.value })} /></Field>
+                <Field label="Syif"><Select value={assignmentForm.syif} onChange={(e) => {
+                  const times = shiftTimes[e.target.value] || shiftTimes.Pagi;
+                  setAssignmentForm({ ...assignmentForm, syif: e.target.value, masa_mula: times.start, masa_tamat: times.end });
+                }}><option value="Pagi">Pagi ({shiftTimeLabel('Pagi')})</option><option value="Petang">Petang ({shiftTimeLabel('Petang')})</option><option value="Malam">Malam ({shiftTimeLabel('Malam')})</option><option value="Office Hour">Office Hour ({shiftTimeLabel('Office Hour')})</option></Select></Field>
+                <Field label="Masa mula"><Input type="time" required value={assignmentForm.masa_mula} onChange={(e) => setAssignmentForm({ ...assignmentForm, masa_mula: e.target.value })} /></Field>
+                <Field label="Masa tamat"><Input type="time" required value={assignmentForm.masa_tamat} onChange={(e) => setAssignmentForm({ ...assignmentForm, masa_tamat: e.target.value })} /></Field>
+              </div>
+              <Field label="Pos kawalan"><Select required value={assignmentForm.id_pos} onChange={(e) => setAssignmentForm({ ...assignmentForm, id_pos: e.target.value })}><option value="">Pilih pos</option>{meta.posts.map((post) => <option key={post.id_pos} value={post.id_pos}>{post.nama_pos}</option>)}</Select></Field>
+              <Field label="Pengawal"><Select required value={assignmentForm.id_pengguna} onChange={(e) => setAssignmentForm({ ...assignmentForm, id_pengguna: e.target.value })}><option value="">Pilih pengawal</option>{meta.guards.map((guard) => <option key={guard.id_pengguna} value={guard.id_pengguna}>{guard.nama_penuh}</option>)}</Select></Field>
+              <Field label="Catatan"><Textarea rows={3} value={assignmentForm.catatan} onChange={(e) => setAssignmentForm({ ...assignmentForm, catatan: e.target.value })} /></Field>
+              {conflict?.critical?.length > 0 && <AlertMessage>{conflict.critical.join('. ')}</AlertMessage>}
+              {conflict?.ok && <AlertMessage type="success">Tiada konflik kritikal dikesan.</AlertMessage>}
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="ghost" onClick={() => checkConflict()}>Semak konflik</Button>
+                <Button disabled={saving || conflict?.critical?.length}>{saving ? 'Menyimpan...' : 'Simpan tugasan'}</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1414,7 +1654,7 @@ function ChangePasswordPage() {
   );
 }
 
-function UsersPage() {
+function UsersPage({ auth }) {
   const [meta, setMeta] = useState({ roles: [] });
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
@@ -1439,7 +1679,7 @@ function UsersPage() {
   const update = async (id, patch) => { try { await api.patch(`/users/${id}`, patch); notifySuccess('Pengguna dikemas kini'); load(); } catch (error) { notifyError(error, 'Pengguna gagal dikemas kini'); } };
   const query = search.trim().toLowerCase();
   const filteredUsers = users.filter((user) => !query || [user.nama_penuh, user.nama_pengguna, user.emel, user.nama_peranan].some((value) => String(value || '').toLowerCase().includes(query)));
-  return <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]"><Card title="Tambah Pengguna"><form onSubmit={create} className="space-y-3"><Field label="Peranan"><Select required value={form.id_peranan || ''} onChange={(e) => setForm({ ...form, id_peranan: Number(e.target.value) })}><option value="">Pilih peranan</option>{meta.roles.map((r) => <option key={r.id_peranan} value={r.id_peranan}>{r.nama_peranan}</option>)}</Select></Field><Field label="Nama penuh"><Input required value={form.nama_penuh || ''} onChange={(e) => setForm({ ...form, nama_penuh: e.target.value })} /></Field><Field label="Nama pengguna"><Input required value={form.nama_pengguna || ''} onChange={(e) => setForm({ ...form, nama_pengguna: e.target.value })} /></Field><Field label="Emel"><Input type="email" required value={form.emel || ''} onChange={(e) => setForm({ ...form, emel: e.target.value })} /></Field><Field label="No telefon"><Input value={form.no_telefon || ''} onChange={(e) => setForm({ ...form, no_telefon: e.target.value })} /></Field><Field label="Kata laluan sementara"><PasswordInput required value={form.kata_laluan || ''} onChange={(e) => setForm({ ...form, kata_laluan: e.target.value })} /></Field>{error && <AlertMessage>{error}</AlertMessage>}<Button className="w-full sm:w-auto">Tambah pengguna</Button></form></Card><Card title="Senarai Pengguna" action={<Input placeholder="Cari nama / username" value={search} onChange={(e) => setSearch(e.target.value)} className="min-w-64" />}>{filteredUsers.length ? filteredUsers.map((u) => <div key={u.id_pengguna} className="app-row mb-2 grid gap-2 rounded-md border p-3 text-sm md:grid-cols-[1fr_220px_auto]"><span><span className="font-medium text-primary-token">{u.nama_penuh}</span><br />{u.nama_pengguna} - {u.emel}</span><Select value={u.id_peranan} onChange={(e) => update(u.id_pengguna, { id_peranan: Number(e.target.value) })}>{meta.roles.map((r) => <option key={r.id_peranan} value={r.id_peranan}>{r.nama_peranan}</option>)}</Select><Button variant="ghost" onClick={() => setConfirmUser(u)}>{u.status_akaun}</Button></div>) : <EmptyState title="Tiada pengguna" description="Tiada pengguna sepadan dengan carian semasa." />}</Card><ConfirmModal open={!!confirmUser} title="Tukar status akaun?" message={`Akaun ${confirmUser?.nama_penuh || ''} akan ditukar status.`} confirmLabel="Sahkan" danger={confirmUser?.status_akaun === 'Aktif'} onCancel={() => setConfirmUser(null)} onConfirm={async () => { await update(confirmUser.id_pengguna, { status_akaun: confirmUser.status_akaun === 'Aktif' ? 'Tidak Aktif' : 'Aktif' }); setConfirmUser(null); }} /></div>;
+  return <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]"><Card title="Tambah Pengguna"><form onSubmit={create} className="space-y-3"><Field label="Peranan"><Select required value={form.id_peranan || ''} onChange={(e) => setForm({ ...form, id_peranan: Number(e.target.value) })}><option value="">Pilih peranan</option>{meta.roles.map((r) => <option key={r.id_peranan} value={r.id_peranan}>{r.nama_peranan}</option>)}</Select></Field><Field label="Nama penuh"><Input required value={form.nama_penuh || ''} onChange={(e) => setForm({ ...form, nama_penuh: e.target.value })} /></Field><Field label="Nama pengguna"><Input required value={form.nama_pengguna || ''} onChange={(e) => setForm({ ...form, nama_pengguna: e.target.value })} /></Field><Field label="Emel"><Input type="email" required value={form.emel || ''} onChange={(e) => setForm({ ...form, emel: e.target.value })} /></Field><Field label="No telefon"><Input value={form.no_telefon || ''} onChange={(e) => setForm({ ...form, no_telefon: e.target.value })} /></Field><Field label="Kata laluan sementara"><PasswordInput required value={form.kata_laluan || ''} onChange={(e) => setForm({ ...form, kata_laluan: e.target.value })} /></Field>{error && <AlertMessage>{error}</AlertMessage>}<Button className="w-full sm:w-auto">Tambah pengguna</Button></form></Card><Card title="Senarai Pengguna" action={<Input placeholder="Cari nama / username" value={search} onChange={(e) => setSearch(e.target.value)} className="min-w-64" />}>{filteredUsers.length ? filteredUsers.map((u) => { const isSelf = Number(u.id_pengguna) === Number(auth.user?.id_pengguna); return <div key={u.id_pengguna} className="app-row mb-2 grid gap-2 rounded-md border p-3 text-sm md:grid-cols-[1fr_220px_auto]"><span><span className="font-medium text-primary-token">{u.nama_penuh}</span>{isSelf && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Akaun saya</span>}<br />{u.nama_pengguna} - {u.emel}</span><div><Select value={u.id_peranan} disabled={isSelf} onChange={(e) => update(u.id_pengguna, { id_peranan: Number(e.target.value) })}>{meta.roles.map((r) => <option key={r.id_peranan} value={r.id_peranan}>{r.nama_peranan}</option>)}</Select>{isSelf && <p className="mt-1 text-xs text-secondary-token">Peranan dan status akaun sendiri tidak boleh ditukar.</p>}</div><Button variant="ghost" disabled={isSelf} onClick={() => setConfirmUser(u)}>{u.status_akaun}</Button></div>; }) : <EmptyState title="Tiada pengguna" description="Tiada pengguna sepadan dengan carian semasa." />}</Card><ConfirmModal open={!!confirmUser} title="Tukar status akaun?" message={`Akaun ${confirmUser?.nama_penuh || ''} akan ditukar status.`} confirmLabel="Sahkan" danger={confirmUser?.status_akaun === 'Aktif'} onCancel={() => setConfirmUser(null)} onConfirm={async () => { await update(confirmUser.id_pengguna, { status_akaun: confirmUser.status_akaun === 'Aktif' ? 'Tidak Aktif' : 'Aktif' }); setConfirmUser(null); }} /></div>;
 }
 
 function PostsPage() {
@@ -1480,7 +1720,7 @@ function App() {
         <Route path="/tindakan" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief]}><FollowUp auth={auth} /></Protected>} />
         <Route path="/nlp" element={<Protected auth={auth} roles={[ROLE.admin]}><NlpTrainingPage /></Protected>} />
         <Route path="/audit" element={<Protected auth={auth} roles={[ROLE.admin]}><AuditTrail /></Protected>} />
-        <Route path="/pengguna" element={<Protected auth={auth} roles={[ROLE.admin]}><UsersPage /></Protected>} />
+        <Route path="/pengguna" element={<Protected auth={auth} roles={[ROLE.admin]}><UsersPage auth={auth} /></Protected>} />
         <Route path="/pos" element={<Protected auth={auth} roles={[ROLE.admin]}><PostsPage /></Protected>} />
         <Route path="/notifikasi" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief, ROLE.guard]}><NotificationsPage auth={auth} /></Protected>} />
         <Route path="/kata-laluan" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief, ROLE.guard]}><ChangePasswordPage /></Protected>} />

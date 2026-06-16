@@ -190,6 +190,68 @@ function requiredStaffForShift(dateValue, shift) {
   return 0;
 }
 
+function toDateOnly(value) {
+  if (!value) return null;
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function addDays(dateValue, days) {
+  const date = new Date(dateValue);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function defaultShiftTimes(shift) {
+  if (shift === 'Pagi') return { masa_mula: '07:00', masa_tamat: '16:00' };
+  if (shift === 'Petang') return { masa_mula: '14:45', masa_tamat: '23:45' };
+  if (shift === 'Malam') return { masa_mula: '23:00', masa_tamat: '08:00' };
+  if (shift === 'Office Hour') return { masa_mula: '07:00', masa_tamat: '17:00' };
+  return { masa_mula: '07:00', masa_tamat: '16:00' };
+}
+
+async function getWeeklySchedule(client, id) {
+  return (await client.query('select * from tbl_jadual_mingguan where id_jadual_mingguan = $1', [id])).rows[0];
+}
+
+function canEditWeeklySchedule(req, schedule) {
+  if (!schedule) return false;
+  if (req.user.peranan === roles.admin) return true;
+  return req.user.peranan === roles.chief && schedule.status_jadual !== 'Dikunci';
+}
+
+async function checkAssignmentConflicts(client, payload, existingId = null) {
+  const warnings = [];
+  const critical = [];
+  const schedule = await getWeeklySchedule(client, payload.id_jadual_mingguan);
+  if (!schedule) critical.push('Jadual mingguan tidak dijumpai');
+  const dutyDate = toDateOnly(payload.tarikh_tugas);
+  if (schedule && (dutyDate < toDateOnly(schedule.tarikh_mula) || dutyDate > toDateOnly(schedule.tarikh_tamat))) {
+    critical.push('Tarikh tugasan berada di luar julat minggu jadual');
+  }
+  const guard = (await client.query(
+    `select p.status_akaun, r.nama_peranan from tbl_pengguna p join tbl_peranan r on r.id_peranan = p.id_peranan where p.id_pengguna = $1`,
+    [payload.id_pengguna]
+  )).rows[0];
+  if (!guard || guard.nama_peranan !== roles.guard || guard.status_akaun !== 'Aktif') critical.push('Pengawal tidak aktif atau bukan Pengawal Keselamatan');
+  const post = (await client.query('select status_pos from tbl_pos_kawalan where id_pos = $1', [payload.id_pos])).rows[0];
+  if (!post || post.status_pos !== 'Aktif') critical.push('Pos kawalan tidak aktif atau tidak dijumpai');
+  const overlaps = await client.query(
+    `select j.*, pos.nama_pos
+     from tbl_jadual_bertugas j join tbl_pos_kawalan pos on pos.id_pos = j.id_pos
+     where j.id_pengguna = $1 and j.tarikh_tugas = $2 and ($6::int is null or j.id_jadual <> $6)
+       and (($3::time < j.masa_tamat and $4::time > j.masa_mula) or j.syif = $5)`,
+    [payload.id_pengguna, dutyDate, payload.masa_mula, payload.masa_tamat, payload.syif, existingId]
+  );
+  if (overlaps.rows.length) critical.push(`Pengawal sudah dijadualkan pada masa bertindih (${overlaps.rows[0].nama_pos})`);
+  const samePost = await client.query(
+    `select count(*)::int total from tbl_jadual_bertugas
+     where id_pos = $1 and tarikh_tugas = $2 and syif = $3 and ($4::int is null or id_jadual <> $4)`,
+    [payload.id_pos, dutyDate, payload.syif, existingId]
+  );
+  if (samePost.rows[0].total > 0) warnings.push('Pos ini sudah mempunyai pengawal untuk syif yang sama');
+  return { ok: critical.length === 0, critical, warnings };
+}
+
 function scoreForPriority(priority) {
   if (priority === 'Critical') return 92;
   if (priority === 'High') return 76;
@@ -379,6 +441,91 @@ async function ensureProgressTable() {
     )`
   );
   await pool.query('alter table tbl_laporan_harian add column if not exists perlu_tindakan_susulan boolean not null default false');
+  await pool.query(
+    `create table if not exists tbl_jadual_mingguan (
+      id_jadual_mingguan serial primary key,
+      tarikh_mula date not null,
+      tarikh_tamat date not null,
+      tajuk_jadual varchar(150),
+      status_jadual varchar(30) not null default 'Draf',
+      dicipta_oleh int references tbl_pengguna(id_pengguna),
+      disahkan_oleh int references tbl_pengguna(id_pengguna),
+      tarikh_dicipta timestamp not null default now(),
+      tarikh_disahkan timestamp,
+      catatan text
+    )`
+  );
+  await pool.query(
+    `create table if not exists tbl_jadual_bertugas (
+      id_jadual serial primary key,
+      id_jadual_mingguan int not null references tbl_jadual_mingguan(id_jadual_mingguan) on delete cascade,
+      id_pengguna int not null references tbl_pengguna(id_pengguna),
+      id_pos int not null references tbl_pos_kawalan(id_pos),
+      tarikh_tugas date not null,
+      syif varchar(30) not null,
+      masa_mula time not null,
+      masa_tamat time not null,
+      status_bertugas varchar(30) not null default 'Dijadualkan',
+      catatan text,
+      dicipta_oleh int references tbl_pengguna(id_pengguna),
+      tarikh_dicipta timestamp not null default now(),
+      tarikh_kemaskini timestamp not null default now()
+    )`
+  );
+  await pool.query(
+    `create table if not exists tbl_keperluan_pos (
+      id_keperluan serial primary key,
+      id_pos int not null references tbl_pos_kawalan(id_pos) on delete cascade,
+      syif varchar(30) not null,
+      bilangan_diperlukan int not null default 1,
+      status_aktif boolean not null default true,
+      tarikh_dicipta timestamp not null default now(),
+      unique(id_pos, syif)
+    )`
+  );
+  await pool.query(
+    `create table if not exists tbl_kehadiran_tugas (
+      id_kehadiran serial primary key,
+      id_jadual int not null references tbl_jadual_bertugas(id_jadual) on delete cascade,
+      id_pengguna int not null references tbl_pengguna(id_pengguna),
+      masa_check_in timestamp,
+      masa_check_out timestamp,
+      status_kehadiran varchar(30) not null default 'Belum Hadir',
+      catatan text,
+      tarikh_dicipta timestamp not null default now()
+    )`
+  );
+  await pool.query(
+    `create table if not exists tbl_fail_jadual (
+      id_fail serial primary key,
+      id_jadual_mingguan int not null references tbl_jadual_mingguan(id_jadual_mingguan) on delete cascade,
+      nama_fail varchar(255),
+      jenis_fail varchar(30),
+      path_fail text,
+      dimuat_naik_oleh int references tbl_pengguna(id_pengguna),
+      tarikh_muat_naik timestamp not null default now()
+    )`
+  );
+  await pool.query('create index if not exists idx_jadual_mingguan_dates on tbl_jadual_mingguan(tarikh_mula, tarikh_tamat)');
+  await pool.query('create index if not exists idx_jadual_bertugas_week on tbl_jadual_bertugas(id_jadual_mingguan)');
+  await pool.query('create index if not exists idx_jadual_bertugas_guard_time on tbl_jadual_bertugas(id_pengguna, tarikh_tugas, masa_mula, masa_tamat)');
+  await pool.query(
+    `insert into tbl_keperluan_pos (id_pos, syif, bilangan_diperlukan, status_aktif)
+     select p.id_pos, s.syif,
+       case when p.nama_pos = 'Pos Lobi Utama' and s.syif = 'Pagi' then 2 else 1 end,
+       true
+     from tbl_pos_kawalan p
+     cross join (values ('Pagi'), ('Petang'), ('Malam')) as s(syif)
+     where p.status_pos = 'Aktif'
+     on conflict (id_pos, syif) do nothing`
+  );
+  await pool.query(
+    `insert into tbl_keperluan_pos (id_pos, syif, bilangan_diperlukan, status_aktif)
+     select id_pos, 'Office Hour', 1, true
+     from tbl_pos_kawalan
+     where status_pos = 'Aktif' and nama_pos in ('Pos UTC', 'Pos Pejabat Jurutulis', 'Pos Dewan Undangan Negeri')
+     on conflict (id_pos, syif) do nothing`
+  );
 }
 
 async function activeAdminCount(client) {
@@ -911,9 +1058,417 @@ app.patch('/api/actions/:id', auth, allow(roles.admin), async (req, res) => {
   }
 });
 
+app.get('/api/jadual/mingguan', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const result = await pool.query(
+    `select j.*, creator.nama_penuh dicipta_oleh_nama, confirmer.nama_penuh disahkan_oleh_nama,
+      (select count(*)::int from tbl_jadual_bertugas a where a.id_jadual_mingguan = j.id_jadual_mingguan) jumlah_tugasan
+     from tbl_jadual_mingguan j
+     left join tbl_pengguna creator on creator.id_pengguna = j.dicipta_oleh
+     left join tbl_pengguna confirmer on confirmer.id_pengguna = j.disahkan_oleh
+     order by j.tarikh_mula desc`
+  );
+  res.json(result.rows);
+});
+
+app.post('/api/jadual/mingguan', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const tarikhMula = req.body.tarikh_mula;
+    if (!tarikhMula) return res.status(400).json({ message: 'Tarikh mula minggu diperlukan' });
+    const tarikhTamat = addDays(tarikhMula, 6);
+    const result = await client.query(
+      `insert into tbl_jadual_mingguan (tarikh_mula, tarikh_tamat, tajuk_jadual, catatan, dicipta_oleh)
+       values ($1,$2,$3,$4,$5) returning *`,
+      [tarikhMula, tarikhTamat, req.body.tajuk_jadual || `Jadual Mingguan ${tarikhMula}`, req.body.catatan || null, req.user.id_pengguna]
+    );
+    await audit(req, client, 'Jadual Bertugas', 'Weekly schedule created', 'Jadual mingguan draf diwujudkan', result.rows[0].id_jadual_mingguan, 'Berjaya', null, result.rows[0]);
+    res.status(201).json(result.rows[0]);
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/jadual/mingguan/:id', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const schedule = await getWeeklySchedule(pool, req.params.id);
+  if (!schedule) return res.status(404).json({ message: 'Jadual mingguan tidak dijumpai' });
+  const files = await pool.query('select * from tbl_fail_jadual where id_jadual_mingguan = $1 order by tarikh_muat_naik desc', [req.params.id]);
+  res.json({ ...schedule, files: files.rows });
+});
+
+app.put('/api/jadual/mingguan/:id', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const oldValue = await getWeeklySchedule(client, req.params.id);
+    if (!oldValue) return res.status(404).json({ message: 'Jadual mingguan tidak dijumpai' });
+    if (!canEditWeeklySchedule(req, oldValue)) return res.status(403).json({ message: 'Jadual dikunci. Minta Admin buka kunci dahulu.' });
+    const tarikhMula = req.body.tarikh_mula || toDateOnly(oldValue.tarikh_mula);
+    const result = await client.query(
+      `update tbl_jadual_mingguan set tarikh_mula = $1, tarikh_tamat = $2, tajuk_jadual = coalesce($3,tajuk_jadual), catatan = $4
+       where id_jadual_mingguan = $5 returning *`,
+      [tarikhMula, addDays(tarikhMula, 6), req.body.tajuk_jadual || null, req.body.catatan || null, req.params.id]
+    );
+    await audit(req, client, 'Jadual Bertugas', 'Weekly schedule updated', 'Jadual mingguan dikemaskini', req.params.id, 'Berjaya', oldValue, result.rows[0]);
+    res.json(result.rows[0]);
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/jadual/mingguan/:id/confirm', auth, allow(roles.admin), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const oldValue = await getWeeklySchedule(client, req.params.id);
+    if (!oldValue) return res.status(404).json({ message: 'Jadual mingguan tidak dijumpai' });
+    const result = await client.query(
+      `update tbl_jadual_mingguan set status_jadual = 'Disahkan', disahkan_oleh = $1, tarikh_disahkan = now()
+       where id_jadual_mingguan = $2 returning *`,
+      [req.user.id_pengguna, req.params.id]
+    );
+    await audit(req, client, 'Jadual Bertugas', 'Schedule confirmed', 'Jadual mingguan disahkan Admin', req.params.id, 'Berjaya', oldValue, result.rows[0]);
+    res.json(result.rows[0]);
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/jadual/mingguan/:id/lock', auth, allow(roles.admin), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const oldValue = await getWeeklySchedule(client, req.params.id);
+    if (!oldValue) return res.status(404).json({ message: 'Jadual mingguan tidak dijumpai' });
+    const result = await client.query("update tbl_jadual_mingguan set status_jadual = 'Dikunci' where id_jadual_mingguan = $1 returning *", [req.params.id]);
+    await audit(req, client, 'Jadual Bertugas', 'Schedule locked', 'Jadual mingguan dikunci Admin', req.params.id, 'Berjaya', oldValue, result.rows[0]);
+    res.json(result.rows[0]);
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/jadual/mingguan/:id/unlock', auth, allow(roles.admin), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const oldValue = await getWeeklySchedule(client, req.params.id);
+    if (!oldValue) return res.status(404).json({ message: 'Jadual mingguan tidak dijumpai' });
+    const result = await client.query("update tbl_jadual_mingguan set status_jadual = 'Draf' where id_jadual_mingguan = $1 returning *", [req.params.id]);
+    await audit(req, client, 'Jadual Bertugas', 'Schedule unlocked', 'Jadual mingguan dibuka kunci Admin', req.params.id, 'Berjaya', oldValue, result.rows[0]);
+    res.json(result.rows[0]);
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/jadual/mingguan/:id/assignments', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const result = await pool.query(
+    `select j.*, p.nama_penuh, p.nama_pengguna, pos.nama_pos, pos.nama_bangunan, pos.lokasi,
+      k.status_kehadiran, k.masa_check_in, k.masa_check_out
+     from tbl_jadual_bertugas j
+     join tbl_pengguna p on p.id_pengguna = j.id_pengguna
+     join tbl_pos_kawalan pos on pos.id_pos = j.id_pos
+     left join tbl_kehadiran_tugas k on k.id_jadual = j.id_jadual
+     where j.id_jadual_mingguan = $1
+     order by j.tarikh_tugas, j.syif, pos.nama_pos, p.nama_penuh`,
+    [req.params.id]
+  );
+  res.json(result.rows);
+});
+
+app.post('/api/jadual/check-conflict', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const payload = { ...req.body, masa_mula: req.body.masa_mula || defaultShiftTimes(req.body.syif).masa_mula, masa_tamat: req.body.masa_tamat || defaultShiftTimes(req.body.syif).masa_tamat };
+  const result = await checkAssignmentConflicts(pool, payload, req.body.id_jadual || null);
+  if (!result.ok) await auditWithPool(req, 'Jadual Bertugas', 'Schedule conflict detected', result.critical.join('; '), payload.id_jadual_mingguan, 'Gagal');
+  res.json(result);
+});
+
+app.post('/api/jadual/mingguan/:id/assignments', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const schedule = await getWeeklySchedule(client, req.params.id);
+    if (!schedule) return res.status(404).json({ message: 'Jadual mingguan tidak dijumpai' });
+    if (!canEditWeeklySchedule(req, schedule)) return res.status(403).json({ message: 'Jadual dikunci. Minta Admin buka kunci dahulu.' });
+    const times = defaultShiftTimes(req.body.syif);
+    const payload = {
+      id_jadual_mingguan: Number(req.params.id),
+      id_pengguna: Number(req.body.id_pengguna),
+      id_pos: Number(req.body.id_pos),
+      tarikh_tugas: req.body.tarikh_tugas,
+      syif: req.body.syif,
+      masa_mula: req.body.masa_mula || times.masa_mula,
+      masa_tamat: req.body.masa_tamat || times.masa_tamat,
+    };
+    const conflicts = await checkAssignmentConflicts(client, payload);
+    if (!conflicts.ok) return res.status(409).json({ message: conflicts.critical.join('. '), conflicts });
+    const result = await client.query(
+      `insert into tbl_jadual_bertugas (id_jadual_mingguan, id_pengguna, id_pos, tarikh_tugas, syif, masa_mula, masa_tamat, catatan, dicipta_oleh)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
+      [payload.id_jadual_mingguan, payload.id_pengguna, payload.id_pos, payload.tarikh_tugas, payload.syif, payload.masa_mula, payload.masa_tamat, req.body.catatan || null, req.user.id_pengguna]
+    );
+    await client.query('insert into tbl_kehadiran_tugas (id_jadual, id_pengguna) values ($1,$2)', [result.rows[0].id_jadual, payload.id_pengguna]);
+    await audit(req, client, 'Jadual Bertugas', 'Guard assigned to post', 'Pengawal ditugaskan ke pos dalam jadual mingguan', result.rows[0].id_jadual, 'Berjaya', null, result.rows[0]);
+    res.status(201).json({ assignment: result.rows[0], warnings: conflicts.warnings });
+  } finally {
+    client.release();
+  }
+});
+
+app.put('/api/jadual/assignments/:id', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const oldValue = (await client.query('select * from tbl_jadual_bertugas where id_jadual = $1', [req.params.id])).rows[0];
+    if (!oldValue) return res.status(404).json({ message: 'Tugasan jadual tidak dijumpai' });
+    const schedule = await getWeeklySchedule(client, oldValue.id_jadual_mingguan);
+    if (!canEditWeeklySchedule(req, schedule)) return res.status(403).json({ message: 'Jadual dikunci. Minta Admin buka kunci dahulu.' });
+    const payload = {
+      id_jadual_mingguan: oldValue.id_jadual_mingguan,
+      id_pengguna: Number(req.body.id_pengguna || oldValue.id_pengguna),
+      id_pos: Number(req.body.id_pos || oldValue.id_pos),
+      tarikh_tugas: req.body.tarikh_tugas || toDateOnly(oldValue.tarikh_tugas),
+      syif: req.body.syif || oldValue.syif,
+      masa_mula: req.body.masa_mula || oldValue.masa_mula,
+      masa_tamat: req.body.masa_tamat || oldValue.masa_tamat,
+    };
+    const conflicts = await checkAssignmentConflicts(client, payload, Number(req.params.id));
+    if (!conflicts.ok) return res.status(409).json({ message: conflicts.critical.join('. '), conflicts });
+    const result = await client.query(
+      `update tbl_jadual_bertugas set id_pengguna=$1, id_pos=$2, tarikh_tugas=$3, syif=$4, masa_mula=$5, masa_tamat=$6,
+       catatan=$7, tarikh_kemaskini=now() where id_jadual=$8 returning *`,
+      [payload.id_pengguna, payload.id_pos, payload.tarikh_tugas, payload.syif, payload.masa_mula, payload.masa_tamat, req.body.catatan || null, req.params.id]
+    );
+    await client.query('update tbl_kehadiran_tugas set id_pengguna = $1 where id_jadual = $2', [payload.id_pengguna, req.params.id]);
+    await audit(req, client, 'Jadual Bertugas', 'Assignment edited', 'Tugasan jadual dikemaskini', req.params.id, 'Berjaya', oldValue, result.rows[0]);
+    res.json({ assignment: result.rows[0], warnings: conflicts.warnings });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/jadual/assignments/:id', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const oldValue = (await client.query('select * from tbl_jadual_bertugas where id_jadual = $1', [req.params.id])).rows[0];
+    if (!oldValue) return res.status(404).json({ message: 'Tugasan jadual tidak dijumpai' });
+    const schedule = await getWeeklySchedule(client, oldValue.id_jadual_mingguan);
+    if (req.user.peranan === roles.chief && schedule.status_jadual !== 'Draf') return res.status(403).json({ message: 'Ketua hanya boleh padam tugasan draf.' });
+    if (schedule.status_jadual === 'Dikunci' && req.user.peranan !== roles.admin) return res.status(403).json({ message: 'Jadual dikunci.' });
+    await client.query('delete from tbl_jadual_bertugas where id_jadual = $1', [req.params.id]);
+    await audit(req, client, 'Jadual Bertugas', 'Assignment deleted', 'Tugasan jadual dipadam', req.params.id, 'Berjaya', oldValue, null);
+    res.json({ ok: true });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/jadual/mingguan/:id/coverage-summary', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const schedule = await getWeeklySchedule(pool, req.params.id);
+  if (!schedule) return res.status(404).json({ message: 'Jadual mingguan tidak dijumpai' });
+  const coverage = await pool.query(
+    `select pos.id_pos, pos.nama_pos, k.syif, k.bilangan_diperlukan required,
+      coalesce(count(j.id_jadual),0)::int assigned,
+      coalesce(json_agg(json_build_object(
+        'id_jadual', j.id_jadual,
+        'id_pengguna', j.id_pengguna,
+        'nama_penuh', u.nama_penuh,
+        'tarikh_tugas', j.tarikh_tugas,
+        'masa_mula', j.masa_mula,
+        'masa_tamat', j.masa_tamat,
+        'status_bertugas', j.status_bertugas,
+        'catatan', j.catatan
+      ) order by j.tarikh_tugas, u.nama_penuh) filter (where j.id_jadual is not null), '[]') assigned_guards
+     from tbl_keperluan_pos k
+     join tbl_pos_kawalan pos on pos.id_pos = k.id_pos
+     left join tbl_jadual_bertugas j on j.id_pos = k.id_pos and j.syif = k.syif and j.id_jadual_mingguan = $1
+     left join tbl_pengguna u on u.id_pengguna = j.id_pengguna
+     where k.status_aktif = true and pos.status_pos = 'Aktif'
+     group by pos.id_pos, pos.nama_pos, k.syif, k.bilangan_diperlukan
+     order by pos.nama_pos, k.syif`,
+    [req.params.id]
+  );
+  const attendance = await pool.query(
+    `select
+      count(*) filter (where j.status_bertugas = 'Hadir')::int active,
+      count(*) filter (where j.status_bertugas = 'Tidak Hadir')::int absent
+     from tbl_jadual_bertugas j where j.id_jadual_mingguan = $1`,
+    [req.params.id]
+  );
+  const rows = coverage.rows;
+  const totalRequired = rows.reduce((sum, row) => sum + Number(row.required), 0);
+  const totalAssigned = rows.reduce((sum, row) => sum + Number(row.assigned), 0);
+  const uncoveredPosts = rows.filter((row) => Number(row.assigned) === 0);
+  const byShift = rows.reduce((acc, row) => {
+    acc[row.syif] = acc[row.syif] || { shift: row.syif, required: 0, assigned: 0, shortage: 0 };
+    acc[row.syif].required += Number(row.required);
+    acc[row.syif].assigned += Number(row.assigned);
+    acc[row.syif].shortage += Math.max(0, Number(row.required) - Number(row.assigned));
+    return acc;
+  }, {});
+  res.json({
+    totalRequired,
+    totalAssigned,
+    shortage: rows.reduce((sum, row) => sum + Math.max(0, Number(row.required) - Number(row.assigned)), 0),
+    uncoveredPosts,
+    coverageByPost: rows,
+    coverageByShift: Object.values(byShift),
+    activeDutyCount: attendance.rows[0].active,
+    absentGuardCount: attendance.rows[0].absent,
+  });
+});
+
+app.get('/api/jadual/my-schedule', auth, allow(roles.guard), async (req, res) => {
+  const result = await pool.query(
+    `select j.*, m.tajuk_jadual, m.status_jadual, pos.nama_pos, pos.nama_bangunan, pos.lokasi,
+      k.status_kehadiran, k.masa_check_in, k.masa_check_out
+     from tbl_jadual_bertugas j
+     join tbl_jadual_mingguan m on m.id_jadual_mingguan = j.id_jadual_mingguan
+     join tbl_pos_kawalan pos on pos.id_pos = j.id_pos
+     left join tbl_kehadiran_tugas k on k.id_jadual = j.id_jadual
+     where j.id_pengguna = $1
+     order by j.tarikh_tugas desc, j.masa_mula`,
+    [req.user.id_pengguna]
+  );
+  res.json(result.rows);
+});
+
+app.post('/api/jadual/assignments/:id/check-in', auth, allow(roles.guard), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const assignment = (await client.query('select * from tbl_jadual_bertugas where id_jadual = $1 and id_pengguna = $2', [req.params.id, req.user.id_pengguna])).rows[0];
+    if (!assignment) return res.status(404).json({ message: 'Tugasan tidak dijumpai untuk akaun anda' });
+    if (toDateOnly(assignment.tarikh_tugas) !== new Date().toISOString().slice(0, 10)) return res.status(400).json({ message: 'Check-in hanya dibenarkan pada tarikh tugasan' });
+    const result = await client.query(
+      `update tbl_kehadiran_tugas set masa_check_in = coalesce(masa_check_in, now()), status_kehadiran = 'Hadir'
+       where id_jadual = $1 and id_pengguna = $2 returning *`,
+      [req.params.id, req.user.id_pengguna]
+    );
+    await client.query("update tbl_jadual_bertugas set status_bertugas = 'Hadir', tarikh_kemaskini = now() where id_jadual = $1", [req.params.id]);
+    await audit(req, client, 'Jadual Bertugas', 'Guard checked in', 'Pengawal check-in jadual mingguan', req.params.id);
+    res.json(result.rows[0]);
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/jadual/assignments/:id/check-out', auth, allow(roles.guard), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const attendance = (await client.query('select * from tbl_kehadiran_tugas where id_jadual = $1 and id_pengguna = $2', [req.params.id, req.user.id_pengguna])).rows[0];
+    if (!attendance || !attendance.masa_check_in) return res.status(400).json({ message: 'Check-out hanya selepas check-in' });
+    const result = await client.query(
+      `update tbl_kehadiran_tugas set masa_check_out = coalesce(masa_check_out, now()), status_kehadiran = 'Selesai'
+       where id_jadual = $1 and id_pengguna = $2 returning *`,
+      [req.params.id, req.user.id_pengguna]
+    );
+    await client.query("update tbl_jadual_bertugas set status_bertugas = 'Selesai', tarikh_kemaskini = now() where id_jadual = $1", [req.params.id]);
+    await audit(req, client, 'Jadual Bertugas', 'Guard checked out', 'Pengawal check-out jadual mingguan', req.params.id);
+    res.json(result.rows[0]);
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/jadual/keperluan-pos', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const result = await pool.query(
+    `select k.*, pos.nama_pos, pos.nama_bangunan from tbl_keperluan_pos k
+     join tbl_pos_kawalan pos on pos.id_pos = k.id_pos
+     order by pos.nama_pos, k.syif`
+  );
+  res.json(result.rows);
+});
+
+app.post('/api/jadual/keperluan-pos', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const result = await pool.query(
+    `insert into tbl_keperluan_pos (id_pos, syif, bilangan_diperlukan, status_aktif)
+     values ($1,$2,$3,$4)
+     on conflict (id_pos, syif) do update set bilangan_diperlukan = excluded.bilangan_diperlukan, status_aktif = excluded.status_aktif
+     returning *`,
+    [req.body.id_pos, req.body.syif, req.body.bilangan_diperlukan || 1, req.body.status_aktif ?? true]
+  );
+  await auditWithPool(req, 'Jadual Bertugas', 'Post requirement updated', 'Keperluan anggota pos dikemaskini', result.rows[0].id_keperluan);
+  res.status(201).json(result.rows[0]);
+});
+
+app.put('/api/jadual/keperluan-pos/:id', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const result = await pool.query(
+    `update tbl_keperluan_pos set id_pos=coalesce($1,id_pos), syif=coalesce($2,syif), bilangan_diperlukan=coalesce($3,bilangan_diperlukan), status_aktif=coalesce($4,status_aktif)
+     where id_keperluan=$5 returning *`,
+    [req.body.id_pos, req.body.syif, req.body.bilangan_diperlukan, req.body.status_aktif, req.params.id]
+  );
+  await auditWithPool(req, 'Jadual Bertugas', 'Post requirement updated', 'Keperluan anggota pos dikemaskini', req.params.id);
+  res.json(result.rows[0]);
+});
+
+app.post('/api/jadual/mingguan/:id/upload-pdf', auth, allow(roles.admin), scheduleUpload.single('jadual_fail'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'Fail PDF diperlukan' });
+  const filePath = `/uploads/${req.file.filename}`;
+  const result = await pool.query(
+    `insert into tbl_fail_jadual (id_jadual_mingguan, nama_fail, jenis_fail, path_fail, dimuat_naik_oleh)
+     values ($1,$2,'PDF',$3,$4) returning *`,
+    [req.params.id, req.file.originalname, filePath, req.user.id_pengguna]
+  );
+  await auditWithPool(req, 'Jadual Bertugas', 'PDF schedule uploaded', `PDF jadual dimuat naik: ${req.file.originalname}`, result.rows[0].id_fail);
+  res.status(201).json(result.rows[0]);
+});
+
+app.post('/api/jadual/mingguan/:id/import-csv', auth, allow(roles.admin), scheduleUpload.single('jadual_fail'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    if (!req.file) return res.status(400).json({ message: 'Fail CSV diperlukan' });
+    const schedule = await getWeeklySchedule(client, req.params.id);
+    if (!schedule) return res.status(404).json({ message: 'Jadual mingguan tidak dijumpai' });
+    const content = fs.readFileSync(req.file.path, 'utf8').replace(/^\uFEFF/, '');
+    const lines = content.split(/\r?\n/).filter((line) => line.trim());
+    const headers = parseCsvLine(lines[0] || '').map((header) => header.toLowerCase());
+    const rows = lines.slice(1).map((line) => Object.fromEntries(headers.map((header, index) => [header, parseCsvLine(line)[index] || ''])));
+    let imported = 0;
+    const errors = [];
+    await client.query('begin');
+    for (const [index, row] of rows.entries()) {
+      const guard = (await client.query('select id_pengguna from tbl_pengguna where nama_pengguna = $1 or nama_penuh ilike $1 limit 1', [row.nama_pengguna || row.pengawal || ''])).rows[0];
+      const post = (await client.query('select id_pos from tbl_pos_kawalan where nama_pos ilike $1 limit 1', [row.nama_pos || ''])).rows[0];
+      if (!guard || !post) {
+        errors.push(`Baris ${index + 2}: pengawal atau pos tidak dijumpai`);
+        continue;
+      }
+      const payload = {
+        id_jadual_mingguan: Number(req.params.id),
+        id_pengguna: guard.id_pengguna,
+        id_pos: post.id_pos,
+        tarikh_tugas: row.tarikh_tugas,
+        syif: row.syif,
+        masa_mula: row.masa_mula || defaultShiftTimes(row.syif).masa_mula,
+        masa_tamat: row.masa_tamat || defaultShiftTimes(row.syif).masa_tamat,
+      };
+      const conflicts = await checkAssignmentConflicts(client, payload);
+      if (!conflicts.ok) {
+        errors.push(`Baris ${index + 2}: ${conflicts.critical.join('; ')}`);
+        continue;
+      }
+      const inserted = await client.query(
+        `insert into tbl_jadual_bertugas (id_jadual_mingguan,id_pengguna,id_pos,tarikh_tugas,syif,masa_mula,masa_tamat,catatan,dicipta_oleh)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
+        [payload.id_jadual_mingguan, payload.id_pengguna, payload.id_pos, payload.tarikh_tugas, payload.syif, payload.masa_mula, payload.masa_tamat, row.catatan || null, req.user.id_pengguna]
+      );
+      await client.query('insert into tbl_kehadiran_tugas (id_jadual, id_pengguna) values ($1,$2)', [inserted.rows[0].id_jadual, payload.id_pengguna]);
+      imported += 1;
+    }
+    const filePath = `/uploads/${req.file.filename}`;
+    await client.query(
+      `insert into tbl_fail_jadual (id_jadual_mingguan, nama_fail, jenis_fail, path_fail, dimuat_naik_oleh)
+       values ($1,$2,'CSV',$3,$4)`,
+      [req.params.id, req.file.originalname, filePath, req.user.id_pengguna]
+    );
+    await audit(req, client, 'Jadual Bertugas', 'CSV schedule imported', `Import CSV jadual mingguan: ${imported} berjaya, ${errors.length} ralat`, req.params.id);
+    await client.query('commit');
+    res.status(201).json({ imported, errors });
+  } catch (error) {
+    await client.query('rollback');
+    res.status(500).json({ message: error.message });
+  } finally {
+    client.release();
+  }
+});
+
 app.get('/api/schedules', auth, async (req, res) => {
   const ownOnly = req.user.peranan === roles.guard;
-  const { date, pos, guard, status, q } = req.query;
+  const { date, shift, pos, guard, status, q } = req.query;
   const result = await pool.query(
     `select s.*, p.nama_penuh, p.nama_pengguna, p.no_telefon, pos.nama_pos, pos.nama_bangunan, pos.lokasi
      from tbl_status_bertugas s
@@ -921,12 +1476,13 @@ app.get('/api/schedules', auth, async (req, res) => {
      join tbl_pos_kawalan pos on pos.id_pos = s.id_pos
      where ($1::boolean = false or s.id_pengguna = $2)
        and ($3::date is null or s.tarikh = $3)
-       and ($4::int is null or s.id_pos = $4)
-       and ($5::int is null or s.id_pengguna = $5)
-       and ($6::text is null or s.status_bertugas = $6)
-       and ($7::text is null or p.nama_penuh ilike '%' || $7 || '%' or p.nama_pengguna ilike '%' || $7 || '%')
+       and ($4::text is null or s.syif = $4)
+       and ($5::int is null or s.id_pos = $5)
+       and ($6::int is null or s.id_pengguna = $6)
+       and ($7::text is null or s.status_bertugas = $7)
+       and ($8::text is null or p.nama_penuh ilike '%' || $8 || '%' or p.nama_pengguna ilike '%' || $8 || '%')
      order by s.tarikh desc, s.masa_mula nulls last, pos.nama_pos`,
-    [ownOnly, req.user.id_pengguna, date || null, pos ? Number(pos) : null, guard ? Number(guard) : null, status || null, q || null]
+    [ownOnly, req.user.id_pengguna, date || null, shift || null, pos ? Number(pos) : null, guard ? Number(guard) : null, status || null, q || null]
   );
   res.json(result.rows);
 });
@@ -1000,6 +1556,56 @@ app.post('/api/schedules', auth, allow(roles.admin, roles.chief), async (req, re
       [id_pengguna, 'Jadual bertugas baharu', `Anda ditugaskan pada ${tarikh}, syif ${syif}.`]
     );
     res.status(201).json(result.rows[0]);
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/schedules/copy', auth, allow(roles.admin, roles.chief), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { sourceDate, targetDate, shift } = req.body;
+    if (!sourceDate || !targetDate) return res.status(400).json({ message: 'Tarikh sumber dan tarikh sasaran diperlukan' });
+    if (sourceDate === targetDate) return res.status(400).json({ message: 'Tarikh sasaran mesti berbeza daripada tarikh sumber' });
+
+    const source = await client.query(
+      `select * from tbl_status_bertugas
+       where tarikh = $1 and ($2::text is null or syif = $2)
+       order by syif, id_pos`,
+      [sourceDate, shift && shift !== 'Semua' ? shift : null]
+    );
+    if (!source.rows.length) return res.status(404).json({ message: 'Tiada jadual sumber untuk disalin' });
+
+    let copied = 0;
+    let skipped = 0;
+    await client.query('begin');
+    for (const item of source.rows) {
+      const conflict = await client.query(
+        'select 1 from tbl_status_bertugas where tarikh = $1 and syif = $2 and (id_pengguna = $3 or id_pos = $4) limit 1',
+        [targetDate, item.syif, item.id_pengguna, item.id_pos]
+      );
+      if (conflict.rows[0]) {
+        skipped += 1;
+        continue;
+      }
+      await client.query(
+        `insert into tbl_status_bertugas (id_pengguna, id_pos, tarikh, syif, status_bertugas, masa_mula, masa_tamat)
+         values ($1,$2,$3,$4,'Dijadualkan',$5,$6)`,
+        [item.id_pengguna, item.id_pos, targetDate, item.syif, item.masa_mula || null, item.masa_tamat || null]
+      );
+      await client.query(
+        `insert into tbl_notifikasi (id_pengguna, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan)
+         values ($1,$2,$3,'Jadual Bertugas','Medium')`,
+        [item.id_pengguna, 'Jadual bertugas baharu', `Anda ditugaskan pada ${targetDate}, syif ${item.syif}.`]
+      );
+      copied += 1;
+    }
+    await audit(req, client, 'Jadual Bertugas', 'Schedule copied', `Salin jadual ${sourceDate} ke ${targetDate}: ${copied} berjaya, ${skipped} konflik`, targetDate);
+    await client.query('commit');
+    res.status(201).json({ copied, skipped });
+  } catch (error) {
+    await client.query('rollback');
+    res.status(500).json({ message: error.message });
   } finally {
     client.release();
   }
