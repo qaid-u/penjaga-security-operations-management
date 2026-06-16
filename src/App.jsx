@@ -18,6 +18,100 @@ const riskColors = {
   Critical: 'var(--color-risk-critical)',
 };
 const API_ORIGIN = 'http://localhost:3000';
+const maxEvidenceFiles = 6;
+
+function parseAttachmentPaths(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean);
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [value];
+  } catch {
+    return [value];
+  }
+}
+
+function AttachmentLinks({ value, label = 'Lampiran bukti' }) {
+  const paths = parseAttachmentPaths(value);
+  if (!paths.length) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {paths.map((path, index) => (
+        <a key={`${path}-${index}`} className="text-primary-token inline-flex items-center gap-1 text-sm font-medium underline" href={`${API_ORIGIN}${path}`} target="_blank" rel="noreferrer">
+          <Paperclip size={14} /> {paths.length > 1 ? `${label} ${index + 1}` : label}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function EvidencePreview({ value }) {
+  const paths = parseAttachmentPaths(value);
+  if (!paths.length) return null;
+  const imagePaths = paths.filter((path) => /\.(jpe?g|png|webp)$/i.test(path));
+  const documentPaths = paths.filter((path) => !/\.(jpe?g|png|webp)$/i.test(path));
+  return (
+    <section>
+      <p className="document-section-title">Bukti Bergambar</p>
+      {imagePaths.length ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {imagePaths.map((path, index) => (
+            <a key={path} href={`${API_ORIGIN}${path}`} target="_blank" rel="noreferrer" className="rounded-lg border bg-white p-2">
+              <img src={`${API_ORIGIN}${path}`} alt={`Bukti laporan ${index + 1}`} className="h-48 w-full rounded-md object-contain" />
+              <p className="mt-2 text-center text-xs font-medium text-primary-token">Bukti gambar {index + 1}</p>
+            </a>
+          ))}
+        </div>
+      ) : <p className="document-box text-secondary-token">Tiada gambar dilampirkan untuk laporan ini.</p>}
+      {documentPaths.length > 0 && (
+        <div className="mt-3">
+          <p className="label-caps mb-2">Lampiran dokumen</p>
+          <AttachmentLinks value={documentPaths} label="Buka dokumen" />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function dateToWeekValue(value) {
+  if (!value) return '';
+  const date = new Date(`${value}T00:00:00`);
+  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((utcDate - yearStart) / 86400000) + 1) / 7);
+  return `${utcDate.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function monthLabel(value) {
+  if (!value) return '';
+  const [year, month] = value.split('-').map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' });
+}
+
+function recentMonthOptions(count = 36) {
+  const options = [];
+  const cursor = new Date();
+  cursor.setDate(1);
+  for (let index = 0; index < count; index += 1) {
+    options.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`);
+    cursor.setMonth(cursor.getMonth() - 1);
+  }
+  return options;
+}
+
+function weekLabel(value) {
+  if (!value) return '';
+  const [year, week] = value.split('-W').map(Number);
+  const janFourth = new Date(Date.UTC(year, 0, 4));
+  const janFourthDay = janFourth.getUTCDay() || 7;
+  const weekStart = new Date(janFourth);
+  weekStart.setUTCDate(janFourth.getUTCDate() - janFourthDay + 1 + ((week - 1) * 7));
+  const monthName = weekStart.toLocaleDateString('ms-MY', { month: 'long' });
+  const weekOfMonth = Math.ceil(weekStart.getUTCDate() / 7);
+  return `${monthName} Minggu ${weekOfMonth}`;
+}
 
 async function downloadCsv(path, filename) {
   try {
@@ -511,10 +605,11 @@ function DailyReport() {
   const [fileKey, setFileKey] = useState(0);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState('');
-  const [previewUrl, setPreviewUrl] = useState('');
+  const [previewUrls, setPreviewUrls] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const previewUrlsRef = useRef([]);
   const load = useCallback(() => Promise.all([api.get('/meta'), api.get('/reports')]).then(([m, r]) => { setMeta(m.data); setReports(r.data); }), []);
   useEffect(() => { load(); }, [load]);
   const stopCamera = useCallback(() => {
@@ -522,14 +617,35 @@ function DailyReport() {
     streamRef.current = null;
     setCameraOpen(false);
   }, []);
+  useEffect(() => { previewUrlsRef.current = previewUrls; }, [previewUrls]);
   useEffect(() => () => {
     stopCamera();
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-  }, [previewUrl, stopCamera]);
-  const setEvidenceFile = (file) => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setForm((prev) => ({ ...prev, lampiran_fail: file }));
-    setPreviewUrl(file?.type?.startsWith('image/') ? URL.createObjectURL(file) : '');
+    previewUrlsRef.current.forEach((item) => { if (item.url) URL.revokeObjectURL(item.url); });
+  }, [stopCamera]);
+  const addEvidenceFiles = (files = []) => {
+    const selectedFiles = Array.from(files).filter(Boolean);
+    if (!selectedFiles.length) return;
+    setForm((prev) => {
+      const currentFiles = prev.lampiran_fail || [];
+      const nextFiles = [...currentFiles, ...selectedFiles].slice(0, maxEvidenceFiles);
+      if (currentFiles.length + selectedFiles.length > maxEvidenceFiles) notifyError({ message: `Maksimum ${maxEvidenceFiles} lampiran sahaja untuk satu laporan` });
+      return { ...prev, lampiran_fail: nextFiles };
+    });
+    const nextPreviews = selectedFiles.map((file) => ({ name: file.name, url: file.type?.startsWith('image/') ? URL.createObjectURL(file) : '' }));
+    setPreviewUrls((current) => [...current, ...nextPreviews].slice(0, maxEvidenceFiles));
+  };
+  const removeEvidenceFile = (index) => {
+    setForm((prev) => ({ ...prev, lampiran_fail: (prev.lampiran_fail || []).filter((_, fileIndex) => fileIndex !== index) }));
+    setPreviewUrls((current) => {
+      const preview = current[index];
+      if (preview?.url) URL.revokeObjectURL(preview.url);
+      return current.filter((_, previewIndex) => previewIndex !== index);
+    });
+  };
+  const clearEvidenceFiles = () => {
+    previewUrls.forEach((item) => { if (item.url) URL.revokeObjectURL(item.url); });
+    setPreviewUrls([]);
+    setForm((prev) => ({ ...prev, lampiran_fail: [] }));
   };
   const openCamera = async () => {
     setCameraError('');
@@ -561,15 +677,20 @@ function DailyReport() {
     canvas.toBlob((blob) => {
       if (!blob) return setCameraError('Gambar gagal ditangkap. Cuba sekali lagi.');
       const file = new File([blob], `bukti-laporan-${Date.now()}.jpg`, { type: 'image/jpeg' });
-      setEvidenceFile(file);
+      addEvidenceFiles([file]);
       stopCamera();
       notifySuccess('Gambar bukti ditangkap');
     }, 'image/jpeg', 0.9);
   };
   const getChecklistValue = (id) => form.checklist.find((item) => item.id_checklist === id);
-  const setChecklist = (id, key, value) => setForm((prev) => ({ ...prev, checklist: [...prev.checklist.filter((i) => i.id_checklist !== id), { ...(prev.checklist.find((i) => i.id_checklist === id) || { id_checklist: id, jawapan: 'Ya' }), [key]: value }] }));
+  const setChecklist = (id, key, value) => setForm((prev) => ({ ...prev, checklist: [...prev.checklist.filter((i) => i.id_checklist !== id), { ...(prev.checklist.find((i) => i.id_checklist === id) || { id_checklist: id, jawapan: '' }), [key]: value }] }));
   const submit = async (event) => {
     event.preventDefault();
+    const unansweredChecklist = meta.checklist.filter((item) => !getChecklistValue(item.id_checklist)?.jawapan);
+    if (unansweredChecklist.length) {
+      notifyError({ message: `Sila jawab semua checklist. ${unansweredChecklist.length} item belum ditanda.` });
+      return;
+    }
     setSubmitting(true);
     try {
       const body = new FormData();
@@ -577,12 +698,12 @@ function DailyReport() {
         if (key === 'checklist') body.append(key, JSON.stringify(value));
         else if (key !== 'lampiran_fail' && value !== undefined && value !== null) body.append(key, value);
       });
-      if (form.lampiran_fail) body.append('lampiran_fail', form.lampiran_fail);
+      (form.lampiran_fail || []).forEach((file) => body.append('lampiran_fail', file));
       const { data } = await api.post('/reports', body, { headers: { 'Content-Type': 'multipart/form-data' } });
       setNlp(data.nlp);
       setSubmitted(data.report);
       setForm({ syif: 'Pagi', tarikh_laporan: new Date().toISOString().slice(0, 10), masa_laporan: '08:00', checklist: [] });
-      setEvidenceFile(null);
+      clearEvidenceFiles();
       setFileKey((prev) => prev + 1);
       notifySuccess('Laporan berjaya dihantar');
       load();
@@ -609,9 +730,9 @@ function DailyReport() {
           <Field label="Kandungan laporan"><Textarea required rows={6} value={form.kandungan_laporan || ''} onChange={(e) => setForm({ ...form, kandungan_laporan: e.target.value })} /></Field>
           <div className="space-y-2">
             <p className="label-caps">Bahagian 3: Checklist</p>
-            <p className="text-sm">Tekan pilihan untuk setiap pemeriksaan. Item yang belum disentuh akan dianggap “Ya” semasa dihantar.</p>
+            <p className="text-sm">Tekan satu pilihan untuk setiap pemeriksaan. Checklist bermula kosong supaya setiap jawapan dibuat secara sengaja.</p>
             {meta.checklist.map((item) => {
-              const current = getChecklistValue(item.id_checklist)?.jawapan || 'Ya';
+              const current = getChecklistValue(item.id_checklist)?.jawapan || '';
               return (
                 <div key={item.id_checklist} className="app-row grid gap-3 rounded-md border p-3">
                   <span className="text-sm font-medium text-primary-token">{item.nama_checklist}</span>
@@ -625,10 +746,10 @@ function DailyReport() {
           </div>
           <div className="gov-upload-panel space-y-3 rounded-2xl p-4">
             <p className="label-caps">Bahagian 4: Lampiran bukti</p>
-            <p className="text-sm">Muat naik bukti rasmi dalam format gambar atau PDF, atau gunakan kamera peranti untuk menangkap bukti di lokasi.</p>
+            <p className="text-sm">Muat naik sehingga {maxEvidenceFiles} gambar/PDF, atau gunakan kamera beberapa kali jika terdapat lebih daripada satu isu.</p>
             <div className="grid gap-2 sm:grid-cols-2">
               <Button type="button" variant="ghost" onClick={openCamera}><Camera size={16} /> Guna kamera</Button>
-              <Field label="Lampiran bukti"><Input key={fileKey} type="file" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(e) => setEvidenceFile(e.target.files?.[0] || null)} /></Field>
+              <Field label="Lampiran bukti"><Input key={fileKey} type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(e) => { addEvidenceFiles(e.target.files || []); setFileKey((prev) => prev + 1); }} /></Field>
             </div>
             {cameraError && <AlertMessage>{cameraError}</AlertMessage>}
             {cameraOpen && (
@@ -640,13 +761,21 @@ function DailyReport() {
                 </div>
               </div>
             )}
-            {previewUrl && (
+            {previewUrls.length > 0 && (
               <div className="app-row motion-pop rounded-md border p-3">
-                <img src={previewUrl} alt="Pratonton bukti laporan" className="max-h-64 w-full rounded-md object-contain" />
-                <Button type="button" variant="ghost" className="mt-3 w-full sm:w-auto" onClick={() => { setEvidenceFile(null); setFileKey((prev) => prev + 1); }}><RotateCcw size={16} /> Ambil semula / buang gambar</Button>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {previewUrls.map((file, index) => (
+                    <div key={`${file.name}-${index}`} className="rounded-md border bg-white p-2">
+                      {file.url ? <img src={file.url} alt={`Pratonton bukti ${index + 1}`} className="max-h-44 w-full rounded-md object-contain" /> : <div className="flex min-h-28 items-center justify-center rounded-md border border-dashed text-sm text-secondary-token">Fail PDF / dokumen</div>}
+                      <p className="mt-2 truncate text-sm font-medium text-primary-token">{file.name}</p>
+                      <Button type="button" variant="ghost" className="mt-2 w-full" onClick={() => removeEvidenceFile(index)}><RotateCcw size={16} /> Buang lampiran</Button>
+                    </div>
+                  ))}
+                </div>
+                <Button type="button" variant="ghost" className="mt-3 w-full sm:w-auto" onClick={() => { clearEvidenceFiles(); setFileKey((prev) => prev + 1); }}><RotateCcw size={16} /> Buang semua lampiran</Button>
               </div>
             )}
-            {form.lampiran_fail && <p className="text-data">Fail dipilih: {form.lampiran_fail.name}</p>}
+            {(form.lampiran_fail || []).length > 0 && <p className="text-data">{form.lampiran_fail.length} lampiran dipilih.</p>}
           </div>
           <div className="space-y-2">
             <p className="label-caps">Bahagian 5: Hantar laporan</p>
@@ -657,7 +786,7 @@ function DailyReport() {
       <div className="space-y-5">
         {submitted && <AlertMessage type="success">Laporan berjaya dihantar. Status laporan boleh disemak selepas semakan Ketua.</AlertMessage>}
         {nlp && <Card title="Keputusan NLP Rule-Based"><div className="space-y-4 text-sm"><p>Analisis automatik berdasarkan kata kunci laporan.</p><div className={`rounded-2xl border p-4 ${['High', 'Critical'].includes(nlp.tahap_risiko) ? 'app-row-alert' : 'app-row'}`}><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="label-caps">Kategori dikesan</p><h3>{nlp.kategori_dikesan}</h3></div><Badge tone={nlp.tahap_risiko}>{nlp.tahap_risiko}</Badge></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><p className="label-caps">Skor risiko</p><p className="text-kpi">{nlp.skor_risiko}</p></div><div><p className="label-caps">Status laporan</p><p className="font-medium text-primary-token">{submitted?.status_laporan}</p></div></div></div><div><p className="label-caps mb-2">Kata kunci dikesan</p><div className="flex flex-wrap gap-2">{nlp.kata_kunci_dikesan.length ? nlp.kata_kunci_dikesan.map((keyword) => <Badge key={keyword}>{keyword}</Badge>) : <Badge>Tiada kata kunci khusus</Badge>}</div></div><p><span className="font-medium text-primary-token">Ringkasan:</span> {nlp.ringkasan_automatik}</p></div></Card>}
-        <Card title="Laporan Saya">{reports.length ? reports.map((report) => <div key={report.id_laporan} className="app-row mb-2 rounded-md border p-3 text-sm"><div className="flex justify-between gap-2"><span className="font-medium text-primary-token">{report.tajuk_laporan}</span><Badge tone={report.tahap_risiko}>{report.tahap_risiko}</Badge></div><div className="mt-2 flex flex-wrap gap-2"><Badge tone={statusTone(report.status_laporan)}>{report.status_laporan}</Badge><span>{report.nama_pos}</span></div>{report.status_laporan === 'Ditolak' && <AlertMessage>Laporan ditolak. Semak catatan Ketua dan hantar laporan baharu jika pembetulan diperlukan.</AlertMessage>}{report.status_laporan === 'Diluluskan' && <AlertMessage type="success">Laporan telah diluluskan.</AlertMessage>}{report.lampiran_fail && <a className="text-primary-token mt-2 inline-flex items-center gap-1 text-sm font-medium underline" href={`${API_ORIGIN}${report.lampiran_fail}`} target="_blank" rel="noreferrer"><Paperclip size={14} /> Lampiran</a>}</div>) : <EmptyState title="Tiada laporan" description="Laporan yang anda hantar akan dipaparkan di sini." />}</Card>
+        <Card title="Laporan Saya">{reports.length ? reports.map((report) => <div key={report.id_laporan} className="app-row mb-2 rounded-md border p-3 text-sm"><div className="flex justify-between gap-2"><span className="font-medium text-primary-token">{report.tajuk_laporan}</span><Badge tone={report.tahap_risiko}>{report.tahap_risiko}</Badge></div><div className="mt-2 flex flex-wrap gap-2"><Badge tone={statusTone(report.status_laporan)}>{report.status_laporan}</Badge><span>{report.nama_pos}</span></div>{report.status_laporan === 'Ditolak' && <AlertMessage>Laporan ditolak. Semak catatan Ketua dan hantar laporan baharu jika pembetulan diperlukan.</AlertMessage>}{report.status_laporan === 'Diluluskan' && <AlertMessage type="success">Laporan telah diluluskan.</AlertMessage>}<AttachmentLinks value={report.lampiran_fail} label="Lampiran" /></div>) : <EmptyState title="Tiada laporan" description="Laporan yang anda hantar akan dipaparkan di sini." />}</Card>
       </div>
     </div>
   );
@@ -691,8 +820,10 @@ function ReportDetailContent({ detail }) {
       <section>
         <p className="document-section-title">Kandungan Laporan</p>
         <div className="document-box whitespace-pre-wrap">{detail.report.kandungan_laporan}</div>
-        {detail.report.lampiran_fail && <a className="text-primary-token mt-3 inline-flex items-center gap-1 font-medium underline" href={`${API_ORIGIN}${detail.report.lampiran_fail}`} target="_blank" rel="noreferrer"><Paperclip size={14} /> Buka lampiran bukti</a>}
+        <AttachmentLinks value={detail.report.lampiran_fail} label="Buka lampiran bukti" />
       </section>
+
+      <EvidencePreview value={detail.report.lampiran_fail} />
 
       <ReportLifecycle report={detail.report} actions={detail.actions} />
 
@@ -767,6 +898,10 @@ function ReviewReports({ auth }) {
     }
   };
   const review = async (id, status) => {
+    if (status === 'approved' && typeof followUpFlags[id] !== 'boolean') {
+      notifyError({ message: 'Sila tentukan sama ada laporan ini memerlukan tindakan susulan atau tidak.' });
+      return;
+    }
     try {
       await api.patch(`/reports/${id}/review`, { status, comment: comments[id] || '', requiresFollowUp: Boolean(followUpFlags[id]) });
       setComments((prev) => ({ ...prev, [id]: '' }));
@@ -810,20 +945,27 @@ function ReviewReports({ auth }) {
             <p className="desktop-clamp mt-2 text-sm">{r.kandungan_laporan}</p>
             <p className="mt-2 text-sm"><span className="font-medium text-primary-token">Risiko ringkas:</span> <Badge tone={r.tahap_risiko}>{r.tahap_risiko}</Badge></p>
             {r.status_laporan === 'Diluluskan' && r.perlu_tindakan_susulan && !r.ada_tindakan_susulan && <AlertMessage>Laporan ini sudah diluluskan dan ditanda memerlukan tindakan susulan.</AlertMessage>}
-            {r.lampiran_fail && <a className="text-primary-token mt-2 inline-flex items-center gap-1 text-sm font-medium underline" href={`${API_ORIGIN}${r.lampiran_fail}`} target="_blank" rel="noreferrer"><Paperclip size={14} /> Lampiran bukti</a>}
+            <AttachmentLinks value={r.lampiran_fail} label="Lampiran bukti" />
             <div className="mt-3 grid gap-2 sm:grid-cols-[auto_auto_1fr_auto_auto]">
               <Button variant="ghost" onClick={() => setPinnedReports((current) => current.includes(r.id_laporan) ? current.filter((id) => id !== r.id_laporan) : [...current, r.id_laporan])}>{pinnedReports.includes(r.id_laporan) ? 'Nyahpin' : 'Pin'}</Button>
               <Button variant="ghost" onClick={() => loadDetail(r.id_laporan)}><Eye size={16} /> Detail</Button>
               {canReviewReports && <Input placeholder="Catatan semakan" value={comments[r.id_laporan] || ''} onChange={(e) => setComments({ ...comments, [r.id_laporan]: e.target.value })} />}
-              {canReviewReports && r.status_laporan === 'Dihantar' && <Button onClick={() => setConfirmReview({ id: r.id_laporan, status: 'approved', title: r.tajuk_laporan })}>Lulus</Button>}
+              {canReviewReports && r.status_laporan === 'Dihantar' && <Button onClick={() => {
+                if (typeof followUpFlags[r.id_laporan] !== 'boolean') return notifyError({ message: 'Sila tentukan sama ada laporan ini memerlukan tindakan susulan atau tidak.' });
+                return setConfirmReview({ id: r.id_laporan, status: 'approved', title: r.tajuk_laporan });
+              }}>Lulus</Button>}
               {canReviewReports && r.status_laporan === 'Dihantar' && <Button variant="danger" onClick={() => setConfirmReview({ id: r.id_laporan, status: 'rejected', title: r.tajuk_laporan })}>Tolak</Button>}
               {r.status_laporan === 'Diluluskan' && r.perlu_tindakan_susulan && <Button onClick={() => navigate('/tindakan')}>Tindakan</Button>}
             </div>
             {canReviewReports && r.status_laporan === 'Dihantar' && (
-              <label className="mt-3 flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={Boolean(followUpFlags[r.id_laporan])} onChange={(e) => setFollowUpFlags({ ...followUpFlags, [r.id_laporan]: e.target.checked })} />
-                Tandakan laporan ini memerlukan tindakan susulan oleh Admin selepas diluluskan
-              </label>
+              <div className="mt-3 rounded-lg border bg-white p-3 text-sm">
+                <p className="font-medium text-primary-token">Keputusan Ketua untuk tindakan susulan</p>
+                <p className="mt-1 text-secondary-token">Pilih satu sebelum meluluskan laporan. Jika perlu tindakan susulan, laporan akan dihantar ke Admin.</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <Button type="button" variant={followUpFlags[r.id_laporan] === false ? 'primary' : 'ghost'} onClick={() => setFollowUpFlags({ ...followUpFlags, [r.id_laporan]: false })}>Tidak perlu tindakan susulan</Button>
+                  <Button type="button" variant={followUpFlags[r.id_laporan] === true ? 'primary' : 'ghost'} onClick={() => setFollowUpFlags({ ...followUpFlags, [r.id_laporan]: true })}>Perlu tindakan susulan</Button>
+                </div>
+              </div>
             )}
           </article>
         )) : <EmptyState title="Tiada laporan" description="Tiada laporan untuk status yang dipilih." />}
@@ -864,8 +1006,21 @@ function FollowUp({ auth }) {
   const [reportSearch, setReportSearch] = useState('');
   const [notes, setNotes] = useState({});
   const [progressNotes, setProgressNotes] = useState({});
+  const [requestNotes, setRequestNotes] = useState({});
+  const [progressFiles, setProgressFiles] = useState({});
+  const [requestFiles, setRequestFiles] = useState({});
+  const [reportDetail, setReportDetail] = useState(null);
   const load = useCallback(() => Promise.all([api.get('/reports'), api.get('/actions')]).then(([r, a]) => { setReports(r.data.filter((x) => ['High', 'Critical'].includes(x.tahap_risiko))); setActions(a.data); }), []);
   useEffect(() => { load(); }, [load]);
+  const loadReportDetail = async (id) => {
+    try {
+      const { data } = await api.get(`/reports/${id}`);
+      setReportDetail(data);
+      notifyAction('Laporan asal dibuka');
+    } catch (error) {
+      notifyError(error, 'Laporan asal gagal dibuka');
+    }
+  };
   const create = async (e) => {
     e.preventDefault();
     try {
@@ -889,12 +1044,30 @@ function FollowUp({ auth }) {
   };
   const submitProgress = async (id) => {
     try {
-      await api.post(`/actions/${id}/progress`, { catatan_progress: progressNotes[id] || '' });
+      const body = new FormData();
+      body.append('catatan_progress', progressNotes[id] || '');
+      Array.from(progressFiles[id] || []).forEach((file) => body.append('lampiran_fail', file));
+      await api.post(`/actions/${id}/progress`, body, { headers: { 'Content-Type': 'multipart/form-data' } });
       setProgressNotes((prev) => ({ ...prev, [id]: '' }));
+      setProgressFiles((prev) => ({ ...prev, [id]: [] }));
       notifySuccess('Progress dihantar kepada Admin untuk semakan');
       load();
     } catch (error) {
       notifyError(error, 'Progress gagal dihantar');
+    }
+  };
+  const requestChiefUpdate = async (id) => {
+    try {
+      const body = new FormData();
+      body.append('catatan_progress', requestNotes[id] || '');
+      Array.from(requestFiles[id] || []).forEach((file) => body.append('lampiran_fail', file));
+      await api.post(`/actions/${id}/request-update`, body, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setRequestNotes((prev) => ({ ...prev, [id]: '' }));
+      setRequestFiles((prev) => ({ ...prev, [id]: [] }));
+      notifySuccess('Permintaan kemaskini dihantar kepada Ketua');
+      load();
+    } catch (error) {
+      notifyError(error, 'Permintaan kemaskini gagal dihantar');
     }
   };
 
@@ -972,31 +1145,61 @@ function FollowUp({ auth }) {
                 </div>
                 <p className="mt-2">{a.tindakan_diambil}</p>
                 <p className="mt-1">Pegawai: {a.pegawai_bertanggungjawab}</p>
+                <Button className="mt-3 w-full justify-center sm:w-auto" variant="ghost" onClick={() => loadReportDetail(a.id_laporan)}><Eye size={16} /> Lihat laporan asal</Button>
                 {a.catatan_tindakan && <p className="mt-1">Catatan: {a.catatan_tindakan}</p>}
                 {a.progress_notes?.length > 0 && (
                   <div className="mt-3 space-y-2">
-                    <p className="label-caps">Catatan progress Ketua</p>
+                    <p className="label-caps">Komunikasi Admin dan Ketua</p>
                     {a.progress_notes.map((progress) => (
-                      <div key={progress.id_progress} className="rounded-lg border bg-white p-3">
-                        <p>{progress.catatan_progress}</p>
-                        <p className="text-data">{progress.nama_penuh} - {new Date(progress.tarikh_progress).toLocaleString()} - {progress.dilihat_admin ? 'Dilihat Admin' : 'Belum dilihat Admin'}</p>
+                      <div key={progress.id_progress} className={`rounded-lg border bg-white p-3 ${progress.perlu_respon_ketua ? 'border-amber-300' : ''}`}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <Badge tone={progress.jenis_progress === 'Permintaan Admin' ? 'High' : 'Low'}>{progress.jenis_progress || 'Kemaskini'}</Badge>
+                          {progress.perlu_respon_ketua && <Badge tone="Medium">Perlu respon Ketua</Badge>}
+                        </div>
+                        <p className="mt-2">{progress.catatan_progress}</p>
+                        <AttachmentLinks value={progress.lampiran_fail} label="Bukti" />
+                        <p className="text-data">{progress.nama_penuh} - {progress.nama_peranan} - {new Date(progress.tarikh_progress).toLocaleString()} - {progress.dilihat_admin ? 'Dilihat Admin' : 'Belum dilihat Admin'}</p>
                       </div>
                     ))}
                   </div>
                 )}
                 {canManageFollowUp ? <div className="mt-3 grid gap-2">
                   <Textarea rows={2} placeholder="Catatan kemas kini" value={notes[a.id_tindakan] || ''} onChange={(e) => setNotes({ ...notes, [a.id_tindakan]: e.target.value })} />
+                  <div className="rounded-lg border bg-white p-3">
+                    <p className="font-medium text-primary-token">Minta kemaskini daripada Ketua</p>
+                    <p className="mb-2 text-sm text-secondary-token">Gunakan ini jika Admin perlukan maklumat lapangan, gambar tambahan, atau pengesahan keadaan semasa.</p>
+                    <Textarea rows={2} placeholder="Contoh: Sila kemaskini keadaan pintu dan lampirkan gambar terkini." value={requestNotes[a.id_tindakan] || ''} onChange={(e) => setRequestNotes({ ...requestNotes, [a.id_tindakan]: e.target.value })} />
+                    <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <Input type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(e) => setRequestFiles({ ...requestFiles, [a.id_tindakan]: Array.from(e.target.files || []) })} />
+                      <Button type="button" variant="ghost" onClick={() => requestChiefUpdate(a.id_tindakan)}>Minta kemaskini</Button>
+                    </div>
+                    {(requestFiles[a.id_tindakan] || []).length > 0 && <p className="text-data">{requestFiles[a.id_tindakan].length} lampiran dipilih.</p>}
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="ghost" onClick={() => update(a.id_tindakan, 'Baru')}>Baru</Button>
                     <Button variant="ghost" onClick={() => update(a.id_tindakan, 'Dalam Tindakan')}>Dalam Tindakan</Button>
                     <Button onClick={() => update(a.id_tindakan, 'Selesai')}>Selesai</Button>
                   </div>
-                </div> : <div className="mt-3 grid gap-2"><AlertMessage type="success">Status rasmi hanya boleh dikemaskini oleh Pentadbir Sistem.</AlertMessage><Textarea rows={2} placeholder="Catatan / progress untuk Admin" value={progressNotes[a.id_tindakan] || ''} onChange={(e) => setProgressNotes({ ...progressNotes, [a.id_tindakan]: e.target.value })} /><Button onClick={() => submitProgress(a.id_tindakan)}>Hantar progress kepada Admin</Button></div>}
+                </div> : <div className="mt-3 grid gap-2"><AlertMessage type="success">Status rasmi hanya boleh dikemaskini oleh Pentadbir Sistem. Jika Admin meminta kemaskini, balas di sini bersama bukti jika perlu.</AlertMessage><Textarea rows={2} placeholder="Catatan / progress untuk Admin" value={progressNotes[a.id_tindakan] || ''} onChange={(e) => setProgressNotes({ ...progressNotes, [a.id_tindakan]: e.target.value })} /><Input type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(e) => setProgressFiles({ ...progressFiles, [a.id_tindakan]: Array.from(e.target.files || []) })} />{(progressFiles[a.id_tindakan] || []).length > 0 && <p className="text-data">{progressFiles[a.id_tindakan].length} lampiran bukti dipilih.</p>}<Button onClick={() => submitProgress(a.id_tindakan)}>Hantar progress kepada Admin</Button></div>}
               </div>
             )) : <EmptyState title="Tiada tindakan" description="Tiada tindakan susulan sepadan dengan tapisan semasa." />}
           </Card>
         </div>
       </div>
+      {reportDetail && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(0,0,0,0.55)] p-0 sm:items-center sm:p-4">
+          <div className="app-elevated motion-sheet max-h-[94vh] w-full overflow-y-auto rounded-t-lg border p-4 shadow-xl sm:max-w-5xl sm:rounded-lg lg:p-6">
+            <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex items-start justify-between gap-3 border-b bg-white px-4 py-4 lg:-mx-6 lg:-mt-6 lg:px-6">
+              <div>
+                <h2>Laporan Asal #{reportDetail.report.id_laporan}</h2>
+                <p className="text-sm">Rujukan penuh laporan yang menjadi asas tindakan susulan.</p>
+              </div>
+              <Button variant="ghost" onClick={() => setReportDetail(null)}><X size={16} /> Tutup</Button>
+            </div>
+            <ReportDetailContent detail={reportDetail} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1386,7 +1589,8 @@ function AuditTrail() {
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState({ roles: [], posts: [] });
   const [users, setUsers] = useState([]);
-  const [filters, setFilters] = useState({ user: '', role: '', pos: '', module: '', activity: '', date: '', status: '' });
+  const [filters, setFilters] = useState({ user: '', role: '', pos: '', module: '', activity: '', dateMode: 'all', date: '', month: '', year: '', status: '' });
+  const auditMonthOptions = useMemo(() => recentMonthOptions(36), []);
   const load = useCallback(() => api.get('/audit', { params: filters }).then((res) => setRows(res.data)), [filters]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -1399,14 +1603,26 @@ function AuditTrail() {
     <div className="desktop-ops">
       <Card title="Audit Trail" action={<Button variant="ghost" onClick={() => downloadCsv('/audit/export.csv', 'audit-trail.csv')}><Download size={16} /> CSV</Button>}>
         <AlertMessage type="success">Gunakan penapis ini untuk semak aktiviti mengikut pengguna, peranan, pos, modul atau status sebelum membuka log yang panjang.</AlertMessage>
-        <div className="mb-3 grid gap-2 md:grid-cols-4 xl:grid-cols-[1fr_180px_220px_150px_1fr_150px_130px]">
-          <Select value={filters.user} onChange={(e) => setFilters({ ...filters, user: e.target.value })}><option value="">Semua pengguna</option>{users.map((user) => <option key={user.id_pengguna} value={user.nama_penuh}>{user.nama_penuh}</option>)}</Select>
-          <Select value={filters.role} onChange={(e) => setFilters({ ...filters, role: e.target.value })}><option value="">Semua peranan</option>{meta.roles.map((role) => <option key={role.id_peranan} value={role.nama_peranan}>{role.nama_peranan}</option>)}</Select>
-          <Select value={filters.pos} onChange={(e) => setFilters({ ...filters, pos: e.target.value })}><option value="">Semua pos</option>{meta.posts.map((post) => <option key={post.id_pos} value={post.nama_pos}>{post.nama_pos}</option>)}</Select>
-          <Input placeholder="Modul" value={filters.module} onChange={(e) => setFilters({ ...filters, module: e.target.value })} />
-          <Input placeholder="Aktiviti" value={filters.activity} onChange={(e) => setFilters({ ...filters, activity: e.target.value })} />
-          <Input type="date" value={filters.date} onChange={(e) => setFilters({ ...filters, date: e.target.value })} />
-          <Select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}><option value="">Semua status</option><option>Berjaya</option><option>Gagal</option></Select>
+        <div className="mb-4 space-y-3 rounded-xl border bg-white p-4">
+          <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Field label="Pengguna"><Select value={filters.user} onChange={(e) => setFilters({ ...filters, user: e.target.value })}><option value="">Semua pengguna</option>{users.map((user) => <option key={user.id_pengguna} value={user.nama_penuh}>{user.nama_penuh}</option>)}</Select></Field>
+              <Field label="Peranan"><Select value={filters.role} onChange={(e) => setFilters({ ...filters, role: e.target.value })}><option value="">Semua peranan</option>{meta.roles.map((role) => <option key={role.id_peranan} value={role.nama_peranan}>{role.nama_peranan}</option>)}</Select></Field>
+              <Field label="Pos"><Select value={filters.pos} onChange={(e) => setFilters({ ...filters, pos: e.target.value })}><option value="">Semua pos</option>{meta.posts.map((post) => <option key={post.id_pos} value={post.nama_pos}>{post.nama_pos}</option>)}</Select></Field>
+            </div>
+            <Button type="button" variant="ghost" className="self-end" onClick={() => setFilters({ user: '', role: '', pos: '', module: '', activity: '', dateMode: 'all', date: '', month: '', year: '', status: '' })}>Reset tapisan</Button>
+          </div>
+          <div className="grid gap-3 border-t pt-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(260px,1.3fr)_180px]">
+            <Field label="Modul"><Input placeholder="Contoh: Laporan Harian" value={filters.module} onChange={(e) => setFilters({ ...filters, module: e.target.value })} /></Field>
+            <Field label="Aktiviti / penerangan"><Input placeholder="Cari aktiviti atau penerangan audit" value={filters.activity} onChange={(e) => setFilters({ ...filters, activity: e.target.value })} /></Field>
+            <Field label="Status"><Select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}><option value="">Semua status</option><option>Berjaya</option><option>Gagal</option></Select></Field>
+          </div>
+          <div className="grid gap-3 border-t pt-3 sm:grid-cols-2 lg:grid-cols-[220px_minmax(220px,320px)]">
+            <Field label="Tempoh audit"><Select value={filters.dateMode} onChange={(e) => setFilters({ ...filters, dateMode: e.target.value, date: '', month: '', year: '' })}><option value="all">Semua masa</option><option value="date">Tarikh tepat</option><option value="month">Bulan</option><option value="year">Tahun</option></Select></Field>
+            {filters.dateMode === 'date' && <Field label="Pilih tarikh"><Input type="date" value={filters.date} onChange={(e) => setFilters({ ...filters, date: e.target.value })} /></Field>}
+            {filters.dateMode === 'month' && <Field label="Pilih bulan"><Select value={filters.month} onChange={(e) => setFilters({ ...filters, month: e.target.value })}><option value="">Semua bulan</option>{auditMonthOptions.map((month) => <option key={month} value={month}>{monthLabel(month)}</option>)}</Select></Field>}
+            {filters.dateMode === 'year' && <Field label="Pilih tahun"><Input type="number" min="2020" max="2100" placeholder="Contoh: 2026" value={filters.year} onChange={(e) => setFilters({ ...filters, year: e.target.value })} /></Field>}
+          </div>
         </div>
         <p className="mb-3 text-sm text-secondary-token">{rows.length} rekod audit terkini dipaparkan.</p>
         <div className="space-y-3 md:hidden">
@@ -1425,20 +1641,40 @@ function AuditTrail() {
   );
 }
 
-function NotificationsPage({ auth }) {
+function NotificationsPage() {
   const [rows, setRows] = useState([]);
+  const [detail, setDetail] = useState(null);
   const navigate = useNavigate();
   const load = useCallback(() => api.get('/notifications').then((res) => setRows(res.data)), []);
   useEffect(() => { load(); }, [load]);
   const markRead = async (id) => { try { await api.patch(`/notifications/${id}/read`); notifySuccess('Notifikasi ditanda dibaca'); load(); } catch (error) { notifyError(error, 'Notifikasi gagal dikemas kini'); } };
-  const reportPath = auth.user?.nama_peranan === ROLE.guard ? '/laporan' : '/semakan';
-  return <Card title="Notifikasi">{rows.length ? rows.map((n) => <div key={n.id_notifikasi} className="app-row mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border p-4 text-sm"><div><div className="flex items-center gap-2"><span className="font-medium text-primary-token">{n.tajuk_notifikasi}</span><Badge tone={n.tahap_keutamaan}>{n.tahap_keutamaan}</Badge></div><p className="mt-1">{n.mesej_notifikasi}</p><p className="text-data">{new Date(n.tarikh_hantar).toLocaleString()} - {n.status_bacaan}</p></div><div className="flex flex-wrap gap-2">{n.id_laporan && <Button variant="ghost" onClick={() => navigate(reportPath)}><Eye size={16} /> Buka laporan</Button>}{n.status_bacaan !== 'Dibaca' && <Button variant="ghost" onClick={() => markRead(n.id_notifikasi)}>Tanda dibaca</Button>}</div></div>) : <EmptyState title="Tiada notifikasi" description="Notifikasi baharu akan dipaparkan di sini." />}</Card>;
+  const openReport = async (notification) => {
+    try {
+      if (notification.status_bacaan !== 'Dibaca') await api.patch(`/notifications/${notification.id_notifikasi}/read`);
+      const { data } = await api.get(`/reports/${notification.id_laporan}`);
+      setDetail(data);
+      notifyAction('Laporan notifikasi dibuka');
+      load();
+    } catch (error) {
+      notifyError(error, 'Laporan notifikasi gagal dibuka');
+    }
+  };
+  const openAction = async (notification) => {
+    try {
+      if (notification.status_bacaan !== 'Dibaca') await api.patch(`/notifications/${notification.id_notifikasi}/read`);
+      navigate('/tindakan');
+      load();
+    } catch (error) {
+      notifyError(error, 'Notifikasi gagal dibuka');
+    }
+  };
+  return <div className="space-y-5"><Card title="Notifikasi">{rows.length ? rows.map((n) => <div key={n.id_notifikasi} className="app-row mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border p-4 text-sm"><div><div className="flex items-center gap-2"><span className="font-medium text-primary-token">{n.tajuk_notifikasi}</span><Badge tone={n.tahap_keutamaan}>{n.tahap_keutamaan}</Badge></div><p className="mt-1">{n.mesej_notifikasi}</p><p className="text-data">{new Date(n.tarikh_hantar).toLocaleString()} - {n.status_bacaan}</p></div><div className="flex flex-wrap gap-2">{n.id_laporan && <Button variant="ghost" onClick={() => openReport(n)}><Eye size={16} /> Buka laporan</Button>}{n.id_tindakan && <Button variant="ghost" onClick={() => openAction(n)}><ClipboardCheck size={16} /> Buka tindakan</Button>}{n.status_bacaan !== 'Dibaca' && <Button variant="ghost" onClick={() => markRead(n.id_notifikasi)}>Tanda dibaca</Button>}</div></div>) : <EmptyState title="Tiada notifikasi" description="Notifikasi baharu akan dipaparkan di sini." />}</Card>{detail && <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(0,0,0,0.55)] p-0 sm:items-center sm:p-4"><div className="app-elevated motion-sheet max-h-[94vh] w-full overflow-y-auto rounded-t-lg border p-4 shadow-xl sm:max-w-5xl sm:rounded-lg lg:p-6"><div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex items-start justify-between gap-3 border-b bg-white px-4 py-4 lg:-mx-6 lg:-mt-6 lg:px-6"><div><h2>Laporan Notifikasi #{detail.report.id_laporan}</h2><p className="text-sm">Dibuka terus daripada notifikasi.</p></div><Button variant="ghost" onClick={() => setDetail(null)}><X size={16} /> Tutup</Button></div><ReportDetailContent detail={detail} /></div></div>}</div>;
 }
 
 function NlpTrainingPage() {
   const [rules, setRules] = useState([]);
   const [reports, setReports] = useState([]);
-  const [nlpFilters, setNlpFilters] = useState({ search: '', post: '', shift: '', risk: '', status: '' });
+  const [nlpFilters, setNlpFilters] = useState({ search: '', post: '', shift: '', risk: '', status: '', timeMode: 'all', month: '', week: '' });
   const [pinnedNlpReports, setPinnedNlpReports] = useState([]);
   const [selectedNlp, setSelectedNlp] = useState(null);
   const [edits, setEdits] = useState({});
@@ -1521,22 +1757,39 @@ function NlpTrainingPage() {
     const matchesShift = !nlpFilters.shift || report.syif === nlpFilters.shift;
     const matchesRisk = !nlpFilters.risk || report.tahap_risiko === nlpFilters.risk;
     const matchesStatus = !nlpFilters.status || report.status_laporan === nlpFilters.status;
-    return matchesSearch && matchesPost && matchesShift && matchesRisk && matchesStatus;
+    const reportDate = report.tarikh_laporan?.slice(0, 10) || '';
+    const reportMonth = reportDate.slice(0, 7);
+    const matchesTime = nlpFilters.timeMode === 'all'
+      || (nlpFilters.timeMode === 'month' && (!nlpFilters.month || reportMonth === nlpFilters.month))
+      || (nlpFilters.timeMode === 'week' && (!nlpFilters.week || dateToWeekValue(reportDate) === nlpFilters.week));
+    return matchesSearch && matchesPost && matchesShift && matchesRisk && matchesStatus && matchesTime;
   }).sort((a, b) => Number(pinnedNlpReports.includes(b.id_laporan)) - Number(pinnedNlpReports.includes(a.id_laporan)));
   const nlpPostOptions = [...new Set(reports.map((report) => report.nama_pos).filter(Boolean))].sort();
+  const nlpMonthOptions = [...new Set(reports.map((report) => report.tarikh_laporan?.slice(0, 7)).filter(Boolean))].sort().reverse();
+  const nlpWeekOptions = [...new Set(reports.map((report) => dateToWeekValue(report.tarikh_laporan?.slice(0, 10))).filter(Boolean))].sort().reverse();
   return (
     <div className="desktop-ops space-y-5">
       <PageHeader title="Analisis NLP" description="Pentadbir Sistem boleh melihat keputusan NLP penuh dan melatih kata kunci model operasi." />
       <AlertMessage type="success">Tujuan halaman ini: semak bagaimana sistem mengklasifikasikan laporan, lihat kata kunci/skor risiko, dan kemas kini kata kunci rujukan supaya laporan baharu lebih tepat. Halaman ini bukan tempat untuk meluluskan laporan atau menutup tindakan.</AlertMessage>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_460px] 2xl:grid-cols-[minmax(0,1fr)_520px]">
         <Card title="Senarai Laporan">
-          <div className="mb-3 space-y-2">
-            <Input placeholder="Cari laporan, pengawal atau pos" value={nlpFilters.search} onChange={(e) => setNlpFilters({ ...nlpFilters, search: e.target.value })} />
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              <Select value={nlpFilters.post} onChange={(e) => setNlpFilters({ ...nlpFilters, post: e.target.value })}><option value="">Pilih pos</option>{nlpPostOptions.map((post) => <option key={post}>{post}</option>)}</Select>
-              <Select value={nlpFilters.shift} onChange={(e) => setNlpFilters({ ...nlpFilters, shift: e.target.value })}><option value="">Pilih syif</option><option>Pagi</option><option>Petang</option><option>Malam</option></Select>
-              <Select value={nlpFilters.risk} onChange={(e) => setNlpFilters({ ...nlpFilters, risk: e.target.value })}><option value="">Semua risiko</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></Select>
-              <Select value={nlpFilters.status} onChange={(e) => setNlpFilters({ ...nlpFilters, status: e.target.value })}><option value="">Semua status</option><option>Dihantar</option><option>Diluluskan</option><option>Ditolak</option></Select>
+          <div className="mb-4 space-y-3 rounded-xl border bg-white p-4">
+            <div className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_auto]">
+              <Field label="Carian laporan">
+                <Input placeholder="Cari laporan, pengawal atau pos" value={nlpFilters.search} onChange={(e) => setNlpFilters({ ...nlpFilters, search: e.target.value })} />
+              </Field>
+              <Button type="button" variant="ghost" className="self-end" onClick={() => setNlpFilters({ search: '', post: '', shift: '', risk: '', status: '', timeMode: 'all', month: '', week: '' })}>Reset tapisan</Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Field label="Pos"><Select value={nlpFilters.post} onChange={(e) => setNlpFilters({ ...nlpFilters, post: e.target.value })}><option value="">Semua pos</option>{nlpPostOptions.map((post) => <option key={post}>{post}</option>)}</Select></Field>
+              <Field label="Syif"><Select value={nlpFilters.shift} onChange={(e) => setNlpFilters({ ...nlpFilters, shift: e.target.value })}><option value="">Semua syif</option><option>Pagi</option><option>Petang</option><option>Malam</option></Select></Field>
+              <Field label="Risiko"><Select value={nlpFilters.risk} onChange={(e) => setNlpFilters({ ...nlpFilters, risk: e.target.value })}><option value="">Semua risiko</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></Select></Field>
+              <Field label="Status"><Select value={nlpFilters.status} onChange={(e) => setNlpFilters({ ...nlpFilters, status: e.target.value })}><option value="">Semua status</option><option>Dihantar</option><option>Diluluskan</option><option>Ditolak</option></Select></Field>
+            </div>
+            <div className="grid gap-3 border-t pt-3 sm:grid-cols-2 lg:grid-cols-[220px_minmax(260px,360px)]">
+              <Field label="Tempoh laporan"><Select value={nlpFilters.timeMode} onChange={(e) => setNlpFilters({ ...nlpFilters, timeMode: e.target.value, month: '', week: '' })}><option value="all">Semua masa</option><option value="month">Ikut bulan</option><option value="week">Ikut minggu</option></Select></Field>
+              {nlpFilters.timeMode === 'month' && <Field label="Pilih bulan"><Select value={nlpFilters.month} onChange={(e) => setNlpFilters({ ...nlpFilters, month: e.target.value })}><option value="">Semua bulan</option>{nlpMonthOptions.map((month) => <option key={month} value={month}>{monthLabel(month)}</option>)}</Select></Field>}
+              {nlpFilters.timeMode === 'week' && <Field label="Pilih minggu"><Select value={nlpFilters.week} onChange={(e) => setNlpFilters({ ...nlpFilters, week: e.target.value })}><option value="">Semua minggu</option>{nlpWeekOptions.map((week) => <option key={week} value={week}>{weekLabel(week)}</option>)}</Select></Field>}
             </div>
           </div>
           <p className="mb-3 text-sm text-secondary-token">{filteredNlpReports.length} daripada {reports.length} laporan dipaparkan.</p>
@@ -1545,6 +1798,7 @@ function NlpTrainingPage() {
               <div>
                 <p className="font-medium text-primary-token">{report.tajuk_laporan}</p>
                 <p>{report.nama_penuh} - {report.nama_pos} - {report.syif}</p>
+                <p className="text-data">{report.tarikh_laporan?.slice(0, 10)} {report.masa_laporan || ''} - {monthLabel(report.tarikh_laporan?.slice(0, 7))} - {weekLabel(dateToWeekValue(report.tarikh_laporan?.slice(0, 10))) || '-'}</p>
                 <div className="mt-2 flex flex-wrap gap-2">{pinnedNlpReports.includes(report.id_laporan) && <Badge>Dipin</Badge>}<Badge tone={report.tahap_risiko}>{report.tahap_risiko}</Badge><Badge tone={statusTone(report.status_laporan)}>{report.status_laporan}</Badge></div>
               </div>
               <div className="flex flex-wrap gap-2 md:justify-end">
@@ -1722,7 +1976,7 @@ function App() {
         <Route path="/audit" element={<Protected auth={auth} roles={[ROLE.admin]}><AuditTrail /></Protected>} />
         <Route path="/pengguna" element={<Protected auth={auth} roles={[ROLE.admin]}><UsersPage auth={auth} /></Protected>} />
         <Route path="/pos" element={<Protected auth={auth} roles={[ROLE.admin]}><PostsPage /></Protected>} />
-        <Route path="/notifikasi" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief, ROLE.guard]}><NotificationsPage auth={auth} /></Protected>} />
+        <Route path="/notifikasi" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief, ROLE.guard]}><NotificationsPage /></Protected>} />
         <Route path="/kata-laluan" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief, ROLE.guard]}><ChangePasswordPage /></Protected>} />
         <Route path="*" element={<Navigate to={auth.user ? defaultPath : '/login'} replace />} />
       </Routes>

@@ -436,10 +436,18 @@ async function ensureProgressTable() {
       id_tindakan int not null references tbl_tindakan_susulan(id_tindakan) on delete cascade,
       id_pengguna int not null references tbl_pengguna(id_pengguna),
       catatan_progress text not null,
+      jenis_progress varchar(40) not null default 'Kemaskini Ketua',
+      perlu_respon_ketua boolean not null default false,
+      lampiran_fail text,
       tarikh_progress timestamp not null default now(),
       dilihat_admin boolean not null default false
     )`
   );
+  await pool.query("alter table tbl_progress_tindakan add column if not exists jenis_progress varchar(40) not null default 'Kemaskini Ketua'");
+  await pool.query('alter table tbl_progress_tindakan add column if not exists perlu_respon_ketua boolean not null default false');
+  await pool.query('alter table tbl_progress_tindakan add column if not exists lampiran_fail text');
+  await pool.query('alter table tbl_notifikasi add column if not exists id_laporan int references tbl_laporan_harian(id_laporan) on delete set null');
+  await pool.query('alter table tbl_notifikasi add column if not exists id_tindakan int references tbl_tindakan_susulan(id_tindakan) on delete set null');
   await pool.query('alter table tbl_laporan_harian add column if not exists perlu_tindakan_susulan boolean not null default false');
   await pool.query(
     `create table if not exists tbl_jadual_mingguan (
@@ -871,15 +879,27 @@ app.get('/api/reports/:id', auth, async (req, res) => {
   res.json({ report: safeReport, checklist: checklist.rows, reviews: reviews.rows, actions: actions.rows });
 });
 
-app.post('/api/reports', auth, allow(roles.guard), upload.single('lampiran_fail'), async (req, res) => {
+app.post('/api/reports', auth, allow(roles.guard), upload.array('lampiran_fail', 6), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('begin');
     const { id_pos, id_kategori_insiden, tajuk_laporan, syif, tarikh_laporan, masa_laporan, kandungan_laporan } = req.body;
     const checklist = typeof req.body.checklist === 'string' ? JSON.parse(req.body.checklist || '[]') : req.body.checklist || [];
-    const lampiranFail = req.file ? `/uploads/${req.file.filename}` : null;
+    const lampiranPaths = (req.files || []).map((file) => `/uploads/${file.filename}`);
+    const lampiranFail = lampiranPaths.length > 1 ? JSON.stringify(lampiranPaths) : lampiranPaths[0] || null;
     if (!id_pos || !tajuk_laporan || !syif || !tarikh_laporan || !masa_laporan || !kandungan_laporan) {
+      await client.query('rollback');
       return res.status(400).json({ message: 'Sila lengkapkan maklumat laporan' });
+    }
+    if (checklist.some((item) => !item.jawapan)) {
+      await client.query('rollback');
+      return res.status(400).json({ message: 'Sila jawab semua checklist sebelum menghantar laporan' });
+    }
+    const activeChecklist = await client.query('select id_checklist from tbl_checklist where status_aktif = true');
+    const answeredChecklist = new Set(checklist.map((item) => Number(item.id_checklist)).filter(Boolean));
+    if (activeChecklist.rows.some((item) => !answeredChecklist.has(Number(item.id_checklist)))) {
+      await client.query('rollback');
+      return res.status(400).json({ message: 'Sila jawab semua checklist aktif sebelum menghantar laporan' });
     }
     const nlp = analyzeReport(kandungan_laporan, await loadNlpRules(client));
     const report = await client.query(
@@ -900,9 +920,9 @@ app.post('/api/reports', auth, allow(roles.guard), upload.single('lampiran_fail'
     }
     if (['High', 'Critical'].includes(nlp.tahap_risiko)) {
       await client.query(
-        `insert into tbl_notifikasi (id_pengguna, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan)
-         select id_pengguna, $1, $2, 'Risiko Tinggi', $3 from tbl_pengguna p join tbl_peranan r on r.id_peranan = p.id_peranan where r.nama_peranan = $4`,
-        ['Laporan berisiko tinggi', `${tajuk_laporan} diklasifikasi sebagai ${nlp.tahap_risiko}`, nlp.tahap_risiko, roles.chief]
+        `insert into tbl_notifikasi (id_pengguna, id_laporan, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan)
+         select id_pengguna, $1, $2, $3, 'Risiko Tinggi', $4 from tbl_pengguna p join tbl_peranan r on r.id_peranan = p.id_peranan where r.nama_peranan = $5`,
+        [idLaporan, 'Laporan berisiko tinggi', `${tajuk_laporan} diklasifikasi sebagai ${nlp.tahap_risiko}`, nlp.tahap_risiko, roles.chief]
       );
     }
     await audit(req, client, 'Laporan Harian', 'Submit daily report', 'Laporan harian dihantar', idLaporan, 'Berjaya', null, report.rows[0]);
@@ -923,6 +943,9 @@ app.patch('/api/reports/:id/review', auth, allow(roles.chief), async (req, res) 
     const { status, comment, requiresFollowUp } = req.body;
     const statusMap = { approved: 'Diluluskan', rejected: 'Ditolak' };
     if (!statusMap[status]) return res.status(400).json({ message: 'Status semakan tidak sah' });
+    if (status === 'approved' && typeof requiresFollowUp !== 'boolean') {
+      return res.status(400).json({ message: 'Ketua perlu tentukan sama ada laporan memerlukan tindakan susulan atau tidak' });
+    }
     await client.query('begin');
     const oldReport = (await client.query('select * from tbl_laporan_harian where id_laporan = $1', [req.params.id])).rows[0];
     const needsFollowUp = status === 'approved' && Boolean(requiresFollowUp);
@@ -932,10 +955,11 @@ app.patch('/api/reports/:id/review', auth, allow(roles.chief), async (req, res) 
     );
     await client.query('insert into tbl_pengesahan_laporan (id_laporan, id_pengguna_pengesah, status_pengesahan, catatan_pengesahan) values ($1,$2,$3,$4)', [req.params.id, req.user.id_pengguna, statusMap[status], comment || null]);
     await client.query(
-      `insert into tbl_notifikasi (id_pengguna, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan)
-       values ($1,$2,$3,$4,$5)`,
+      `insert into tbl_notifikasi (id_pengguna, id_laporan, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan)
+       values ($1,$2,$3,$4,$5,$6)`,
       [
         oldReport.id_pengguna,
+        oldReport.id_laporan,
         status === 'approved' ? 'Laporan diluluskan' : 'Laporan ditolak',
         status === 'approved'
           ? `${oldReport.tajuk_laporan} telah diluluskan oleh Ketua Pengawal.`
@@ -946,11 +970,12 @@ app.patch('/api/reports/:id/review', auth, allow(roles.chief), async (req, res) 
     );
     if (needsFollowUp) {
       await client.query(
-        `insert into tbl_notifikasi (id_pengguna, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan)
-         select id_pengguna, $1, $2, $3, $4
+        `insert into tbl_notifikasi (id_pengguna, id_laporan, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan)
+         select id_pengguna, $1, $2, $3, $4, $5
          from tbl_pengguna p join tbl_peranan r on r.id_peranan = p.id_peranan
-         where r.nama_peranan = $5`,
+         where r.nama_peranan = $6`,
         [
+          oldReport.id_laporan,
           'Tindakan susulan diperlukan',
           `${oldReport.tajuk_laporan} telah diluluskan dan Ketua menetapkan tindakan susulan diperlukan.`,
           'Tindakan Susulan',
@@ -983,6 +1008,9 @@ app.get('/api/actions', auth, allow(roles.admin, roles.chief), async (req, res) 
        select json_agg(json_build_object(
          'id_progress', pr.id_progress,
          'catatan_progress', pr.catatan_progress,
+         'jenis_progress', pr.jenis_progress,
+         'perlu_respon_ketua', pr.perlu_respon_ketua,
+         'lampiran_fail', pr.lampiran_fail,
          'tarikh_progress', pr.tarikh_progress,
          'dilihat_admin', pr.dilihat_admin,
          'nama_penuh', u.nama_penuh,
@@ -1015,26 +1043,56 @@ app.post('/api/actions', auth, allow(roles.admin), async (req, res) => {
   }
 });
 
-app.post('/api/actions/:id/progress', auth, allow(roles.chief), async (req, res) => {
+app.post('/api/actions/:id/progress', auth, allow(roles.chief), upload.array('lampiran_fail', 6), async (req, res) => {
   const client = await pool.connect();
   try {
     const { catatan_progress } = req.body;
     if (!catatan_progress || !String(catatan_progress).trim()) return res.status(400).json({ message: 'Catatan progress diperlukan' });
     const action = (await client.query('select * from tbl_tindakan_susulan where id_tindakan = $1', [req.params.id])).rows[0];
     if (!action) return res.status(404).json({ message: 'Tindakan susulan tidak dijumpai' });
+    const lampiranPaths = (req.files || []).map((file) => `/uploads/${file.filename}`);
+    const lampiranFail = lampiranPaths.length > 1 ? JSON.stringify(lampiranPaths) : lampiranPaths[0] || null;
     const result = await client.query(
-      `insert into tbl_progress_tindakan (id_tindakan, id_pengguna, catatan_progress)
-       values ($1,$2,$3) returning *`,
-      [req.params.id, req.user.id_pengguna, catatan_progress.trim()]
+      `insert into tbl_progress_tindakan (id_tindakan, id_pengguna, catatan_progress, jenis_progress, perlu_respon_ketua, lampiran_fail)
+       values ($1,$2,$3,'Kemaskini Ketua',false,$4) returning *`,
+      [req.params.id, req.user.id_pengguna, catatan_progress.trim(), lampiranFail]
     );
     await client.query(
-      `insert into tbl_notifikasi (id_pengguna, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan)
-       select id_pengguna, $1, $2, 'Tindakan Susulan', 'Medium'
+      `insert into tbl_notifikasi (id_pengguna, id_tindakan, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan)
+       select id_pengguna, $1, $2, $3, 'Tindakan Susulan', 'Medium'
        from tbl_pengguna p join tbl_peranan r on r.id_peranan = p.id_peranan
-       where r.nama_peranan = $3`,
-      ['Progress tindakan dikemaskini', `Ketua Pengawal menghantar progress untuk tindakan #${req.params.id}.`, roles.admin]
+       where r.nama_peranan = $4`,
+      [req.params.id, 'Progress tindakan dikemaskini', `Ketua Pengawal menghantar progress untuk tindakan #${req.params.id}.`, roles.admin]
     );
     await audit(req, client, 'Tindakan Susulan', 'Follow-up progress submitted', 'Ketua Pengawal menghantar catatan progress untuk semakan Admin', req.params.id, 'Berjaya', null, result.rows[0]);
+    res.status(201).json(result.rows[0]);
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/actions/:id/request-update', auth, allow(roles.admin), upload.array('lampiran_fail', 6), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { catatan_progress } = req.body;
+    if (!catatan_progress || !String(catatan_progress).trim()) return res.status(400).json({ message: 'Catatan permintaan diperlukan' });
+    const action = (await client.query('select * from tbl_tindakan_susulan where id_tindakan = $1', [req.params.id])).rows[0];
+    if (!action) return res.status(404).json({ message: 'Tindakan susulan tidak dijumpai' });
+    const lampiranPaths = (req.files || []).map((file) => `/uploads/${file.filename}`);
+    const lampiranFail = lampiranPaths.length > 1 ? JSON.stringify(lampiranPaths) : lampiranPaths[0] || null;
+    const result = await client.query(
+      `insert into tbl_progress_tindakan (id_tindakan, id_pengguna, catatan_progress, jenis_progress, perlu_respon_ketua, lampiran_fail, dilihat_admin)
+       values ($1,$2,$3,'Permintaan Admin',true,$4,true) returning *`,
+      [req.params.id, req.user.id_pengguna, catatan_progress.trim(), lampiranFail]
+    );
+    await client.query(
+      `insert into tbl_notifikasi (id_pengguna, id_tindakan, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan)
+       select id_pengguna, $1, $2, $3, 'Tindakan Susulan', 'High'
+       from tbl_pengguna p join tbl_peranan r on r.id_peranan = p.id_peranan
+       where r.nama_peranan = $4`,
+      [req.params.id, 'Admin meminta kemaskini tindakan', `Admin meminta Ketua mengemaskini tindakan #${req.params.id}.`, roles.chief]
+    );
+    await audit(req, client, 'Tindakan Susulan', 'Admin requested follow-up update', 'Admin meminta kemaskini daripada Ketua Pengawal', req.params.id, 'Berjaya', null, result.rows[0]);
     res.status(201).json(result.rows[0]);
   } finally {
     client.release();
@@ -1797,7 +1855,7 @@ app.get('/api/audit', auth, allow(roles.admin), async (req, res) => {
   const client = await pool.connect();
   try {
     await audit(req, client, 'Audit Trail', 'Audit trail viewed', 'Audit trail dilihat');
-    const { user, role, pos, module, activity, date, status } = req.query;
+    const { user, role, pos, module, activity, date, month, year, dateMode, status } = req.query;
     const result = await client.query(
       `select a.*, p.nama_penuh, r.nama_peranan from tbl_audit_trail a
        left join tbl_pengguna p on p.id_pengguna = a.id_pengguna
@@ -1807,10 +1865,15 @@ app.get('/api/audit', auth, allow(roles.admin), async (req, res) => {
          and ($3::text is null or a.penerangan_aktiviti ilike '%' || $3 || '%' or a.nilai_lama::text ilike '%' || $3 || '%' or a.nilai_baharu::text ilike '%' || $3 || '%')
          and ($4::text is null or a.modul_sistem ilike '%' || $4 || '%')
          and ($5::text is null or a.jenis_aktiviti ilike '%' || $5 || '%' or a.penerangan_aktiviti ilike '%' || $5 || '%')
-         and ($6::date is null or a.tarikh_masa_aktiviti::date = $6)
-         and ($7::text is null or a.status_aktiviti = $7)
+         and (
+           $6::text = 'all'
+           or ($6::text = 'date' and $7::date is not null and a.tarikh_masa_aktiviti::date = $7::date)
+           or ($6::text = 'month' and $8::text is not null and to_char(a.tarikh_masa_aktiviti, 'YYYY-MM') = $8::text)
+           or ($6::text = 'year' and $9::text is not null and to_char(a.tarikh_masa_aktiviti, 'YYYY') = $9::text)
+         )
+         and ($10::text is null or a.status_aktiviti = $10)
        order by a.tarikh_masa_aktiviti desc limit 200`,
-      [user || null, role || null, pos || null, module || null, activity || null, date || null, status || null]
+      [user || null, role || null, pos || null, module || null, activity || null, dateMode || 'all', date || null, month || null, year || null, status || null]
     );
     res.json(result.rows);
   } finally {
@@ -1843,8 +1906,16 @@ app.get('/api/audit/export.csv', auth, allow(roles.admin), async (req, res) => {
 
 app.get('/api/notifications', auth, async (req, res) => {
   const result = await pool.query(
-    `select n.*, l.id_laporan, l.tajuk_laporan, l.tahap_risiko from tbl_notifikasi n
-     left join tbl_laporan_harian l on n.mesej_notifikasi ilike '%' || l.tajuk_laporan || '%'
+    `select n.id_notifikasi, n.id_pengguna, n.id_tindakan, n.tajuk_notifikasi, n.mesej_notifikasi,
+       n.jenis_notifikasi, n.tahap_keutamaan, n.status_bacaan, n.tarikh_hantar, n.tarikh_dibaca,
+       coalesce(linked_l.id_laporan, fallback_l.id_laporan) as id_laporan,
+       coalesce(linked_l.tajuk_laporan, fallback_l.tajuk_laporan) as tajuk_laporan,
+       coalesce(linked_l.tahap_risiko, fallback_l.tahap_risiko) as tahap_risiko,
+       t.status_tindakan
+     from tbl_notifikasi n
+     left join tbl_laporan_harian linked_l on linked_l.id_laporan = n.id_laporan
+     left join tbl_laporan_harian fallback_l on n.id_laporan is null and n.mesej_notifikasi ilike '%' || fallback_l.tajuk_laporan || '%'
+     left join tbl_tindakan_susulan t on t.id_tindakan = n.id_tindakan
      where n.id_pengguna = $1
      order by n.tarikh_hantar desc`,
     [req.user.id_pengguna]

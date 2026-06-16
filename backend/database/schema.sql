@@ -101,6 +101,9 @@ create table tbl_progress_tindakan (
   id_tindakan int not null references tbl_tindakan_susulan(id_tindakan) on delete cascade,
   id_pengguna int not null references tbl_pengguna(id_pengguna),
   catatan_progress text not null,
+  jenis_progress varchar(40) not null default 'Kemaskini Ketua',
+  perlu_respon_ketua boolean not null default false,
+  lampiran_fail text,
   tarikh_progress timestamp not null default now(),
   dilihat_admin boolean not null default false
 );
@@ -198,6 +201,8 @@ create table tbl_fail_jadual (
 create table tbl_notifikasi (
   id_notifikasi serial primary key,
   id_pengguna int not null references tbl_pengguna(id_pengguna),
+  id_laporan int references tbl_laporan_harian(id_laporan) on delete set null,
+  id_tindakan int references tbl_tindakan_susulan(id_tindakan) on delete set null,
   tajuk_notifikasi varchar(160) not null,
   mesej_notifikasi text not null,
   jenis_notifikasi varchar(80) not null,
