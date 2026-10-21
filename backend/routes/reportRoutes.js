@@ -1,12 +1,13 @@
 const express = require('express');
-const { getReports, createReport, reviewReport } = require('../controllers/reportController');
+const { getReports, getReport, createReport, reviewReport } = require('../controllers/reportController');
 const { auth, requireRole, roles } = require('../middleware/auth');
-const { upload } = require('../middleware/upload');
+const { upload, validateEvidenceUploads } = require('../middleware/upload');
 
 const router = express.Router();
 
 router.get('/', auth, getReports);
-router.post('/', auth, requireRole(roles.guard), upload.array('bukti', 6), createReport);
+router.get('/:id', auth, getReport);
+router.post('/', auth, requireRole(roles.guard), upload.array('lampiran_fail', 6), validateEvidenceUploads, createReport);
 router.patch('/:id/review', auth, requireRole(roles.chief), reviewReport);
 
 module.exports = router;

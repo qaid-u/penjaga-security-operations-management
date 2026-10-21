@@ -10,7 +10,10 @@ const login = async (req, res) => {
   if (!username || !password) return res.status(400).json({ message: 'Sila masukkan nama pengguna dan kata laluan' });
   const client = await pool.connect();
   try {
-    const result = await client.query('select * from tbl_pengguna where nama_pengguna = $1', [username]);
+    const result = await client.query(
+      'select p.*, r.nama_peranan from tbl_pengguna p join tbl_peranan r on p.id_peranan = r.id_peranan where p.nama_pengguna = $1',
+      [username]
+    );
     const user = result.rows[0];
     if (!user) {
       await logAudit(client, null, 'LOGIN_FAILED', 'System', `Gagal log masuk: ${username} (Tidak Wujud)`, 'Gagal');
@@ -31,6 +34,7 @@ const login = async (req, res) => {
     await logAudit(client, user.id_pengguna, 'LOGIN_SUCCESS', 'System', 'Log masuk berjaya');
     res.json({ token, user: { id_pengguna: user.id_pengguna, nama_penuh: user.nama_penuh, nama_pengguna: user.nama_pengguna, emel: user.emel, nama_peranan: user.nama_peranan } });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ message: 'Ralat pelayan' });
   } finally {
     client.release();

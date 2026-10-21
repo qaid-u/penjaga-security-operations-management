@@ -26,7 +26,7 @@ export function NlpTrainingPage() {
     }])));
   }), []);
 
-  const loadReports = useCallback(() => api.get('/reports').then((res) => setReports(res.data)), []);
+  const loadReports = useCallback(() => api.get('/reports', { params: { limit: 100 } }).then((res) => setReports(res.data.data)), []);
   useEffect(() => { load(); loadReports(); }, [load, loadReports]);
 
   const openNlp = async (reportId) => {

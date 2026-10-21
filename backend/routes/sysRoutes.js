@@ -12,6 +12,7 @@ router.get('/ready', async (req, res) => {
     await pool.query('SELECT 1');
     res.status(200).json({ status: 'Ready', db: 'Connected' });
   } catch (error) {
+    console.error('Readiness check error:', error);
     res.status(503).json({ status: 'Unavailable', error: 'DB Connection Failed' });
   }
 });

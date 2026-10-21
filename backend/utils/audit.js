@@ -1,16 +1,10 @@
-const pool = require('../config/db');
-
 async function logAudit(clientOrPool, userId, action, resource, desc, status = 'Berjaya', details = null) {
-  try {
-    const ip = 'System';
-    await clientOrPool.query(
-      `insert into tbl_audit_trail (id_pengguna, tindakan, sasaran_sumber, penerangan, status_tindakan, alamat_ip, butiran_tambahan)
-       values ($1, $2, $3, $4, $5, $6, $7)`,
-      [userId, action, resource, desc, status, ip, details]
-    );
-  } catch (err) {
-    console.error('Audit Log Error:', err);
-  }
+  await clientOrPool.query(
+    `insert into tbl_audit_trail
+       (id_pengguna, modul_sistem, jenis_aktiviti, penerangan_aktiviti, rekod_terlibat, alamat_ip, status_aktiviti, nilai_baharu)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [userId, 'Operasi', action, desc, resource, 'System', status, details]
+  );
 }
 
 module.exports = { logAudit };

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Eye, X } from 'lucide-react';
 import api from '../api/axios';
 import { ROLE, notifyAction, notifyError, notifySuccess, statusTone } from '../utils/helpers';
@@ -20,7 +19,13 @@ export function FollowUp({ auth }) {
   const [requestFiles, setRequestFiles] = useState({});
   const [reportDetail, setReportDetail] = useState(null);
 
-  const load = useCallback(() => Promise.all([api.get('/reports'), api.get('/actions')]).then(([r, a]) => { setReports(r.data.filter((x) => ['High', 'Critical'].includes(x.tahap_risiko))); setActions(a.data); }), []);
+  const load = useCallback(() => Promise.all([
+    api.get('/reports', { params: { limit: 100 } }),
+    api.get('/actions'),
+  ]).then(([r, a]) => {
+    setReports(r.data.data.filter((x) => ['High', 'Critical'].includes(x.tahap_risiko)));
+    setActions(a.data);
+  }), []);
   useEffect(() => { load(); }, [load]);
 
   const loadReportDetail = async (id) => {

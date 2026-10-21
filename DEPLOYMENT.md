@@ -1,144 +1,185 @@
-# PENJAGA Deployment Runbook
+# PENJAGA Production Deployment Guide
 
-## 1. Production Requirements
+This guide provides end-to-end instructions for deploying the **PENJAGA Security Operations Management System** to production.
 
-- Node.js 20 or newer
-- PostgreSQL 14 or newer
-- HTTPS reverse proxy or managed hosting with TLS
-- Persistent storage for `backend/uploads`
-- Secure backup location for PostgreSQL dumps and uploaded evidence
+---
 
-## 2. Environment Setup
+## 🎯 Deployment Options Overview
 
-Copy `backend/.env.production.example` to `backend/.env` and set real values.
+| Method | Best For | Complexity | Database | Persistent Uploads |
+| :--- | :--- | :--- | :--- | :--- |
+| **Option 1: Modern Cloud PaaS** | Fast, free-tier friendly, minimal DevOps | Low | Supabase / Neon | Cloud Storage / Volume |
+| **Option 2: Docker Compose** | Dedicated VPS (DigitalOcean, AWS, Linode) | Low-Medium | Bundled Container | Docker Volume |
+| **Option 3: Bare-Metal VPS (PM2 + Nginx)** | Full control, enterprise Linux server | Medium | Local / Managed Postgres | Local filesystem |
 
-Required production values:
+---
 
-- `NODE_ENV=production`
-- `JWT_SECRET` with a long random value
-- `FRONTEND_URL` matching the deployed frontend origin
-- `DATABASE_URL` pointing to the production PostgreSQL database
+## ☁️ Option 1: Modern Cloud Deployment (Vercel + Render + Supabase)
 
-The backend will refuse to start in production if `JWT_SECRET` is still the development default.
+### 1. Database (Supabase / Neon)
+1. Create a new PostgreSQL project on [Supabase](https://supabase.com) or [Neon](https://neon.tech).
+2. Copy the **Direct Connection String** or **Transaction Pooler URL** (`postgres://...`).
+3. In Supabase SQL Editor, run:
+   - `backend/database/schema.sql`
+   - `backend/database/seed.sql`
 
-## 3. Database Setup
+### 2. Backend (Render / Railway)
+1. Create a new **Web Service** pointing to your repository's `/backend` directory.
+2. **Build Command**: `npm ci --omit=dev`
+3. **Start Command**: `node server.js`
+4. Set Environment Variables:
+   ```env
+   NODE_ENV=production
+   PORT=3000
+   JWT_SECRET=your_super_strong_random_secret_at_least_32_characters
+   DATABASE_URL=your_supabase_postgresql_connection_string
+   FRONTEND_URL=https://your-frontend.vercel.app
+   ```
+5. Note your deployed backend URL: `https://your-api.onrender.com`.
 
-For first deployment:
+### 3. Frontend (Vercel / Netlify)
+1. Import repository on [Vercel](https://vercel.com).
+2. **Framework Preset**: Vite
+3. **Build Command**: `npm run build`
+4. **Output Directory**: `dist`
+5. Set Environment Variables:
+   ```env
+   VITE_API_URL=https://your-api.onrender.com/api
+   VITE_API_ORIGIN=https://your-api.onrender.com
+   ```
+6. Deploy! React Router deep links are automatically handled via `vercel.json` and `public/_redirects`.
 
+---
+
+## 🐳 Option 2: Docker Compose (One-Command Deployment)
+
+Deploy PostgreSQL, Backend API, and Frontend Nginx in synchronized containers.
+
+### 1. Requirements
+- Docker & Docker Compose installed on your host/VPS.
+
+### 2. Launch Stack
 ```bash
-createdb penjaga_db
-psql -d penjaga_db -f backend/database/schema.sql
-psql -d penjaga_db -f backend/database/seed.sql
+# 1. Clone repository
+git clone <your-repo-url>
+cd AI-Security-Sytem-Scheduling-Reporting
+
+# 2. Configure required secrets and the public frontend origin.
+# Generate unique values; do not reuse these commands' placeholder text as secrets.
+export POSTGRES_PASSWORD="<unique-database-password>"
+export JWT_SECRET="<unique-random-secret-at-least-32-characters>"
+export FRONTEND_URL="http://<your-server-ip>"
+
+# 3. Build & start all services in detached mode
+docker compose up -d --build
 ```
 
-Before future schema changes, create migration files instead of editing production tables manually.
+The database and API are available only on the internal Compose network. Only the frontend's
+HTTP port is published by default. Put a TLS-terminating reverse proxy in front of it for
+public deployments, and set `FRONTEND_URL` to the exact browser origin (include `https://`
+when TLS is enabled). For local access, use `http://localhost`.
 
-## 4. Build And Start
+The schedule CSV import expects these exact header names:
 
-Frontend:
-
-```bash
-npm install
-npm run build
+```csv
+id_pengguna,id_pos,tarikh_tugas,syif,masa_mula,masa_tamat,catatan
 ```
 
-Backend:
+Dates use `YYYY-MM-DD`; times use `HH:MM` or `HH:MM:SS`; supported shifts are `Pagi`,
+`Petang`, `Malam`, and `Office Hour`.
 
+### 3. Verification
+- Frontend & App: `http://<your-server-ip>`
+- Backend Health Check: `http://<your-server-ip>/api/health`
+- Backend DB Readiness: `http://<your-server-ip>/api/ready`
+
+---
+
+## 🖥️ Option 3: VPS Deployment (PM2 + Nginx + Certbot)
+
+### 1. Server Setup (Ubuntu 22.04 / 24.04 LTS)
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y nodejs npm nginx postgresql postgresql-contrib git
+sudo npm install -g pm2
+```
+
+### 2. Database Initialization
+```bash
+sudo -u postgres psql
+CREATE DATABASE penjaga_db;
+CREATE USER penjaga_user WITH ENCRYPTED PASSWORD 'your_secure_password';
+GRANT ALL PRIVILEGES ON DATABASE penjaga_db TO penjaga_user;
+\q
+
+# Apply schema & seed data
+psql -U penjaga_user -d penjaga_db -h localhost -f backend/database/schema.sql
+psql -U penjaga_user -d penjaga_db -h localhost -f backend/database/seed.sql
+```
+
+### 3. Backend with PM2
 ```bash
 cd backend
+cp .env.production.example .env
+# Edit .env with your real JWT_SECRET and DATABASE_URL
+nano .env
+
 npm install --omit=dev
-npm start
+pm2 start server.js --name "penjaga-api"
+pm2 save
+pm2 startup
 ```
 
-## 5. Health Checks
-
-Basic API health:
-
+### 4. Build Frontend
 ```bash
-curl https://your-api-domain.example/api/health
+cd ..
+npm install
+VITE_API_URL=/api npm run build
+sudo cp -r dist/* /var/www/penjaga/
 ```
 
-Readiness check with database connectivity:
+### 5. Nginx Configuration
+Edit `/etc/nginx/sites-available/penjaga`:
+```nginx
+server {
+    listen 80;
+    server_name penjaga.yourdomain.com;
 
-```bash
-curl https://your-api-domain.example/api/ready
-```
+    root /var/www/penjaga;
+    index index.html;
 
-Expected readiness response:
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 
-```json
-{
-  "ok": true,
-  "database": "connected"
+    location /uploads/ {
+        proxy_pass http://127.0.0.1:3000/uploads/;
+        proxy_set_header Host $host;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
 }
 ```
-
-## 6. Smoke Test
-
-Run after deployment:
-
+Enable site and add SSL:
 ```bash
-cd backend
-API_BASE_URL=https://your-api-domain.example/api SMOKE_USERNAME=admin SMOKE_PASSWORD=your-password npm run smoke
+sudo ln -s /etc/nginx/sites-available/penjaga /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d penjaga.yourdomain.com
 ```
 
-The smoke test verifies:
+---
 
-- API readiness
-- Login
-- Authenticated `/auth/me`
-- Metadata loading
-- Dashboard loading
+## 🔒 Security & Operations Checklist
 
-## 7. Backups
-
-Recommended daily backup:
-
-```bash
-pg_dump penjaga_db > backups/penjaga_db_$(date +%F).sql
-```
-
-Also back up:
-
-- `backend/uploads`
-- production `.env` in a secure secret manager
-
-Test restore regularly:
-
-```bash
-createdb penjaga_restore_test
-psql -d penjaga_restore_test -f backups/penjaga_db_YYYY-MM-DD.sql
-```
-
-## 8. Operational Monitoring
-
-The backend writes one JSON log line per request with:
-
-- timestamp
-- method
-- path
-- status
-- duration
-- IP
-- user ID when available
-
-Forward these logs to your hosting provider, log collector, or server journal.
-
-Watch especially for:
-
-- repeated `401` and `429` on `/api/auth/login`
-- `500` errors
-- slow responses above 2000 ms
-- failed readiness checks
-
-## 9. Release Checklist
-
-- `npm run check` passes
-- `cd backend && node --check server.js` passes
-- `/api/ready` returns `ok: true`
-- `npm run smoke` passes against the deployed API
-- Admin login works
-- Guard can submit a report with attachment
-- Chief can review report and export CSV
-- Audit trail records the actions
-- Backup job is scheduled
+- [ ] `JWT_SECRET` is at least 32 random characters and not a development default.
+- [ ] Database credentials and connection strings are securely stored in environment variables.
+- [ ] HTTPS (TLS/SSL) is enabled on public endpoints.
+- [ ] Automated database backup is scheduled (`pg_dump`).
+- [ ] `npm run check` passes before pushing code.

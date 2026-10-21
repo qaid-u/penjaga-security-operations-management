@@ -1,6 +1,4 @@
-drop table if exists tbl_audit_trail, tbl_notifikasi, tbl_fail_jadual, tbl_kehadiran_tugas, tbl_jadual_bertugas, tbl_jadual_mingguan, tbl_keperluan_pos, tbl_status_bertugas, tbl_jawapan_checklist, tbl_checklist, tbl_progress_tindakan, tbl_tindakan_susulan, tbl_pengesahan_laporan, tbl_hasil_nlp, tbl_laporan_harian, tbl_kategori_insiden, tbl_pos_kawalan, tbl_pengguna, tbl_peranan cascade;
-
-create table tbl_peranan (
+create table if not exists tbl_peranan (
   id_peranan serial primary key,
   nama_peranan varchar(80) unique not null,
   keterangan_peranan text,
@@ -8,7 +6,7 @@ create table tbl_peranan (
   tarikh_dicipta timestamp not null default now()
 );
 
-create table tbl_pengguna (
+create table if not exists tbl_pengguna (
   id_pengguna serial primary key,
   id_peranan int not null references tbl_peranan(id_peranan),
   nama_penuh varchar(120) not null,
@@ -22,7 +20,7 @@ create table tbl_pengguna (
   tarikh_kemaskini timestamp not null default now()
 );
 
-create table tbl_pos_kawalan (
+create table if not exists tbl_pos_kawalan (
   id_pos serial primary key,
   nama_pos varchar(120) not null,
   nama_bangunan varchar(120),
@@ -32,7 +30,7 @@ create table tbl_pos_kawalan (
   tarikh_dicipta timestamp not null default now()
 );
 
-create table tbl_kategori_insiden (
+create table if not exists tbl_kategori_insiden (
   id_kategori_insiden serial primary key,
   nama_kategori varchar(100) unique not null,
   tahap_keutamaan varchar(20) not null,
@@ -42,7 +40,7 @@ create table tbl_kategori_insiden (
   tarikh_dicipta timestamp not null default now()
 );
 
-create table tbl_laporan_harian (
+create table if not exists tbl_laporan_harian (
   id_laporan serial primary key,
   id_pengguna int not null references tbl_pengguna(id_pengguna),
   id_pos int not null references tbl_pos_kawalan(id_pos),
@@ -60,7 +58,7 @@ create table tbl_laporan_harian (
   tarikh_kemaskini timestamp not null default now()
 );
 
-create table tbl_hasil_nlp (
+create table if not exists tbl_hasil_nlp (
   id_nlp serial primary key,
   id_laporan int not null references tbl_laporan_harian(id_laporan) on delete cascade,
   teks_diproses text not null,
@@ -74,7 +72,7 @@ create table tbl_hasil_nlp (
   tarikh_analisis timestamp not null default now()
 );
 
-create table tbl_pengesahan_laporan (
+create table if not exists tbl_pengesahan_laporan (
   id_pengesahan serial primary key,
   id_laporan int not null references tbl_laporan_harian(id_laporan) on delete cascade,
   id_pengguna_pengesah int not null references tbl_pengguna(id_pengguna),
@@ -83,7 +81,7 @@ create table tbl_pengesahan_laporan (
   tarikh_pengesahan timestamp not null default now()
 );
 
-create table tbl_tindakan_susulan (
+create table if not exists tbl_tindakan_susulan (
   id_tindakan serial primary key,
   id_laporan int not null references tbl_laporan_harian(id_laporan) on delete cascade,
   pegawai_bertanggungjawab varchar(120) not null,
@@ -96,7 +94,7 @@ create table tbl_tindakan_susulan (
   tarikh_kemaskini timestamp not null default now()
 );
 
-create table tbl_progress_tindakan (
+create table if not exists tbl_progress_tindakan (
   id_progress serial primary key,
   id_tindakan int not null references tbl_tindakan_susulan(id_tindakan) on delete cascade,
   id_pengguna int not null references tbl_pengguna(id_pengguna),
@@ -108,7 +106,7 @@ create table tbl_progress_tindakan (
   dilihat_admin boolean not null default false
 );
 
-create table tbl_checklist (
+create table if not exists tbl_checklist (
   id_checklist serial primary key,
   nama_checklist varchar(160) not null,
   penerangan_checklist text,
@@ -117,7 +115,7 @@ create table tbl_checklist (
   tarikh_dicipta timestamp not null default now()
 );
 
-create table tbl_jawapan_checklist (
+create table if not exists tbl_jawapan_checklist (
   id_jawapan serial primary key,
   id_laporan int not null references tbl_laporan_harian(id_laporan) on delete cascade,
   id_checklist int not null references tbl_checklist(id_checklist),
@@ -126,7 +124,7 @@ create table tbl_jawapan_checklist (
   tarikh_jawapan timestamp not null default now()
 );
 
-create table tbl_status_bertugas (
+create table if not exists tbl_status_bertugas (
   id_status serial primary key,
   id_pengguna int not null references tbl_pengguna(id_pengguna),
   id_pos int not null references tbl_pos_kawalan(id_pos),
@@ -138,7 +136,7 @@ create table tbl_status_bertugas (
   tarikh_kemaskini timestamp not null default now()
 );
 
-create table tbl_jadual_mingguan (
+create table if not exists tbl_jadual_mingguan (
   id_jadual_mingguan serial primary key,
   tarikh_mula date not null,
   tarikh_tamat date not null,
@@ -151,7 +149,7 @@ create table tbl_jadual_mingguan (
   catatan text
 );
 
-create table tbl_jadual_bertugas (
+create table if not exists tbl_jadual_bertugas (
   id_jadual serial primary key,
   id_jadual_mingguan int not null references tbl_jadual_mingguan(id_jadual_mingguan) on delete cascade,
   id_pengguna int not null references tbl_pengguna(id_pengguna),
@@ -167,7 +165,7 @@ create table tbl_jadual_bertugas (
   tarikh_kemaskini timestamp not null default now()
 );
 
-create table tbl_keperluan_pos (
+create table if not exists tbl_keperluan_pos (
   id_keperluan serial primary key,
   id_pos int not null references tbl_pos_kawalan(id_pos) on delete cascade,
   syif varchar(30) not null,
@@ -177,7 +175,7 @@ create table tbl_keperluan_pos (
   unique(id_pos, syif)
 );
 
-create table tbl_kehadiran_tugas (
+create table if not exists tbl_kehadiran_tugas (
   id_kehadiran serial primary key,
   id_jadual int not null references tbl_jadual_bertugas(id_jadual) on delete cascade,
   id_pengguna int not null references tbl_pengguna(id_pengguna),
@@ -188,7 +186,7 @@ create table tbl_kehadiran_tugas (
   tarikh_dicipta timestamp not null default now()
 );
 
-create table tbl_fail_jadual (
+create table if not exists tbl_fail_jadual (
   id_fail serial primary key,
   id_jadual_mingguan int not null references tbl_jadual_mingguan(id_jadual_mingguan) on delete cascade,
   nama_fail varchar(255),
@@ -198,7 +196,7 @@ create table tbl_fail_jadual (
   tarikh_muat_naik timestamp not null default now()
 );
 
-create table tbl_notifikasi (
+create table if not exists tbl_notifikasi (
   id_notifikasi serial primary key,
   id_pengguna int not null references tbl_pengguna(id_pengguna),
   id_laporan int references tbl_laporan_harian(id_laporan) on delete set null,
@@ -212,7 +210,7 @@ create table tbl_notifikasi (
   tarikh_dibaca timestamp
 );
 
-create table tbl_audit_trail (
+create table if not exists tbl_audit_trail (
   id_audit serial primary key,
   id_pengguna int references tbl_pengguna(id_pengguna),
   modul_sistem varchar(100) not null,
@@ -227,9 +225,11 @@ create table tbl_audit_trail (
   tarikh_masa_aktiviti timestamp not null default now()
 );
 
-create index idx_laporan_status on tbl_laporan_harian(status_laporan);
-create index idx_laporan_risiko on tbl_laporan_harian(tahap_risiko);
-create index idx_audit_time on tbl_audit_trail(tarikh_masa_aktiviti desc);
-create index idx_jadual_mingguan_dates on tbl_jadual_mingguan(tarikh_mula, tarikh_tamat);
-create index idx_jadual_bertugas_week on tbl_jadual_bertugas(id_jadual_mingguan);
-create index idx_jadual_bertugas_guard_time on tbl_jadual_bertugas(id_pengguna, tarikh_tugas, masa_mula, masa_tamat);
+create index if not exists idx_laporan_status on tbl_laporan_harian(status_laporan);
+create index if not exists idx_laporan_risiko on tbl_laporan_harian(tahap_risiko);
+create index if not exists idx_audit_time on tbl_audit_trail(tarikh_masa_aktiviti desc);
+create index if not exists idx_jadual_mingguan_dates on tbl_jadual_mingguan(tarikh_mula, tarikh_tamat);
+create index if not exists idx_jadual_bertugas_week on tbl_jadual_bertugas(id_jadual_mingguan);
+create index if not exists idx_jadual_bertugas_guard_time on tbl_jadual_bertugas(id_pengguna, tarikh_tugas, masa_mula, masa_tamat);
+create unique index if not exists uq_kehadiran_jadual on tbl_kehadiran_tugas(id_jadual);
+create unique index if not exists uq_tindakan_laporan on tbl_tindakan_susulan(id_laporan);

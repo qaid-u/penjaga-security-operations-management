@@ -4,6 +4,27 @@ import { statusTone } from '../utils/helpers';
 
 export function ReportDetailContent({ detail }) {
   if (!detail) return null;
+
+  const renderHighlightedContent = (text, keywords = []) => {
+    if (!text || !keywords || !keywords.length) return text;
+    const regex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, i) =>
+      keywords.some(k => k.toLowerCase() === part.toLowerCase()) ? (
+        <mark key={i} className="rounded bg-amber-100 px-1 py-0.5 font-semibold text-amber-900 border border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700">
+          {part}
+        </mark>
+      ) : part
+    );
+  };
+
+  const getRiskMeterColor = (score = 0) => {
+    if (score >= 85) return 'bg-red-600';
+    if (score >= 70) return 'bg-amber-500';
+    if (score >= 40) return 'bg-yellow-500';
+    return 'bg-emerald-500';
+  };
+
   return (
     <div className="report-document space-y-5 text-sm">
       <div className="border-b pb-4">
@@ -29,7 +50,9 @@ export function ReportDetailContent({ detail }) {
 
       <section>
         <p className="document-section-title">Kandungan Laporan</p>
-        <div className="document-box whitespace-pre-wrap">{detail.report.kandungan_laporan}</div>
+        <div className="document-box whitespace-pre-wrap">
+          {renderHighlightedContent(detail.report.kandungan_laporan, detail.report.kata_kunci_dikesan)}
+        </div>
         <AttachmentLinks value={detail.report.lampiran_fail} label="Buka lampiran bukti" />
       </section>
 
@@ -37,16 +60,41 @@ export function ReportDetailContent({ detail }) {
 
       <ReportLifecycle report={detail.report} actions={detail.actions} />
 
-      {detail.report.kategori_dikesan && (
-        <section>
-          <p className="document-section-title">Analisis NLP</p>
-          <div className="grid gap-3 md:grid-cols-4">
-            <div className="document-field"><span>Kategori</span><strong>{detail.report.kategori_dikesan || '-'}</strong></div>
-            <div className="document-field"><span>Skor Risiko</span><strong>{detail.report.skor_risiko ?? '-'}</strong></div>
-            <div className="document-field"><span>Tahap Risiko</span><Badge tone={detail.report.tahap_risiko}>{detail.report.tahap_risiko}</Badge></div>
-            <div className="document-field"><span>Keyakinan</span><strong>{Number(detail.report.tahap_keyakinan || 0).toFixed(2)}</strong></div>
+      {(detail.report.kategori_dikesan || detail.report.kategori_insiden) && (
+        <section className="rounded-lg border bg-slate-50/50 p-4 dark:bg-slate-900/40">
+          <p className="document-section-title flex items-center justify-between">
+            <span>Analisis NLP (AI Engine)</span>
+            <Badge tone={detail.report.tahap_risiko}>{detail.report.tahap_risiko}</Badge>
+          </p>
+
+          {/* Visual Risk Gauge Meter */}
+          <div className="my-3 space-y-1.5">
+            <div className="flex justify-between text-xs font-semibold">
+              <span className="text-secondary-token">Skor Risiko Penilaian NLP</span>
+              <span className="text-primary-token">{detail.report.skor_risiko || 0} / 100</span>
+            </div>
+            <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+              <div
+                className={`h-full transition-all duration-500 ${getRiskMeterColor(detail.report.skor_risiko || 0)}`}
+                style={{ width: `${Math.min(100, Math.max(0, detail.report.skor_risiko || 0))}%` }}
+              />
+            </div>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">{(detail.report.kata_kunci_dikesan || []).length ? detail.report.kata_kunci_dikesan.map((keyword) => <Badge key={keyword}>{keyword}</Badge>) : <Badge>Tiada kata kunci</Badge>}</div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="document-field"><span>Kategori Dikesan</span><strong>{detail.report.kategori_dikesan || detail.report.kategori_insiden || '-'}</strong></div>
+            <div className="document-field"><span>Skor Risiko</span><strong>{detail.report.skor_risiko ?? '-'}</strong></div>
+            <div className="document-field"><span>Keyakinan</span><strong>{Number(detail.report.tahap_keyakinan || 0.85).toFixed(2)}</strong></div>
+          </div>
+
+          <p className="mt-3 text-xs font-semibold text-secondary-token">Kata Kunci Utama Dikesan Engine:</p>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {(detail.report.kata_kunci_dikesan || []).length ? (
+              detail.report.kata_kunci_dikesan.map((keyword) => (
+                <Badge key={keyword} tone="urgent">{keyword}</Badge>
+              ))
+            ) : <Badge>Tiada kata kunci khusus</Badge>}
+          </div>
         </section>
       )}
 

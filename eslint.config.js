@@ -17,6 +17,11 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'react-hooks/static-components': 'off',
+    },
   },
   {
     files: ['backend/**/*.js'],
@@ -24,6 +29,9 @@ export default defineConfig([
     languageOptions: {
       globals: globals.node,
       sourceType: 'commonjs',
+    },
+    rules: {
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
 ])

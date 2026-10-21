@@ -14,13 +14,16 @@ async function request(path, options = {}) {
 
 async function main() {
   const ready = await request('/ready');
-  if (!ready.ok) throw new Error('Readiness check failed');
+  if (ready.status !== 'Ready' || ready.db !== 'Connected') {
+    throw new Error('Readiness check failed');
+  }
 
   const login = await request('/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   });
+  if (!login.token) throw new Error('Login response did not include an authentication token');
 
   const headers = { Authorization: `Bearer ${login.token}` };
   const [me, meta, dashboard] = await Promise.all([
@@ -31,8 +34,8 @@ async function main() {
 
   console.log(JSON.stringify({
     ok: true,
-    user: me.nama_pengguna,
-    role: me.nama_peranan,
+    user: me.user.nama_pengguna,
+    role: me.user.nama_peranan,
     posts: meta.posts.length,
     guards: meta.guards.length,
     reports: dashboard.cards.total_laporan,

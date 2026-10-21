@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Eye, EyeOff, ChevronDown, Paperclip } from 'lucide-react';
-import { API_ORIGIN } from '../utils/helpers';
+import api from '../api/axios';
 
 export function Badge({ children, tone = 'default' }) {
   const tones = {
@@ -161,15 +161,56 @@ function parseAttachmentPaths(value) {
   }
 }
 
+function ProtectedAttachment({ path, label, image = false, className = '' }) {
+  const [objectUrl, setObjectUrl] = useState('');
+  const [failed, setFailed] = useState(false);
+  const filename = path.split('/').pop();
+
+  useEffect(() => {
+    let active = true;
+    let currentUrl = '';
+    api.get(`/uploads/${encodeURIComponent(filename)}`, { responseType: 'blob' })
+      .then(({ data }) => {
+        currentUrl = URL.createObjectURL(data);
+        if (active) setObjectUrl(currentUrl);
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+    return () => {
+      active = false;
+      if (currentUrl) URL.revokeObjectURL(currentUrl);
+    };
+  }, [filename]);
+
+  if (failed) return <span className="text-sm text-secondary-token">Fail tidak dapat dimuatkan: {label}</span>;
+  if (!objectUrl) return <span className="text-sm text-secondary-token">Memuatkan {label}...</span>;
+  if (image) {
+    return (
+      <a href={objectUrl} target="_blank" rel="noreferrer" className={className}>
+        <img src={objectUrl} alt={label} className="h-48 w-full rounded-md object-contain" />
+      </a>
+    );
+  }
+  return (
+    <a href={objectUrl} target="_blank" rel="noreferrer" className={className}>
+      <Paperclip size={14} /> {label}
+    </a>
+  );
+}
+
 export function AttachmentLinks({ value, label = 'Lampiran bukti' }) {
   const paths = parseAttachmentPaths(value);
   if (!paths.length) return null;
   return (
     <div className="mt-2 flex flex-wrap gap-2">
       {paths.map((path, index) => (
-        <a key={`${path}-${index}`} className="text-primary-token inline-flex items-center gap-1 text-sm font-medium underline" href={`${API_ORIGIN}${path}`} target="_blank" rel="noreferrer">
-          <Paperclip size={14} /> {paths.length > 1 ? `${label} ${index + 1}` : label}
-        </a>
+        <ProtectedAttachment
+          key={`${path}-${index}`}
+          path={path}
+          label={paths.length > 1 ? `${label} ${index + 1}` : label}
+          className="text-primary-token inline-flex items-center gap-1 text-sm font-medium underline"
+        />
       ))}
     </div>
   );
@@ -186,10 +227,15 @@ export function EvidencePreview({ value }) {
       {imagePaths.length ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {imagePaths.map((path, index) => (
-            <a key={path} href={`${API_ORIGIN}${path}`} target="_blank" rel="noreferrer" className="rounded-lg border bg-white p-2">
-              <img src={`${API_ORIGIN}${path}`} alt={`Bukti laporan ${index + 1}`} className="h-48 w-full rounded-md object-contain" />
+            <div key={path} className="rounded-lg border bg-white p-2">
+              <ProtectedAttachment
+                path={path}
+                label={`Bukti laporan ${index + 1}`}
+                image
+                className="block"
+              />
               <p className="mt-2 text-center text-xs font-medium text-primary-token">Bukti gambar {index + 1}</p>
-            </a>
+            </div>
           ))}
         </div>
       ) : <p className="document-box text-secondary-token">Tiada gambar dilampirkan untuk laporan ini.</p>}

@@ -14,7 +14,9 @@ export const riskColors = {
   Critical: 'var(--color-risk-critical)',
 };
 
-export const API_ORIGIN = 'http://localhost:3000';
+export const API_ORIGIN =
+  import.meta.env.VITE_API_ORIGIN ||
+  (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:3000');
 export const maxEvidenceFiles = 6;
 
 export function parseAttachmentPaths(value) {
