@@ -1,0 +1,8 @@
+.building-canvas { height: clamp(360px, 58vh, 680px); position: relative; background: #e9eef2; }
+.building-canvas canvas { touch-action: none; }
+.building-hotspot { pointer-events: auto; position: relative; width: 44px; height: 44px; border: 3px solid white; border-radius: 50%; background: #002b5b; color: white; font-weight: 600; box-shadow: 0 2px 8px #001f3f55; transition: background 120ms, transform 120ms; }
+.building-hotspot:hover, .building-hotspot:focus-visible { background: #0f766e; transform: scale(1.12); }
+.building-hotspot.is-selected { background: #f5c542; color: #001f3f; box-shadow: 0 0 0 5px #f5c54255; }
+.building-hotspot-label { display: none; position: absolute; bottom: 48px; left: 50%; transform: translateX(-50%); white-space: nowrap; border-radius: 6px; background: #001f3f; color: white; padding: 5px 9px; font-size: 12px; pointer-events: none; }
+.building-hotspot:hover .building-hotspot-label, .building-hotspot:focus-visible .building-hotspot-label { display: block; }
+@media (prefers-reduced-motion: reduce) { .building-hotspot { transition: none; } }

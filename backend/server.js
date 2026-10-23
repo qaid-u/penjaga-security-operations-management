@@ -69,6 +69,7 @@ app.use('/api/schedules', scheduleRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/3d', require('./routes/threeDRoutes'));
 
 const { auth, requireRole, roles } = require('./middleware/auth');
 

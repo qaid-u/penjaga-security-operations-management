@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Navigate, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, CalendarDays, FileText, FileCheck, ClipboardCheck, Brain, History, Users, MapPin, Bell, KeyRound, Shield, X, Menu, LogOut } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, FileText, FileCheck, ClipboardCheck, Brain, History, Users, MapPin, Bell, KeyRound, Shield, X, Menu, LogOut, Box } from 'lucide-react';
 import { ROLE } from '../utils/helpers';
 import { Badge, Button, Card } from '../components/ui';
 
@@ -9,6 +9,7 @@ export function Shell({ auth, children }) {
   const navigate = useNavigate();
   const nav = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [ROLE.admin, ROLE.chief] },
+    { to: '/3d-command-centre', label: 'Pusat Kawalan 3D', icon: Box, roles: [ROLE.admin, ROLE.chief] },
     { to: '/pengawal', label: 'Dashboard', icon: LayoutDashboard, roles: [ROLE.guard] },
     { to: '/jadual', label: 'Jadual Bertugas', icon: CalendarDays, roles: [ROLE.admin, ROLE.chief, ROLE.guard] },
     { to: '/laporan', label: 'Hantar Laporan', icon: FileText, roles: [ROLE.guard] },

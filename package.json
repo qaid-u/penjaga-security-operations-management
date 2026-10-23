@@ -8,11 +8,15 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test:building": "node --test scripts/building-model.test.mjs",
+    "test:building:browser": "playwright test --config playwright.building.config.mjs",
     "train:nlp": "node backend/scripts/train-nlp-model.js",
     "seed:expo": "node backend/scripts/seed-expo-data.js",
     "check": "npm run lint && node --check backend/server.js && node --check backend/scripts/smoke-test.js && node --check backend/scripts/train-nlp-model.js && npm run build"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.6",
+    "@react-three/fiber": "^9.4.0",
     "@tanstack/react-query": "^5.101.3",
     "axios": "^1.7.2",
     "lucide-react": "^0.395.0",
@@ -20,10 +24,12 @@
     "react-dom": "^19.2.5",
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.23.1",
-    "recharts": "^2.13.3"
+    "recharts": "^2.13.3",
+    "three": "^0.180.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",

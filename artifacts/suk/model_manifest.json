@@ -1,0 +1,33 @@
+{
+  "scene": "SUK_Exterior_Study",
+  "mesh_objects": 192,
+  "triangles": 57422,
+  "materials": 13,
+  "glb_nodes": 211,
+  "hotspots": [
+    "HOTSPOT_CENTRAL_BLOCK",
+    "HOTSPOT_FRONT_PLAZA",
+    "HOTSPOT_LEFT_TOWER",
+    "HOTSPOT_LEFT_WING",
+    "HOTSPOT_MAIN_ENTRANCE",
+    "HOTSPOT_RIGHT_TOWER",
+    "HOTSPOT_RIGHT_WING"
+  ],
+  "glb_bytes": 2537652,
+  "blend_file": "Bangunan_SUK_Exterior.blend",
+  "glb_file": "Bangunan_SUK_Exterior.glb",
+  "checks": [
+    "Seven anchors preserved in GLB",
+    "Left/right wing and tower positions balanced",
+    "Finite object locations",
+    "Valid GLB 2.0 header and declared file length",
+    "Starter scene objects excluded from GLB"
+  ],
+  "limitations": [
+    "Approximate dimensions from photographs, not surveyed",
+    "Rear elevations, courtyard depths and roof junctions inferred",
+    "Window recesses represented by layered facade geometry",
+    "Simplified ornaments, landscaping and site plan",
+    "No interiors or security equipment"
+  ]
+}

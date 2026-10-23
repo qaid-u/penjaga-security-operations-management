@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -20,6 +20,8 @@ import { UsersPage } from './pages/UsersPage';
 import { PostsPage } from './pages/PostsPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
+
+const ThreeDCommandCentre = lazy(() => import('./pages/ThreeDCommandCentre'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,6 +53,7 @@ function App() {
         }}
       />
       <Routes>
+        <Route path="/3d-command-centre" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief]}><Suspense fallback={<p role="status">Memuatkan pusat kawalan 3D...</p>}><ThreeDCommandCentre /></Suspense></Protected>} />
         <Route path="/login" element={auth.user ? <Navigate to={defaultPath} replace /> : <Login auth={auth} />} />
         <Route path="/dashboard" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief]}><Dashboard auth={auth} /></Protected>} />
         <Route path="/pengawal" element={<Protected auth={auth} roles={[ROLE.guard]}><GuardDashboard /></Protected>} />
