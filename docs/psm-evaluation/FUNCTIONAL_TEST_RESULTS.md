@@ -37,3 +37,5 @@
 Initial failures were not reported as passes: a test used an unverified schedule URL (corrected to `/api/jadual/mingguan`); a connection-failure stub initially broke `pg`'s callback acquisition contract (corrected); normalized period test objects were replaced by actual query-shaped inputs after unknown-parameter rejection; the camera pixel test exposed FIX-07. The first orbit measurement crossed an overlay and was excluded; the final instrument excludes offscreen shadow clears from FPS. The final reports use only completed corrected runs.
 
 No real participant study, physical-device study, production deployment, external penetration test, antivirus integration or backup-restore rehearsal was performed.
+
+The first Linux CI run passed build/model/backend/18 browser regressions and found one additional development-server difference: missing private paths fell through to SPA HTML with status 200. Existing files were already denied, but the policy was inconsistent when local credential files were absent. A middleware check now rejects those URL roots before SPA fallback, preserving the strict 403/404 security assertion across environments.

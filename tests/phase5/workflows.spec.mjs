@@ -34,7 +34,7 @@ test('R04 malformed saved identity returns to login without an application crash
   await page.goto('/3d-command-centre');await expect(page).toHaveURL(/login$/);await expect(page.getByRole('button',{name:'Log Masuk',exact:true})).toBeVisible();
 });
 test('S07 development server refuses backend files and private demo credentials',async({request})=>{
-  for(const route of ['/backend/server.js','/backend/.env','/.phase5-runtime.local/connection.json']){
+  for(const route of ['/backend/server.js','/backend/.env','/.phase5-runtime.local/connection.json','/.phase5-runtime.local/missing-private-file.json','/backend/missing-private-file']){
     const response=await request.get(route);expect([403,404]).toContain(response.status());
   }
 });
