@@ -6,21 +6,22 @@ const { logAudit } = require('../utils/audit');
 
 const reportSelect = `
   select l.*, p.nama_penuh, pos.nama_pos,
-         nlp.kategori_dikesan, nlp.tahap_risiko, nlp.skor_risiko,
+         nlp.kategori_dikesan, case when nlp.tahap_risiko in ('Low','Medium','High','Critical') then nlp.tahap_risiko else 'Unknown' end as tahap_risiko, nlp.skor_risiko,
          nlp.kata_kunci_dikesan, nlp.ringkasan_automatik, nlp.tahap_keyakinan,
          exists (select 1 from tbl_tindakan_susulan a where a.id_laporan = l.id_laporan) as ada_tindakan_susulan
   from tbl_laporan_harian l
   join tbl_pengguna p on p.id_pengguna = l.id_pengguna
   left join tbl_pos_kawalan pos on pos.id_pos = l.id_pos
-  left join tbl_hasil_nlp nlp on nlp.id_laporan = l.id_laporan
+  left join lateral (select * from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) nlp on true
 `;
 
 const getReports = async (req, res) => {
   const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
   const offset = (page - 1) * limit;
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const params = [];
     const whereClause = req.user.nama_peranan === roles.guard
       ? (params.push(req.user.id_pengguna), ' where l.id_pengguna = $1')
@@ -38,16 +39,17 @@ const getReports = async (req, res) => {
     const total = countResult.rows[0].total;
     res.json({ data: result.rows, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
   } catch (error) {
-    console.error('Get reports error:', error);
+    console.error('Get reports error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan laporan' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
 const getReport = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       `${reportSelect} where l.id_laporan = $1`,
       [req.params.id]
@@ -58,29 +60,29 @@ const getReport = async (req, res) => {
       return res.status(403).json({ message: 'Anda tidak dibenarkan melihat laporan ini' });
     }
 
-    const [reviews, checklist, actions] = await Promise.all([
-      client.query(
+    const [reviews, checklist, actions] = [
+      await client.query(
         `select r.*, u.nama_penuh
          from tbl_pengesahan_laporan r
          join tbl_pengguna u on u.id_pengguna = r.id_pengguna_pengesah
          where r.id_laporan = $1 order by r.tarikh_pengesahan desc`,
         [req.params.id]
       ),
-      client.query(
+      await client.query(
         `select a.id_jawapan, c.nama_checklist, a.jawapan, a.catatan
          from tbl_jawapan_checklist a
          join tbl_checklist c on c.id_checklist = a.id_checklist
          where a.id_laporan = $1 order by a.id_jawapan`,
         [req.params.id]
       ),
-      client.query('select * from tbl_tindakan_susulan where id_laporan = $1 order by id_tindakan', [req.params.id]),
-    ]);
+      await client.query('select * from tbl_tindakan_susulan where id_laporan = $1 order by id_tindakan', [req.params.id]),
+    ];
     res.json({ report, reviews: reviews.rows, checklist: checklist.rows, actions: actions.rows });
   } catch (error) {
-    console.error('Get report detail error:', error);
+    console.error('Get report detail error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan butiran laporan' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
@@ -96,7 +98,7 @@ const createReport = async (req, res) => {
     checklist: checklistInput,
   } = req.body;
   const uploads = req.files || [];
-  if (!id_pos || !tajuk_laporan?.trim() || !kandungan_laporan?.trim() || !syif || !tarikh_laporan || !masa_laporan) {
+  if (!id_pos || typeof tajuk_laporan !== 'string' || typeof kandungan_laporan !== 'string' || !tajuk_laporan.trim() || !kandungan_laporan.trim() || !syif || !tarikh_laporan || !masa_laporan) {
     return res.status(400).json({ message: 'Sila lengkapkan pos, syif, tarikh, masa, tajuk dan kandungan laporan' });
   }
 
@@ -111,9 +113,10 @@ const createReport = async (req, res) => {
     return res.status(400).json({ message: 'Format checklist tidak sah' });
   }
 
-  const client = await pool.connect();
+  let client;
   let transactionStarted = false;
   try {
+    client = await pool.connect();
     const nlp = await processNLP(kandungan_laporan);
     await client.query('begin');
     transactionStarted = true;
@@ -194,14 +197,14 @@ const createReport = async (req, res) => {
       },
     });
   } catch (error) {
-    if (transactionStarted) await client.query('rollback');
+    if (transactionStarted) if (client) await client.query('rollback');
     await Promise.all(uploads.map((file) => fs.unlink(file.path).catch((unlinkError) => {
       console.error(`Failed to remove uncommitted upload ${file.filename}:`, unlinkError);
     })));
-    console.error('Create report error:', error);
+    console.error('Create report error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal menyimpan laporan' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
@@ -216,8 +219,9 @@ const reviewReport = async (req, res) => {
     return res.status(400).json({ message: 'Maklumat semakan tidak sah' });
   }
 
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query('begin');
     const result = await client.query(
       'select * from tbl_laporan_harian where id_laporan = $1 for update',
@@ -225,11 +229,11 @@ const reviewReport = async (req, res) => {
     );
     const report = result.rows[0];
     if (!report) {
-      await client.query('rollback');
+      if (client) await client.query('rollback');
       return res.status(404).json({ message: 'Laporan tidak ditemui' });
     }
     if (report.status_laporan !== 'Dihantar') {
-      await client.query('rollback');
+      if (client) await client.query('rollback');
       return res.status(409).json({ message: 'Laporan ini telah disemak' });
     }
     await client.query(
@@ -272,12 +276,12 @@ const reviewReport = async (req, res) => {
     await client.query('commit');
     res.json({ message: `Laporan ${normalizedStatus}` });
   } catch (error) {
-    await client.query('rollback');
-    console.error('Review report error:', error);
+    if (client) await client.query('rollback');
+    console.error('Review report error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal menyemak laporan' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
-module.exports = { getReports, getReport, createReport, reviewReport };
+module.exports = require('../utils/asyncHandlers')({ getReports, getReport, createReport, reviewReport });

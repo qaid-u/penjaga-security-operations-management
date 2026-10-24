@@ -13,8 +13,10 @@ const handle = (fn) => async (req, res) => {
     res.status(error.status || 503).json({ message: error.status ? error.message : 'Data operasi tidak tersedia. Semak sambungan pangkalan data dan migrasi 3D.' });
   }
 };
-router.get('/locations', handle(() => service.locations()));
+router.get('/locations', handle((req) => { if(Object.keys(req.query).length) { const error=new Error('Parameter pertanyaan tidak disokong');error.status=400;throw error; } return service.locations(); }));
 router.get('/overview', handle((req) => service.overview(period(req.query))));
+router.get('/incidents', handle((req) => service.incidents(period(req.query), req.query)));
+router.get('/filters', handle(() => service.filters()));
 router.get('/locations/:id/summary', handle((req) => service.summary(positiveId(req.params.id), period(req.query))));
 router.patch('/locations/:id/mapping', requireRole(roles.admin), handle((req) => service.map(positiveId(req.params.id), req.body, req.user.id_pengguna)));
 module.exports = router;

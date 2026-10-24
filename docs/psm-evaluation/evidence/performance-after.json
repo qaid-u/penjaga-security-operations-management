@@ -1,0 +1,151 @@
+{
+  "label": "after",
+  "measured_at": "2026-10-24T15:09:08.548Z",
+  "conditions": {
+    "browser": "Edge Chromium headless",
+    "renderer": "SwiftShader software WebGL",
+    "network": "localhost without throttling",
+    "frame_counter": "default framebuffer color clears; offscreen shadow passes excluded",
+    "node": "v24.15.0",
+    "platform": "win32",
+    "cpu": "12th Gen Intel(R) Core(TM) i7-12650H",
+    "logical_cpus": 16
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "route_to_model_ready_ms": 3471.3003999999996,
+      "glb_resources": [
+        {
+          "duration_ms": 55.5,
+          "transfer_bytes": 2537952,
+          "decoded_bytes": 2537652,
+          "response_end": 2071.5999999046326
+        }
+      ],
+      "download_to_ready_upper_bound_ms": 1392.2000000476837,
+      "orbit": {
+        "duration_ms": 4714.399999976158,
+        "rendered_frames": 65,
+        "draw_calls": 12480,
+        "rendered_fps": 13.787544544444408
+      },
+      "animation": {
+        "duration_ms": 1695.6000000238419,
+        "rendered_frames": 13,
+        "draw_calls": 2336,
+        "rendered_fps": 7.666902571253366
+      },
+      "selection_to_data_panel_ms": 466.6404000000002
+    },
+    {
+      "name": "mobile-emulated",
+      "width": 390,
+      "height": 844,
+      "route_to_model_ready_ms": 1893.9375,
+      "glb_resources": [
+        {
+          "duration_ms": 179.5,
+          "transfer_bytes": 2537952,
+          "decoded_bytes": 2537652,
+          "response_end": 1526.5999999046326
+        }
+      ],
+      "download_to_ready_upper_bound_ms": 374.40000009536743,
+      "orbit": {
+        "duration_ms": 5284.800000071526,
+        "rendered_frames": 103,
+        "draw_calls": 19776,
+        "rendered_fps": 19.489488921354173
+      },
+      "animation": {
+        "duration_ms": 2037,
+        "rendered_frames": 35,
+        "draw_calls": 5968,
+        "rendered_fps": 17.18213058419244
+      },
+      "selection_to_data_panel_ms": 914.9222999999984
+    }
+  ],
+  "api": {
+    "/3d/overview?date=2026-10-24&from=2026-09-25&to=2026-10-24&mapping=all": {
+      "samples": [
+        33.06830000000264,
+        19.58640000000014,
+        19.185499999999593,
+        19.112499999999272,
+        20.56710000000021,
+        21.159099999997125,
+        18.43999999999869
+      ],
+      "median_ms": 19.58640000000014,
+      "min_ms": 18.43999999999869,
+      "max_ms": 33.06830000000264
+    },
+    "/3d/locations/1/summary?date=2026-10-24&from=2026-09-25&to=2026-10-24&mapping=all": {
+      "samples": [
+        34.37489999999889,
+        30.189900000001217,
+        28.007799999999406,
+        17.343000000000757,
+        18.726199999997334,
+        25.17769999999655,
+        25.772099999998318
+      ],
+      "median_ms": 25.772099999998318,
+      "min_ms": 17.343000000000757,
+      "max_ms": 34.37489999999889
+    },
+    "/3d/incidents?from=2026-09-25&to=2026-10-24&mapping=all": {
+      "samples": [
+        31.128499999998894,
+        29.530399999999645,
+        39.638300000002346,
+        47.28659999999945,
+        34.07519999999931,
+        31.144099999997707,
+        24.704900000000634
+      ],
+      "median_ms": 31.144099999997707,
+      "min_ms": 24.704900000000634,
+      "max_ms": 47.28659999999945
+    },
+    "/dashboard": {
+      "samples": [
+        56.89140000000043,
+        56.15970000000016,
+        80.27009999999791,
+        60.06920000000173,
+        43.660400000000664,
+        39.88239999999496,
+        46.86729999999807
+      ],
+      "median_ms": 56.15970000000016,
+      "min_ms": 39.88239999999496,
+      "max_ms": 80.27009999999791
+    }
+  },
+  "repeated_navigation": {
+    "cycles": 4,
+    "additional_completed_glb_requests": 0,
+    "js_heap_before_bytes": 47453636,
+    "js_heap_after_bytes": 50762528,
+    "js_heap_delta_bytes": 3308892
+  },
+  "asset": {
+    "bytes": 2537652,
+    "meshes": 192,
+    "triangles": 57310,
+    "distinct_materials": 13,
+    "node_parse_median_ms": 15.37659999999596,
+    "node_parse_samples_ms": [
+      33.27730000000156,
+      17.837100000004284,
+      13.242799999999988,
+      15.37659999999596,
+      13.321900000002643
+    ]
+  }
+}

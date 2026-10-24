@@ -1,0 +1,31 @@
+
+> ai-security-sytem-scheduling-reporting@0.0.0 check
+> npm run lint && node --check backend/server.js && node --check backend/scripts/smoke-test.js && node --check backend/scripts/train-nlp-model.js && npm run build
+
+
+> ai-security-sytem-scheduling-reporting@0.0.0 lint
+> eslint .
+
+
+C:\Users\Qaid Uqail\Documents\Qaid UTHM\Degree\SEM 2 25-26\PSM 1\Project\test\AI-Security-Sytem-Scheduling-Reporting\src\context\AuthContext.jsx
+  39:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+✖ 1 problem (0 errors, 1 warning)
+
+
+> ai-security-sytem-scheduling-reporting@0.0.0 build
+> vite build
+
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 3229 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                 0.47 kB │ gzip:   0.31 kB
+dist/assets/johor-government-bg-BlWpGTaR.jpg   21.46 kB
+dist/assets/ThreeDCommandCentre-BXX_C8hX.css    1.79 kB │ gzip:   0.74 kB
+dist/assets/index-C755uru7.css                 32.98 kB │ gzip:   7.80 kB
+dist/assets/index-k7RGuUph.js                 863.25 kB │ gzip: 241.86 kB
+dist/assets/ThreeDCommandCentre-CBjjPX05.js   986.14 kB │ gzip: 264.07 kB
+
+✓ built in 2.31s

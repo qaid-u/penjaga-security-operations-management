@@ -91,6 +91,18 @@ http://localhost:5173
 
 ## Quality Checks
 
+Phase 5 validation and academic evaluation materials are in [docs/psm-evaluation](docs/psm-evaluation/SYSTEM_TEST_PLAN.md). The implementation audit, measured performance, security results, empty participant templates and synthetic demonstration guide are separate from human evaluation outcomes, which are pending collection.
+
+```bash
+npm run test:building
+npm run test:evaluation
+npm run test:backend
+npm run test:building:browser
+npm run test:phase5:browser
+```
+
+The last suite requires the separate synthetic demonstration database described in [DEMONSTRATION_CHECKLIST.md](docs/psm-evaluation/DEMONSTRATION_CHECKLIST.md). It never seeds the operational database. Existing 3D integration fixtures are rolled back. Use Node 24 with the committed root/backend lockfiles. Configure `PLAYWRIGHT_CHANNEL=chromium` when using Playwright's bundled Chromium instead of the workstation's Edge.
+
 Run the main local verification suite:
 
 ```bash

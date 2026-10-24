@@ -1,0 +1,46 @@
+name: PENJAGA quality checks
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-fixture-only
+          POSTGRES_DB: penjaga_phase5_demo
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ci-fixture-only
+      PGDATABASE: penjaga_phase5_demo
+      PLAYWRIGHT_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+      - run: npm ci
+      - run: npm --prefix backend ci
+      - run: npx playwright install --with-deps chromium
+      - run: node backend/scripts/prepare-phase5-demo.js
+      - run: npm run check
+      - run: npm run test:building && npm run test:evaluation
+      - run: npm run test:backend
+      - run: npm run test:building:browser
+      - run: npm run test:phase5:browser
+      - run: npm audit --audit-level=high && npm --prefix backend audit --audit-level=high
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure-evidence
+          path: test-results/

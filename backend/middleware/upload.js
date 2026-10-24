@@ -101,4 +101,12 @@ const validateScheduleUpload = async (req, res, next) => {
   }
 };
 
-module.exports = { upload, scheduleUpload, validateEvidenceUploads, validateScheduleUpload };
+const cleanupFailedUploads = (req, res, next) => {
+  res.on('finish', () => {
+    if (res.statusCode < 400) return;
+    const files = req.files || (req.file ? [req.file] : []);
+    for (const file of files) fsPromises.unlink(file.path).catch((error) => { if(error.code !== 'ENOENT') console.error('Rejected upload cleanup:',error.code); });
+  });
+  next();
+};
+module.exports = { upload, scheduleUpload, validateEvidenceUploads, validateScheduleUpload, cleanupFailedUploads };

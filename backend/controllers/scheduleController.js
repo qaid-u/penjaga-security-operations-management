@@ -30,21 +30,23 @@ const removeUploadedFile = async (file) => {
 };
 
 const getWeeks = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query('select * from tbl_jadual_mingguan order by tarikh_mula desc');
     res.json(result.rows);
   } catch (error) {
-    console.error('Get schedule weeks error:', error);
+    console.error('Get schedule weeks error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan jadual mingguan' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
 const getWeek = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       'select * from tbl_jadual_mingguan where id_jadual_mingguan = $1',
       [req.params.id]
@@ -52,16 +54,17 @@ const getWeek = async (req, res) => {
     if (!result.rowCount) return res.status(404).json({ message: 'Jadual mingguan tidak ditemui' });
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Get schedule week error:', error);
+    console.error('Get schedule week error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan jadual mingguan' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
 const getCoverage = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const weekResult = await client.query(
       'select * from tbl_jadual_mingguan where id_jadual_mingguan = $1',
       [req.params.id]
@@ -69,15 +72,15 @@ const getCoverage = async (req, res) => {
     const week = weekResult.rows[0];
     if (!week) return res.status(404).json({ message: 'Jadual mingguan tidak ditemui' });
 
-    const [requirements, assignments] = await Promise.all([
-      client.query(
+    const [requirements, assignments] = [
+      await client.query(
         `select k.id_pos, k.syif, k.bilangan_diperlukan, p.nama_pos
          from tbl_keperluan_pos k
          join tbl_pos_kawalan p on p.id_pos = k.id_pos
          where k.status_aktif = true
          order by p.nama_pos, k.syif`
       ),
-      client.query(
+      await client.query(
         `select s.*, p.nama_penuh, p.nama_pengguna, pos.nama_pos
          from tbl_jadual_bertugas s
          join tbl_pengguna p on p.id_pengguna = s.id_pengguna
@@ -86,7 +89,7 @@ const getCoverage = async (req, res) => {
          order by s.tarikh_tugas, s.syif, pos.nama_pos, p.nama_penuh`,
         [req.params.id]
       ),
-    ]);
+    ];
 
     const coverageByPost = requirements.rows.map((requirement) => {
       const matchingAssignments = assignments.rows.filter(
@@ -120,16 +123,17 @@ const getCoverage = async (req, res) => {
       uncoveredPosts: coverageByPost.filter((item) => item.shortage > 0),
     });
   } catch (error) {
-    console.error('Get schedule coverage error:', error);
+    console.error('Get schedule coverage error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal mengira liputan jadual' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
 const getMySchedule = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       `select s.*, pos.nama_pos, pos.nama_bangunan, pos.lokasi,
               coalesce(a.status_kehadiran, 'Belum Hadir') as status_kehadiran,
@@ -143,16 +147,17 @@ const getMySchedule = async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Get guard schedule error:', error);
+    console.error('Get guard schedule error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan jadual bertugas' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
 const getPosReqs = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       `select k.*, p.nama_pos
        from tbl_keperluan_pos k
@@ -161,10 +166,10 @@ const getPosReqs = async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Get post requirements error:', error);
+    console.error('Get post requirements error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan keperluan pos' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
@@ -174,8 +179,9 @@ const addPosReq = async (req, res) => {
   if (!id_pos || !validShifts.includes(syif) || !Number.isInteger(count) || count < 0) {
     return res.status(400).json({ message: 'Pos, syif dan bilangan pengawal tidak sah' });
   }
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       `insert into tbl_keperluan_pos (id_pos, syif, bilangan_diperlukan, status_aktif)
        values ($1, $2, $3, $4)
@@ -187,10 +193,10 @@ const addPosReq = async (req, res) => {
     await logAudit(client, req.user.id_pengguna, 'UPDATE_POST_REQUIREMENT', `Pos #${id_pos}`, `${syif}: ${count}`);
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Save post requirement error:', error);
+    console.error('Save post requirement error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal menyimpan keperluan pos' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
@@ -216,18 +222,19 @@ const checkConflict = async (req, res) => {
   if (!id_pengguna || !validDate(tarikh_tugas) || !validTime(masa_mula) || !validTime(masa_tamat)) {
     return res.status(400).json({ message: 'Maklumat tarikh, masa atau pengawal tidak sah' });
   }
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const conflict = await assignmentConflict(client, { id_pengguna, tarikh_tugas, masa_mula, masa_tamat, id_jadual });
     res.json({
       ok: !conflict,
       critical: conflict ? ['Pengawal mempunyai tugasan yang bertindih pada waktu ini'] : [],
     });
   } catch (error) {
-    console.error('Check schedule conflict error:', error);
+    console.error('Check schedule conflict error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal menyemak konflik jadual' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
@@ -248,8 +255,9 @@ const saveAssignment = async (req, res) => {
     return res.status(400).json({ message: 'Masa mula dan tamat tidak boleh sama' });
   }
 
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query('begin');
     const updateId = req.method === 'PUT' ? req.params.id : null;
     let weekId = req.method === 'POST' ? parseWeekId(req.params.id) : null;
@@ -259,7 +267,7 @@ const saveAssignment = async (req, res) => {
         [updateId]
       );
       if (!existing.rowCount) {
-        await client.query('rollback');
+        if (client) await client.query('rollback');
         return res.status(404).json({ message: 'Tugasan jadual tidak ditemui' });
       }
       weekId = existing.rows[0].id_jadual_mingguan;
@@ -270,15 +278,15 @@ const saveAssignment = async (req, res) => {
     );
     const week = weekResult.rows[0];
     if (!week) {
-      await client.query('rollback');
+      if (client) await client.query('rollback');
       return res.status(404).json({ message: 'Jadual mingguan tidak ditemui' });
     }
     if (req.user.nama_peranan === roles.chief && week.status_jadual === 'Dikunci') {
-      await client.query('rollback');
+      if (client) await client.query('rollback');
       return res.status(409).json({ message: 'Jadual dikunci oleh Pentadbir Sistem' });
     }
     if (tarikh_tugas < String(week.tarikh_mula).slice(0, 10) || tarikh_tugas > String(week.tarikh_tamat).slice(0, 10)) {
-      await client.query('rollback');
+      if (client) await client.query('rollback');
       return res.status(400).json({ message: 'Tarikh tugasan mesti berada dalam tempoh jadual mingguan' });
     }
 
@@ -291,7 +299,7 @@ const saveAssignment = async (req, res) => {
       id_jadual: updateId,
     });
     if (conflict) {
-      await client.query('rollback');
+      if (client) await client.query('rollback');
       return res.status(409).json({ message: 'Pengawal mempunyai tugasan yang bertindih pada waktu ini' });
     }
 
@@ -317,17 +325,18 @@ const saveAssignment = async (req, res) => {
     await client.query('commit');
     res.status(updateId ? 200 : 201).json(result.rows[0]);
   } catch (error) {
-    await client.query('rollback');
-    console.error('Save schedule assignment error:', error);
+    if (client) await client.query('rollback');
+    console.error('Save schedule assignment error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal menyimpan tugasan jadual' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
 const deleteAssignment = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       `delete from tbl_jadual_bertugas s
        using tbl_jadual_mingguan w
@@ -340,10 +349,10 @@ const deleteAssignment = async (req, res) => {
     await logAudit(client, req.user.id_pengguna, 'DELETE_ASSIGNMENT', `Tugasan #${req.params.id}`, 'Tugasan dipadam');
     res.json({ message: 'Tugasan dipadam' });
   } catch (error) {
-    console.error('Delete assignment error:', error);
+    console.error('Delete assignment error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memadam tugasan' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
@@ -351,8 +360,9 @@ const updateWeekStatus = async (req, res) => {
   const statusByAction = { confirm: 'Disahkan', lock: 'Dikunci', unlock: 'Draf' };
   const status = statusByAction[req.params.action];
   if (!status) return res.status(400).json({ message: 'Tindakan status jadual tidak sah' });
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       `update tbl_jadual_mingguan
        set status_jadual = $1,
@@ -366,16 +376,17 @@ const updateWeekStatus = async (req, res) => {
     await logAudit(client, req.user.id_pengguna, 'UPDATE_WEEK_STATUS', `Jadual #${req.params.id}`, status);
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Update week status error:', error);
+    console.error('Update week status error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal mengemas kini status jadual' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
 const checkAttendance = async (req, res, action) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query('begin');
     const assignment = await client.query(
       `select id_jadual, id_pengguna
@@ -385,7 +396,7 @@ const checkAttendance = async (req, res, action) => {
       [req.params.id, req.user.id_pengguna]
     );
     if (!assignment.rowCount) {
-      await client.query('rollback');
+      if (client) await client.query('rollback');
       return res.status(404).json({ message: 'Tugasan hari ini tidak ditemui untuk akaun anda' });
     }
     const assignmentId = assignment.rows[0].id_jadual;
@@ -398,7 +409,7 @@ const checkAttendance = async (req, res, action) => {
         [assignmentId, req.user.id_pengguna]
       );
       if (!attendance.rowCount) {
-        await client.query('rollback');
+        if (client) await client.query('rollback');
         return res.status(409).json({ message: 'Check-in telah direkodkan' });
       }
       await client.query("update tbl_jadual_bertugas set status_bertugas = 'Hadir' where id_jadual = $1", [assignmentId]);
@@ -413,18 +424,18 @@ const checkAttendance = async (req, res, action) => {
       [assignmentId, req.user.id_pengguna]
     );
     if (!result.rowCount) {
-      await client.query('rollback');
+      if (client) await client.query('rollback');
       return res.status(409).json({ message: 'Check-in diperlukan sebelum check-out' });
     }
     await client.query("update tbl_jadual_bertugas set status_bertugas = 'Selesai' where id_jadual = $1", [assignmentId]);
     await client.query('commit');
     res.json(result.rows[0]);
   } catch (error) {
-    await client.query('rollback');
+    if (client) await client.query('rollback');
     console.error(`${action} attendance error:`, error);
     res.status(500).json({ message: 'Gagal mengemas kini kehadiran' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
@@ -521,17 +532,17 @@ const importSchedules = async (req, res) => {
   } catch (error) {
     if (transactionStarted) {
       try {
-        await client.query('rollback');
+        if (client) await client.query('rollback');
       } catch (rollbackError) {
         console.error('Rollback schedule CSV import error:', rollbackError);
       }
     }
-    console.error('Import schedule CSV error:', error);
+    console.error('Import schedule CSV error:', error.code || error.name);
     const isInputError = error.message.startsWith('Baris') || error.message.startsWith('CSV');
     res.status(isInputError ? 400 : 500)
       .json({ message: isInputError ? error.message : 'Gagal mengimport jadual' });
   } finally {
-    if (client) client.release();
+    if (client) client?.release();
     if (!filePersisted) await removeUploadedFile(req.file);
   }
 };
@@ -557,7 +568,7 @@ const uploadSchedulePdf = async (req, res) => {
       [req.params.id, req.file.originalname, `/uploads/${req.file.filename}`, req.user.id_pengguna]
     );
     if (!result.rowCount) {
-      await client.query('rollback');
+      if (client) await client.query('rollback');
       transactionStarted = false;
       return res.status(404).json({ message: 'Jadual mingguan tidak ditemui' });
     }
@@ -569,20 +580,20 @@ const uploadSchedulePdf = async (req, res) => {
   } catch (error) {
     if (transactionStarted) {
       try {
-        await client.query('rollback');
+        if (client) await client.query('rollback');
       } catch (rollbackError) {
         console.error('Rollback schedule PDF upload error:', rollbackError);
       }
     }
-    console.error('Upload schedule PDF error:', error);
+    console.error('Upload schedule PDF error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuat naik PDF jadual' });
   } finally {
-    if (client) client.release();
+    if (client) client?.release();
     if (!filePersisted) await removeUploadedFile(req.file);
   }
 };
 
-module.exports = {
+module.exports = require('../utils/asyncHandlers')({
   getWeeks,
   getWeek,
   getCoverage,
@@ -597,4 +608,4 @@ module.exports = {
   updateWeekStatus,
   checkIn,
   checkOut,
-};
+});

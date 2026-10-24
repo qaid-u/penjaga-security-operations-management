@@ -1,0 +1,137 @@
+{
+  "status": "Pending Data Collection",
+  "participants": 0,
+  "groups": [
+    {
+      "task": "T1",
+      "interface": "A",
+      "participants": 0,
+      "trials": 0,
+      "completed": 0,
+      "completion_rate": null,
+      "successful_time_mean_seconds": null,
+      "successful_time_median_seconds": null,
+      "errors": 0,
+      "accuracy_rate": null,
+      "interactions_mean": null
+    },
+    {
+      "task": "T1",
+      "interface": "B",
+      "participants": 0,
+      "trials": 0,
+      "completed": 0,
+      "completion_rate": null,
+      "successful_time_mean_seconds": null,
+      "successful_time_median_seconds": null,
+      "errors": 0,
+      "accuracy_rate": null,
+      "interactions_mean": null
+    },
+    {
+      "task": "T2",
+      "interface": "A",
+      "participants": 0,
+      "trials": 0,
+      "completed": 0,
+      "completion_rate": null,
+      "successful_time_mean_seconds": null,
+      "successful_time_median_seconds": null,
+      "errors": 0,
+      "accuracy_rate": null,
+      "interactions_mean": null
+    },
+    {
+      "task": "T2",
+      "interface": "B",
+      "participants": 0,
+      "trials": 0,
+      "completed": 0,
+      "completion_rate": null,
+      "successful_time_mean_seconds": null,
+      "successful_time_median_seconds": null,
+      "errors": 0,
+      "accuracy_rate": null,
+      "interactions_mean": null
+    },
+    {
+      "task": "T3",
+      "interface": "A",
+      "participants": 0,
+      "trials": 0,
+      "completed": 0,
+      "completion_rate": null,
+      "successful_time_mean_seconds": null,
+      "successful_time_median_seconds": null,
+      "errors": 0,
+      "accuracy_rate": null,
+      "interactions_mean": null
+    },
+    {
+      "task": "T3",
+      "interface": "B",
+      "participants": 0,
+      "trials": 0,
+      "completed": 0,
+      "completion_rate": null,
+      "successful_time_mean_seconds": null,
+      "successful_time_median_seconds": null,
+      "errors": 0,
+      "accuracy_rate": null,
+      "interactions_mean": null
+    },
+    {
+      "task": "T4",
+      "interface": "A",
+      "participants": 0,
+      "trials": 0,
+      "completed": 0,
+      "completion_rate": null,
+      "successful_time_mean_seconds": null,
+      "successful_time_median_seconds": null,
+      "errors": 0,
+      "accuracy_rate": null,
+      "interactions_mean": null
+    },
+    {
+      "task": "T4",
+      "interface": "B",
+      "participants": 0,
+      "trials": 0,
+      "completed": 0,
+      "completion_rate": null,
+      "successful_time_mean_seconds": null,
+      "successful_time_median_seconds": null,
+      "errors": 0,
+      "accuracy_rate": null,
+      "interactions_mean": null
+    }
+  ],
+  "paired": [
+    {
+      "task": "T1",
+      "successful_pairs": 0,
+      "time_difference_B_minus_A_mean_seconds": null,
+      "time_difference_B_minus_A_median_seconds": null
+    },
+    {
+      "task": "T2",
+      "successful_pairs": 0,
+      "time_difference_B_minus_A_mean_seconds": null,
+      "time_difference_B_minus_A_median_seconds": null
+    },
+    {
+      "task": "T3",
+      "successful_pairs": 0,
+      "time_difference_B_minus_A_mean_seconds": null,
+      "time_difference_B_minus_A_median_seconds": null
+    },
+    {
+      "task": "T4",
+      "successful_pairs": 0,
+      "time_difference_B_minus_A_mean_seconds": null,
+      "time_difference_B_minus_A_median_seconds": null
+    }
+  ],
+  "interpretation": "Negative paired time differences favor B. Descriptive results only; no significance claim."
+}

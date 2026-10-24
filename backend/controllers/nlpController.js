@@ -8,8 +8,9 @@ const parseKeywords = (value) => {
 };
 
 const getReportAnalysis = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       'select * from tbl_hasil_nlp where id_laporan = $1',
       [req.params.reportId || req.params.id]
@@ -17,23 +18,24 @@ const getReportAnalysis = async (req, res) => {
     if (!result.rows[0]) return res.status(404).json({ message: 'Tiada data NLP' });
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Get NLP analysis error:', error);
+    console.error('Get NLP analysis error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan analisis NLP' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
 const getTrainingData = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query('select * from tbl_kategori_insiden order by id_kategori_insiden');
     res.json(result.rows);
   } catch (error) {
-    console.error('Get NLP categories error:', error);
+    console.error('Get NLP categories error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan kategori NLP' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
@@ -43,8 +45,9 @@ const createTrainingData = async (req, res) => {
   if (!nama_kategori?.trim() || !['Low', 'Medium', 'High', 'Critical'].includes(tahap_keutamaan) || !keywords.length) {
     return res.status(400).json({ message: 'Nama kategori, tahap keutamaan dan sekurang-kurangnya satu kata kunci diperlukan' });
   }
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       `insert into tbl_kategori_insiden (nama_kategori, tahap_keutamaan, penerangan_kategori, kata_kunci_rujukan)
        values ($1, $2, $3, $4) returning *`,
@@ -54,10 +57,10 @@ const createTrainingData = async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     if (error.code === '23505') return res.status(409).json({ message: 'Nama kategori tersebut telah wujud' });
-    console.error('Create NLP category error:', error);
+    console.error('Create NLP category error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal menambah kategori NLP' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
@@ -72,8 +75,9 @@ const updateTrainingData = async (req, res) => {
   const keywords = kata_kunci_rujukan === undefined ? null : parseKeywords(kata_kunci_rujukan);
   if (keywords && !keywords.length) return res.status(400).json({ message: 'Sekurang-kurangnya satu kata kunci diperlukan' });
 
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       `update tbl_kategori_insiden
        set nama_kategori = coalesce($1, nama_kategori),
@@ -97,16 +101,17 @@ const updateTrainingData = async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     if (error.code === '23505') return res.status(409).json({ message: 'Nama kategori tersebut telah wujud' });
-    console.error('Update NLP category error:', error);
+    console.error('Update NLP category error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal mengemas kini kategori NLP' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
 const deleteTrainingData = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query('begin');
     const used = await client.query(
       'select 1 from tbl_laporan_harian where id_kategori_insiden = $1 limit 1',
@@ -119,7 +124,7 @@ const deleteTrainingData = async (req, res) => {
         [req.params.id]
       );
       if (!result.rowCount) {
-        await client.query('rollback');
+        if (client) await client.query('rollback');
         return res.status(404).json({ message: 'Kategori NLP tidak ditemui' });
       }
       await client.query('commit');
@@ -130,18 +135,18 @@ const deleteTrainingData = async (req, res) => {
       [req.params.id]
     );
     if (!result.rowCount) {
-      await client.query('rollback');
+      if (client) await client.query('rollback');
       return res.status(404).json({ message: 'Kategori NLP tidak ditemui' });
     }
     await client.query('commit');
     res.json({ deactivated: false });
   } catch (error) {
-    await client.query('rollback');
-    console.error('Delete NLP category error:', error);
+    if (client) await client.query('rollback');
+    console.error('Delete NLP category error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memadam kategori NLP' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
-module.exports = { getReportAnalysis, getTrainingData, createTrainingData, updateTrainingData, deleteTrainingData };
+module.exports = require('../utils/asyncHandlers')({ getReportAnalysis, getTrainingData, createTrainingData, updateTrainingData, deleteTrainingData });

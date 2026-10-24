@@ -11,6 +11,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./backend/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./backend/database/migrations/003_lokasi_3d.sql:/docker-entrypoint-initdb.d/03-lokasi-3d.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-penjaga_admin} -d ${POSTGRES_DB:-penjaga_db}"]
       interval: 10s
@@ -36,6 +37,7 @@ services:
       PGUSER: ${POSTGRES_USER:-penjaga_admin}
       PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the deployment environment}
       FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL to the deployed frontend origin}
+      TRUST_PROXY: '1'
     volumes:
       - backend_uploads:/app/uploads
 

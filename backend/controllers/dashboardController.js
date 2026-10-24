@@ -13,30 +13,31 @@ const buildFilters = (query) => {
   }
   if (query.risk) {
     params.push(query.risk);
-    conditions.push(`coalesce(n.tahap_risiko, l.tahap_risiko) = $${params.length}`);
+    conditions.push(`case when n.tahap_risiko in ('Low','Medium','High','Critical') then n.tahap_risiko else 'Unknown' end = $${params.length}`);
   }
   return { params, where: conditions.length ? `where ${conditions.join(' and ')}` : '' };
 };
 
 const getDashboard = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const { params, where } = buildFilters(req.query);
-    const [cards, priority, trend, byCategory, byRisk, keywords, latest] = await Promise.all([
-      client.query(
+    const [cards, priority, trend, byCategory, byRisk, keywords, latest] = [
+      await client.query(
         `select count(*)::int as total_laporan,
-                count(*) filter (where coalesce(n.tahap_risiko, l.tahap_risiko) in ('High', 'Critical'))::int as risiko_tinggi,
+                count(*) filter (where case when n.tahap_risiko in ('Low','Medium','High','Critical') then n.tahap_risiko else 'Unknown' end in ('High', 'Critical'))::int as risiko_tinggi,
                 count(*) filter (where l.lampiran_fail is not null and l.lampiran_fail <> '[]')::int as laporan_berlampiran
          from tbl_laporan_harian l
-         left join tbl_hasil_nlp n on n.id_laporan = l.id_laporan
+         left join lateral (select * from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) n on true
          ${where}`,
         params
       ),
-      client.query(
+      await client.query(
         `select
            (select count(*)::int from tbl_laporan_harian where status_laporan = 'Dihantar') as laporan_menunggu_semakan,
-           (select count(*)::int from tbl_laporan_harian l left join tbl_hasil_nlp n on n.id_laporan = l.id_laporan
-             where l.status_laporan = 'Dihantar' and coalesce(n.tahap_risiko, l.tahap_risiko) in ('High', 'Critical')) as laporan_kritikal_menunggu,
+           (select count(*)::int from tbl_laporan_harian l left join lateral (select * from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) n on true
+             where l.status_laporan = 'Dihantar' and case when n.tahap_risiko in ('Low','Medium','High','Critical') then n.tahap_risiko else 'Unknown' end in ('High', 'Critical')) as laporan_kritikal_menunggu,
            (select count(*)::int from tbl_tindakan_susulan where status_tindakan <> 'Selesai') as tindakan_terbuka,
            (select count(*)::int from tbl_laporan_harian l
              where l.status_laporan = 'Diluluskan' and l.perlu_tindakan_susulan = true
@@ -45,45 +46,45 @@ const getDashboard = async (req, res) => {
            (select count(*)::int from tbl_notifikasi where id_pengguna = $1 and status_bacaan = 'Belum Dibaca') as notifikasi_belum_dibaca`,
         [req.user.id_pengguna]
       ),
-      client.query(
+      await client.query(
         `select to_char(l.tarikh_laporan, 'YYYY-MM-DD') as date, count(*)::int as laporan
          from tbl_laporan_harian l
-         left join tbl_hasil_nlp n on n.id_laporan = l.id_laporan
+         left join lateral (select * from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) n on true
          ${where} ${where ? 'and' : 'where'} l.tarikh_laporan >= current_date - interval '6 days'
          group by l.tarikh_laporan order by l.tarikh_laporan`,
         params
       ),
-      client.query(
+      await client.query(
         `select coalesce(n.kategori_dikesan, 'Tidak Diklasifikasikan') as name, count(*)::int as value
-         from tbl_laporan_harian l left join tbl_hasil_nlp n on n.id_laporan = l.id_laporan
+         from tbl_laporan_harian l left join lateral (select * from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) n on true
          ${where} group by n.kategori_dikesan order by value desc`,
         params
       ),
-      client.query(
-        `select coalesce(n.tahap_risiko, l.tahap_risiko) as name, count(*)::int as value
-         from tbl_laporan_harian l left join tbl_hasil_nlp n on n.id_laporan = l.id_laporan
-         ${where} group by coalesce(n.tahap_risiko, l.tahap_risiko) order by value desc`,
+      await client.query(
+        `select case when n.tahap_risiko in ('Low','Medium','High','Critical') then n.tahap_risiko else 'Unknown' end as name, count(*)::int as value
+         from tbl_laporan_harian l left join lateral (select * from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) n on true
+         ${where} group by case when n.tahap_risiko in ('Low','Medium','High','Critical') then n.tahap_risiko else 'Unknown' end order by value desc`,
         params
       ),
-      client.query(
+      await client.query(
         `select keyword, count(*)::int as value from (
            select unnest(n.kata_kunci_dikesan) as keyword
-           from tbl_laporan_harian l join tbl_hasil_nlp n on n.id_laporan = l.id_laporan
+           from tbl_laporan_harian l join lateral (select * from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) n on true
            ${where}
          ) matched group by keyword order by value desc, keyword limit 10`,
         params
       ),
-      client.query(
+      await client.query(
         `select l.id_laporan, l.tajuk_laporan, l.tarikh_laporan, pos.nama_pos,
-                coalesce(n.tahap_risiko, l.tahap_risiko) as tahap_risiko
+                case when n.tahap_risiko in ('Low','Medium','High','Critical') then n.tahap_risiko else 'Unknown' end as tahap_risiko
          from tbl_laporan_harian l
-         left join tbl_hasil_nlp n on n.id_laporan = l.id_laporan
+         left join lateral (select * from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) n on true
          left join tbl_pos_kawalan pos on pos.id_pos = l.id_pos
          ${where}
          order by l.tarikh_laporan desc, l.masa_laporan desc limit 10`,
         params
       ),
-    ]);
+    ];
     const scheduleToday = await client.query(
       'select count(*)::int as count from tbl_jadual_bertugas where tarikh_tugas = current_date'
     );
@@ -101,25 +102,26 @@ const getDashboard = async (req, res) => {
       latest: latest.rows,
     });
   } catch (error) {
-    console.error('Get dashboard error:', error);
+    console.error('Get dashboard error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan dashboard' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
 const getGuardDashboard = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
-    const [today, duty] = await Promise.all([
-      client.query(
+    client = await pool.connect();
+    const [today, duty] = [
+      await client.query(
         `select
            (select count(*)::int from tbl_jadual_bertugas where id_pengguna = $1 and tarikh_tugas = current_date) as tugasan_hari_ini,
            (select count(*)::int from tbl_laporan_harian where id_pengguna = $1 and tarikh_laporan = current_date) as laporan_dihantar`,
         [req.user.id_pengguna]
       ),
-      client.query(
-        `select s.*, pos.nama_pos, pos.nama_bangunan, pos.lokasi,
+      await client.query(
+        `select s.*, s.tarikh_tugas::text as tarikh_tugas, pos.nama_pos, pos.nama_bangunan, pos.lokasi,
                 coalesce(a.status_kehadiran, 'Belum Hadir') as status_kehadiran,
                 a.masa_check_in, a.masa_check_out
          from tbl_jadual_bertugas s
@@ -129,14 +131,14 @@ const getGuardDashboard = async (req, res) => {
          order by s.tarikh_tugas, s.masa_mula limit 5`,
         [req.user.id_pengguna]
       ),
-    ]);
+    ];
     res.json({ today: today.rows[0], duty: duty.rows });
   } catch (error) {
-    console.error('Get guard dashboard error:', error);
+    console.error('Get guard dashboard error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan dashboard pengawal' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
-module.exports = { getDashboard, getGuardDashboard };
+module.exports = require('../utils/asyncHandlers')({ getDashboard, getGuardDashboard });

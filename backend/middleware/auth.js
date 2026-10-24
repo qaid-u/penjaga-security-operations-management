@@ -5,12 +5,13 @@ const roles = require('../config/roles');
 const jwtSecret = process.env.JWT_SECRET || 'penjaga-dev-secret';
 
 const auth = async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
+  const token = /^Bearer ([^\s]+)$/i.exec(req.headers.authorization || '')?.[1];
   if (!token) return res.status(401).json({ message: 'Token tidak dijumpai' });
 
   let decoded;
   try {
-    decoded = jwt.verify(token, jwtSecret);
+    decoded = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] });
+    if (!Number.isSafeInteger(decoded.id) || decoded.id < 1 || decoded.id > 2147483647) throw new Error('Invalid token subject');
   } catch {
     return res.status(401).json({ message: 'Sesi tamat atau token tidak sah' });
   }
@@ -29,7 +30,7 @@ const auth = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error('Authentication lookup error:', error);
+    console.error('Authentication lookup error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal mengesahkan akaun' });
   }
 };

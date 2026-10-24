@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -23,17 +23,14 @@ import { ChangePasswordPage } from './pages/ChangePasswordPage';
 
 const ThreeDCommandCentre = lazy(() => import('./pages/ThreeDCommandCentre'));
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
-
 function App() {
   const auth = useAuth();
+  const identity = `${auth.user?.id_pengguna ?? ''}:${auth.user?.nama_peranan ?? ''}`;
+  const queryClient = useMemo(() => {
+    // Each signed-in identity owns its cache, including legacy queries without user keys.
+    return new QueryClient({ defaultOptions: { queries: { retry:1,refetchOnWindowFocus:false } }, meta: { identity } });
+  }, [identity]);
+  useEffect(() => () => { queryClient.cancelQueries();queryClient.clear(); }, [queryClient]);
   const defaultPath = useMemo(() => auth.user?.nama_peranan === ROLE.guard ? '/pengawal' : '/dashboard', [auth.user]);
 
   return (

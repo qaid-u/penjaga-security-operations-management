@@ -1,11 +1,11 @@
 import { createContext, useContext, useState } from 'react';
 import api from '../api/axios';
-import { ROLE } from '../utils/helpers';
+import { readStoredUser } from '../utils/sessionStorage';
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('penjaga_user') || 'null'));
+  const [user, setUser] = useState(readStoredUser);
   const [loading, setLoading] = useState(false);
 
   const login = async (username, password) => {

@@ -3,6 +3,16 @@
 .building-hotspot { pointer-events: auto; position: relative; width: 44px; height: 44px; border: 3px solid white; border-radius: 50%; background: #002b5b; color: white; font-weight: 600; box-shadow: 0 2px 8px #001f3f55; transition: background 120ms, transform 120ms; }
 .building-hotspot:hover, .building-hotspot:focus-visible { background: #0f766e; transform: scale(1.12); }
 .building-hotspot.is-selected { background: #f5c542; color: #001f3f; box-shadow: 0 0 0 5px #f5c54255; }
+.building-hotspot:not(.is-selected) { background: var(--marker-color, #64748b); }
 .building-hotspot-label { display: none; position: absolute; bottom: 48px; left: 50%; transform: translateX(-50%); white-space: nowrap; border-radius: 6px; background: #001f3f; color: white; padding: 5px 9px; font-size: 12px; pointer-events: none; }
 .building-hotspot:hover .building-hotspot-label, .building-hotspot:focus-visible .building-hotspot-label { display: block; }
 @media (prefers-reduced-motion: reduce) { .building-hotspot { transition: none; } }
+.building-count { position: absolute; right: -10px; top: -9px; min-width: 22px; border-radius: 12px; padding: 1px 4px; background: white; color: #002b5b; border: 1px solid #64748b; font-size: 11px; }
+.building-sheet-close { display: none; }
+.building-info-panel { min-width: 0; border-radius: 1rem; }
+.building-info-panel:focus-visible { outline: 2px solid #a16207; outline-offset: 3px; }
+@media (max-width: 767px) {
+  .building-info-panel[data-sheet="true"] { position: fixed; z-index: 40; bottom: 76px; left: 8px; right: 8px; max-height: 58vh; overflow: auto; background: white; box-shadow: 0 -6px 28px #001f3f44; overscroll-behavior: contain; }
+  .building-info-panel[data-sheet="true"] .building-sheet-close { display: flex; position: sticky; top: 0; background: white; z-index: 1; width: 100%; }
+  .building-hotspot-label { white-space: normal; width: 160px; }
+}

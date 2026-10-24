@@ -7,9 +7,10 @@ const { logAudit } = require('../utils/audit');
 
 const login = async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ message: 'Sila masukkan nama pengguna dan kata laluan' });
-  const client = await pool.connect();
+  if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password || username.length > 100 || password.length > 1024) return res.status(400).json({ message: 'Sila masukkan nama pengguna dan kata laluan yang sah' });
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       'select p.*, r.nama_peranan from tbl_pengguna p join tbl_peranan r on p.id_peranan = r.id_peranan where p.nama_pengguna = $1',
       [username]
@@ -34,10 +35,10 @@ const login = async (req, res) => {
     await logAudit(client, user.id_pengguna, 'LOGIN_SUCCESS', 'System', 'Log masuk berjaya');
     res.json({ token, user: { id_pengguna: user.id_pengguna, nama_penuh: user.nama_penuh, nama_pengguna: user.nama_pengguna, emel: user.emel, nama_peranan: user.nama_peranan } });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Login error:', error.code || error.name);
     res.status(500).json({ message: 'Ralat pelayan' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
@@ -45,4 +46,4 @@ const getMe = async (req, res) => {
   res.json({ user: req.user });
 };
 
-module.exports = { login, getMe };
+module.exports = require('../utils/asyncHandlers')({ login, getMe });

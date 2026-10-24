@@ -1,5 +1,11 @@
 # PENJAGA Production Deployment Guide
 
+Phase 5 readiness evidence and pending operator checks are in [DEPLOYMENT_READINESS.md](docs/psm-evaluation/DEPLOYMENT_READINESS.md). Local tests and Git pushes do not constitute production deployment.
+
+Apply `backend/database/migrations/003_lokasi_3d.sql` after the schema (`node backend/scripts/migrate-3d.js`). Fresh Compose volumes now run it automatically; existing volumes require explicit migration. It preserves existing mappings and does not reset data.
+
+Production requires a unique non-placeholder `JWT_SECRET` and explicit `FRONTEND_URL`. Use `TRUST_PROXY=1` only behind one trusted reverse proxy with direct API access blocked; otherwise use 0. Configured database TLS now verifies certificates; provide a trusted CA through `PGSSL_CA` when required by the database provider. Publish built `dist` only, and keep uploads behind the authenticated API. The separate Phase 5 demo credentials/data must never be used as production accounts.
+
 This guide provides end-to-end instructions for deploying the **PENJAGA Security Operations Management System** to production.
 
 ---

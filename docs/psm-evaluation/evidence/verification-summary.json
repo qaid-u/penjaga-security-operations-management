@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-24",
+  "source": "Completed local command runs; not participant outcomes",
+  "checks": {
+    "backend_tests": {
+      "passed": 33,
+      "failed": 0
+    },
+    "building_browser_tests": {
+      "passed": 18,
+      "failed": 0
+    },
+    "real_api_browser_workflows": {
+      "passed": 5,
+      "failed": 0
+    },
+    "model_logic_tests": {
+      "passed": 10,
+      "failed": 0
+    },
+    "evaluation_analysis_tests": {
+      "passed": 3,
+      "failed": 0
+    },
+    "production_build": "passed",
+    "compose_configuration": "passed",
+    "frontend_audit_known_advisories": 0,
+    "backend_audit_known_advisories": 0,
+    "operational_smoke": "passed, mappings unchanged"
+  },
+  "pending": [
+    "Human participant evaluation",
+    "Representative physical GPU/phone tests",
+    "Production deployment/remote TLS/backups",
+    "Remote CI result after push"
+  ]
+}

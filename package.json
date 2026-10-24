@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "overrides": {
+    "postcss-selector-parser": "^7.1.6"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -10,6 +13,10 @@
     "preview": "vite preview",
     "test:building": "node --test scripts/building-model.test.mjs",
     "test:building:browser": "playwright test --config playwright.building.config.mjs",
+    "test:phase5:browser": "playwright test --config playwright.phase5.config.mjs --grep-invert benchmark",
+    "test:backend": "node --test backend/tests/*.test.js",
+    "test:evaluation": "node --test scripts/evaluation-analysis.test.mjs",
+    "evaluate:psm": "node scripts/analyze-evaluation.mjs",
     "train:nlp": "node backend/scripts/train-nlp-model.js",
     "seed:expo": "node backend/scripts/seed-expo-data.js",
     "check": "npm run lint && node --check backend/server.js && node --check backend/scripts/smoke-test.js && node --check backend/scripts/train-nlp-model.js && npm run build"
@@ -19,11 +26,11 @@
     "@react-three/fiber": "^9.4.0",
     "@tanstack/react-query": "^5.101.3",
     "axios": "^1.7.2",
-    "lucide-react": "^0.395.0",
+    "lucide-react": "^1.61.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-hot-toast": "^2.4.1",
-    "react-router-dom": "^6.23.1",
+    "react-router-dom": "^7.18.4",
     "recharts": "^2.13.3",
     "three": "^0.180.0"
   },

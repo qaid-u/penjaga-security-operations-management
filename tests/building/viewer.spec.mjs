@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { mockOperations } from './operations-fixture.mjs';
+test.beforeEach(async ({ page }) => { await mockOperations(page); });
 const url = '/3d-command-centre';
 const names = ['Pintu Masuk Utama', 'Blok Tengah', 'Sayap Kiri', 'Sayap Kanan', 'Plaza Hadapan', 'Menara Kiri', 'Menara Kanan'];
 async function auth(page, role) {
@@ -15,11 +17,13 @@ test('admin loads model, selects all locations, resets, zooms and toggles marker
   await expect(page.getByRole('button', { name: 'Pilih Pintu Masuk Utama', exact: true })).toBeVisible();
   for (const name of names) {
     await page.getByRole('button', { name: 'Tetap semula' }).click();
-    await page.getByRole('button', { name: `Pilih ${name}`, exact: true }).click();
+    // Occluded markers are intentionally hidden; the normal location list always works.
+    await page.getByRole('button', { name: new RegExp(`0[1-7].*${name}`) }).click();
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: `Pilih ${name}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
   }
-  await expect(page.getByRole('button', { name: 'Lihat Jadual' })).toBeDisabled();
+  await expect(page.getByText(/Tiada rekod operasi dipautkan/)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Lihat Jadual' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Zum masuk', exact: true }).click();
   await page.getByRole('button', { name: 'Zum keluar', exact: true }).click();
   await page.getByRole('button', { name: 'Tetap semula' }).click();
@@ -34,7 +38,7 @@ test('admin loads model, selects all locations, resets, zooms and toggles marker
   await page.mouse.wheel(0, 100);
   await page.getByRole('button', { name: 'Tetap semula' }).click();
   await page.waitForTimeout(1200); // Settle the animated overview before visual inspection.
-  await page.screenshot({ path: 'artifacts/suk/phase2-desktop.png', fullPage: true });
+  await page.screenshot({ path: 'artifacts/suk/phase4-desktop.png', fullPage: true });
   expect(errors).toEqual([]);
 });
 test('chief has access on mobile and can select locations with keyboard', async ({ page }) => {
@@ -44,7 +48,7 @@ test('chief has access on mobile and can select locations with keyboard', async 
   await expect(button).toBeVisible(); await button.focus(); await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Pintu Masuk Utama', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.screenshot({ path: 'artifacts/suk/phase2-mobile.png', fullPage: true });
+  await page.screenshot({ path: 'artifacts/suk/phase4-mobile.png', fullPage: true });
 });
 test('guard is denied without fetching the model and anonymous users reach login', async ({ page }) => {
   const requests = []; page.on('request', (r) => { if (r.url().endsWith('.glb')) requests.push(r.url()); });

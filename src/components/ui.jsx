@@ -169,16 +169,19 @@ function ProtectedAttachment({ path, label, image = false, className = '' }) {
   useEffect(() => {
     let active = true;
     let currentUrl = '';
-    api.get(`/uploads/${encodeURIComponent(filename)}`, { responseType: 'blob' })
+    const controller=new AbortController();
+    api.get(`/uploads/${encodeURIComponent(filename)}`, { responseType: 'blob', signal:controller.signal })
       .then(({ data }) => {
+        if (!active) return;
         currentUrl = URL.createObjectURL(data);
-        if (active) setObjectUrl(currentUrl);
+        setObjectUrl(currentUrl);
       })
       .catch(() => {
         if (active) setFailed(true);
       });
     return () => {
       active = false;
+      controller.abort();
       if (currentUrl) URL.revokeObjectURL(currentUrl);
     };
   }, [filename]);

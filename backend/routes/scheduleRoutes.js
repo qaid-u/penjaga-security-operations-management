@@ -16,9 +16,10 @@ const {
   checkOut,
 } = require('../controllers/scheduleController');
 const { auth, requireRole, roles } = require('../middleware/auth');
-const { scheduleUpload, validateScheduleUpload } = require('../middleware/upload');
+const { scheduleUpload, validateScheduleUpload, cleanupFailedUploads } = require('../middleware/upload');
 
 const router = express.Router();
+router.use(cleanupFailedUploads);
 
 router.get('/mingguan', auth, requireRole(roles.admin, roles.chief), getWeeks);
 router.get('/mingguan/:id', auth, requireRole(roles.admin, roles.chief), getWeek);

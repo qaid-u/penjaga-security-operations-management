@@ -1,5 +1,6 @@
 import { Box3, Vector3 } from 'three';
 import { buildingHotspots } from './buildingHotspots.js';
+import { inspectZones } from './buildingZones.js';
 
 export function inspectBuilding(scene) {
   scene.updateMatrixWorld(true);
@@ -17,7 +18,10 @@ export function inspectBuilding(scene) {
     object.receiveShadow = true;
     if (object.name === 'SUK_Ground') hasGround = true;
   });
-  return { scene, bounds, size, hotspots, hasGround };
+  const zones = inspectZones(scene, hotspots);
+  const occluders = [];
+  scene.traverse((o) => { if (o.isMesh && /^SUK_(Main_Body|Left_Wing|Right_Wing|Left_Tower|Right_Tower|Rear_Hall)$/.test(o.name)) occluders.push({ current: o }); });
+  return { scene, bounds, size, hotspots, hasGround, zones, occluders };
 }
 
 export function overviewPose(bounds, aspect = 1) {
@@ -29,12 +33,21 @@ export function overviewPose(bounds, aspect = 1) {
   return { target, position: target.clone().add(new Vector3(.75, .65, 1).normalize().multiplyScalar(distance)) };
 }
 
-export function focusPose(position, bounds) {
+export function focusPose(position, bounds, aspect = 1) {
   const target = new Vector3(...position);
   const span = bounds.getSize(new Vector3()).x;
   // Every current anchor is on the front exterior. Approach from +Z (glTF),
   // beyond the entire site's bounding box, rather than crossing a roof.
-  return { target, position: new Vector3(target.x, Math.max(target.y + span * .18, bounds.max.y + 8), bounds.max.z + span * .22) };
+  const camera = new Vector3(target.x, Math.max(target.y + span * .18, bounds.max.y + 8), bounds.max.z + span * .22);
+  if (aspect < 1) camera.sub(target).multiplyScalar(Math.min(1.8, 1 / aspect)).add(target);
+  return { target, position: camera };
+}
+
+export function presetPose(bounds, aspect, preset) {
+  const pose = overviewPose(bounds, aspect);
+  const direction = { front: [0,.2,1], left: [-1,.4,.3], right: [1,.4,.3], top: [0,1,.01] }[preset];
+  if (direction) pose.position.copy(pose.target).add(new Vector3(...direction).normalize().multiplyScalar(overviewPose(bounds, aspect).position.distanceTo(pose.target)));
+  return pose;
 }
 
 export function disposeModel(scene) {

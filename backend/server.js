@@ -8,10 +8,11 @@ const pool = require('./config/db');
 
 // Production environment validation
 if (process.env.NODE_ENV === 'production') {
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 || /penjaga|change-this/i.test(process.env.JWT_SECRET)) {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 || /penjaga|change-this|replace-|your[_-]|example/i.test(process.env.JWT_SECRET)) {
     console.error('FATAL: In production, JWT_SECRET must be a unique secret of at least 32 characters.');
     process.exit(1);
   }
+  if (!process.env.FRONTEND_URL?.trim()) { console.error('FATAL: FRONTEND_URL must explicitly list the production frontend origins.'); process.exit(1); }
 }
 
 const sysRoutes = require('./routes/sysRoutes');
@@ -45,14 +46,15 @@ app.use(cors({
     if (process.env.NODE_ENV !== 'production' || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    return callback(Object.assign(new Error('Origin tidak dibenarkan'),{status:403}));
   },
   credentials: true,
 }));
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.set('trust proxy', 1);
+// Trust forwarded client IPs only behind an explicitly configured proxy boundary.
+app.set('trust proxy', process.env.TRUST_PROXY === '1' ? 1 : false);
 
 const uploadDir = path.join(__dirname, 'uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -74,8 +76,9 @@ app.use('/api/3d', require('./routes/threeDRoutes'));
 const { auth, requireRole, roles } = require('./middleware/auth');
 
 app.get('/api/users', auth, requireRole(roles.admin), async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       `select p.id_pengguna, p.id_peranan, p.nama_penuh, p.no_kad_pengenalan,
               p.no_telefon, p.emel, p.nama_pengguna, p.status_akaun, p.tarikh_dicipta,
@@ -85,18 +88,19 @@ app.get('/api/users', auth, requireRole(roles.admin), async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Get users error:', error);
+    console.error('Get users error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan pengguna' });
-  } finally { client.release(); }
+  } finally { client?.release(); }
 });
 
 app.post('/api/users', auth, requireRole(roles.admin), async (req, res) => {
   const { id_peranan, nama_penuh, nama_pengguna, emel, no_telefon, kata_laluan } = req.body;
-  if (!id_peranan || !nama_penuh?.trim() || !nama_pengguna?.trim() || !emel?.trim() || !kata_laluan || kata_laluan.length < 10) {
+  if (!id_peranan || typeof nama_penuh !== 'string' || typeof nama_pengguna !== 'string' || typeof emel !== 'string' || typeof kata_laluan !== 'string' || !nama_penuh.trim() || !nama_pengguna.trim() || !emel.trim() || kata_laluan.length < 10) {
     return res.status(400).json({ message: 'Maklumat pengguna tidak lengkap atau kata laluan kurang daripada 10 aksara' });
   }
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const hash = await require('bcrypt').hash(kata_laluan, 10);
     const result = await client.query(
       `insert into tbl_pengguna (id_peranan, nama_penuh, nama_pengguna, emel, no_telefon, kata_laluan)
@@ -107,9 +111,9 @@ app.post('/api/users', auth, requireRole(roles.admin), async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     if (error.code === '23505') return res.status(409).json({ message: 'Nama pengguna atau e-mel telah digunakan' });
-    console.error('Create user error:', error);
+    console.error('Create user error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal menambah pengguna' });
-  } finally { client.release(); }
+  } finally { client?.release(); }
 });
 
 app.patch('/api/users/:id', auth, requireRole(roles.admin), async (req, res) => {
@@ -117,8 +121,9 @@ app.patch('/api/users/:id', auth, requireRole(roles.admin), async (req, res) => 
   if (status_akaun !== undefined && !['Aktif', 'Tidak Aktif'].includes(status_akaun)) {
     return res.status(400).json({ message: 'Status akaun tidak sah' });
   }
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       `update tbl_pengguna
        set id_peranan = coalesce($1, id_peranan), status_akaun = coalesce($2, status_akaun), tarikh_kemaskini = now()
@@ -129,50 +134,53 @@ app.patch('/api/users/:id', auth, requireRole(roles.admin), async (req, res) => 
     if (!result.rowCount) return res.status(404).json({ message: 'Pengguna tidak ditemui' });
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Update user error:', error);
+    console.error('Update user error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal mengemas kini pengguna' });
-  } finally { client.release(); }
+  } finally { client?.release(); }
 });
 
 app.get('/api/posts', auth, requireRole(roles.admin), async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query('select * from tbl_pos_kawalan order by nama_pos');
     res.json(result.rows);
   } catch (error) {
-    console.error('Get posts error:', error);
+    console.error('Get posts error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan pos kawalan' });
-  } finally { client.release(); }
+  } finally { client?.release(); }
 });
 
 app.post('/api/posts', auth, requireRole(roles.admin), async (req, res) => {
   const { nama_pos, nama_bangunan, lokasi, waktu_operasi } = req.body;
-  if (!nama_pos?.trim()) return res.status(400).json({ message: 'Nama pos diperlukan' });
-  const client = await pool.connect();
+  if (typeof nama_pos !== 'string' || !nama_pos.trim()) return res.status(400).json({ message: 'Nama pos diperlukan' });
+  let client;
   try {
+    client = await pool.connect();
     await client.query(
       `insert into tbl_pos_kawalan (nama_pos, nama_bangunan, lokasi, waktu_operasi) values ($1, $2, $3, $4)`,
       [nama_pos, nama_bangunan, lokasi, waktu_operasi]
     );
     res.json({ message: 'Pos ditambah' });
   } catch (error) {
-    console.error('Create post error:', error);
+    console.error('Create post error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal menambah pos kawalan' });
-  } finally { client.release(); }
+  } finally { client?.release(); }
 });
 
 app.patch('/api/posts/:id', auth, requireRole(roles.admin), async (req, res) => {
   const { status_pos } = req.body;
   if (!['Aktif', 'Tidak Aktif'].includes(status_pos)) return res.status(400).json({ message: 'Status pos tidak sah' });
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query('update tbl_pos_kawalan set status_pos = $1 where id_pos = $2 returning id_pos', [status_pos, req.params.id]);
     if (!result.rowCount) return res.status(404).json({ message: 'Pos kawalan tidak ditemui' });
     res.json({ message: 'Dikemas kini' });
   } catch (error) {
-    console.error('Update post error:', error);
+    console.error('Update post error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal mengemas kini pos kawalan' });
-  } finally { client.release(); }
+  } finally { client?.release(); }
 });
 
 app.get('/uploads/:filename', auth, async (req, res) => {
@@ -181,34 +189,40 @@ app.get('/uploads/:filename', auth, async (req, res) => {
     return res.status(404).json({ message: 'Fail tidak ditemui' });
   }
   const attachmentPath = `/uploads/${filename}`;
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
-      `select exists (
-         select 1 from tbl_laporan_harian l
+      `select lampiran_fail as reference from tbl_laporan_harian l
          where position($1 in coalesce(l.lampiran_fail, '')) > 0
            and ($2 in ($3, $4) or l.id_pengguna = $5)
          union all
-         select 1 from tbl_progress_tindakan progress
+         select progress.lampiran_fail as reference from tbl_progress_tindakan progress
          join tbl_tindakan_susulan action on action.id_tindakan = progress.id_tindakan
          join tbl_laporan_harian l on l.id_laporan = action.id_laporan
          where position($1 in coalesce(progress.lampiran_fail, '')) > 0
            and ($2 in ($3, $4) or l.id_pengguna = $5)
          union all
-         select 1 from tbl_fail_jadual file
+         select file.path_fail as reference from tbl_fail_jadual file
          where file.path_fail = $1 and $2 in ($3, $4)
-       ) as allowed`,
+       `,
       [attachmentPath, req.user.nama_peranan, roles.admin, roles.chief, req.user.id_pengguna]
     );
-    if (!result.rows[0].allowed) return res.status(404).json({ message: 'Fail tidak ditemui' });
+    if (!result.rows.some((row) => require('./utils/attachments').referencesAttachment(row.reference, attachmentPath))) return res.status(404).json({ message: 'Fail tidak ditemui' });
     const fullPath = path.join(uploadDir, filename);
     if (!fs.existsSync(fullPath)) return res.status(404).json({ message: 'Fail tidak ditemui' });
-    res.sendFile(fullPath);
+    const handle=await fs.promises.open(fullPath,'r');
+    const header=Buffer.alloc(12);
+    try { await handle.read(header,0,12,0); } finally { await handle.close(); }
+    // Blob previews retain Content-Type; an uploaded filename must never select HTML MIME.
+    res.type(require('./utils/attachments').evidenceMime(header));
+    res.set('Cache-Control','private, no-store');
+    res.download(fullPath, filename);
   } catch (error) {
-    console.error('Serve protected upload error:', error);
+    console.error('Serve protected upload error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuat turun fail' });
   } finally {
-    client.release();
+    client?.release();
   }
 });
 
@@ -216,8 +230,10 @@ app.use((req, res) => res.status(404).json({ message: 'Laluan tidak wujud' }));
 
 // Centralized error handling middleware
 app.use((err, req, res, _next) => {
-  console.error('[PENJAGA Server Error]', err);
+  console.error('[PENJAGA Server Error]', err.code || err.name);
   const status = err.status || err.statusCode || 500;
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ message: 'Format JSON tidak sah' });
+  if (err.name === 'MulterError') return res.status(err.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ message: 'Lampiran melebihi had saiz atau bilangan yang dibenarkan' });
   const message = process.env.NODE_ENV === 'production' && status === 500
     ? 'Ralat pelayan dalaman berlaku'
     : (err.message || 'Ralat pelayan');

@@ -1,9 +1,10 @@
 const express = require('express');
 const { getActions, createAction, updateAction, addProgress, requestUpdate } = require('../controllers/actionController');
 const { auth, requireRole, roles } = require('../middleware/auth');
-const { upload, validateEvidenceUploads } = require('../middleware/upload');
+const { upload, validateEvidenceUploads, cleanupFailedUploads } = require('../middleware/upload');
 
 const router = express.Router();
+router.use(cleanupFailedUploads);
 
 router.get('/', auth, requireRole(roles.admin, roles.chief), getActions);
 router.post('/', auth, requireRole(roles.admin), createAction);

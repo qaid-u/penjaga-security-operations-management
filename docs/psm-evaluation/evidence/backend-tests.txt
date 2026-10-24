@@ -1,0 +1,56 @@
+[PENJAGA Server Error] Error
+Penjaga API Server running on port 0
+✔ attachment references must match whole stored paths, including legacy scalar records (0.6948ms)
+✔ production DB TLS verifies certificates even with sslmode=require and connections are bounded (0.2839ms)
+✔ production-mode CORS and security headers enforce explicit origin configuration (713.7324ms)
+▶ Phase 5 security and legacy data regressions on separate synthetic database
+  ✔ S01 direct management APIs reject missing, expired, forged and guard tokens (89.8378ms)
+[PENJAGA Server Error] SyntaxError
+  ✔ S02 unexpected filters, malformed JSON and oversized pagination fail safely (49.9889ms)
+  ✔ S03 report review, mapping and action writes retain role restrictions (28.8875ms)
+  ✔ D02 legacy report/action/dashboard queries select latest NLP once per report (85.0324ms)
+  ✔ S04 protected evidence uses exact ownership references and safe download headers (38.8363ms)
+[PENJAGA Server Error] Error
+[PENJAGA Server Error] LIMIT_FILE_SIZE
+  ✔ S06 multipart validation and rejected-file cleanup work with the upgraded upload parser (190.0684ms)
+Login error: Error
+Get dashboard error: Error
+Get reports error: Error
+Get actions error: Error
+Get metadata error: Error
+Get posts error: Error
+Get schedule weeks error: Error
+  ✔ R03 connection failures return controlled errors rather than unhandled rejections (13.8591ms)
+  ✔ S05 disabled accounts cannot use a still-valid JWT (4.263ms)
+✔ Phase 5 security and legacy data regressions on separate synthetic database (714.2762ms)
+✔ input validation rejects invalid dates, ranges and SQL-shaped IDs (22.6978ms)
+▶ PostgreSQL integration and actual JWT/role middleware in a rolled-back schema
+  ✔ retrieves seven unlinked locations without fabricated operations (2.4246ms)
+  ✔ maps an eligible post, records audit and preserves mapping on repeated migration (6.4954ms)
+  ✔ overnight overlap, midnight boundary, draft/confirmed and attendance semantics (8.9682ms)
+  ✔ latest NLP only, correct post/date filters, unknown classification and minimal report fields (7.0454ms)
+  ✔ follow-up counts are independent of progress count and preserve official status (7.1705ms)
+  ✔ overview de-duplicates a post linked to multiple locations (5.1106ms)
+  ✔ missing location, invalid mapping and inactive post are rejected (3.122ms)
+  ✔ empty operational period returns true zero counts (5.5239ms)
+  ✔ Phase 4 history includes unmapped posts, paginates deterministically and never duplicates reports for mappings (9.2643ms)
+  ✔ Phase 4 filters agree between overview, history and selected summary (33.4097ms)
+  ✔ Phase 4 zone, post and mapping intersection filters have no invented locations (17.8613ms)
+  ✔ Phase 4 reference data uses stored categories and server Kuala Lumpur date (2.0379ms)
+  ✔ Phase 4 safely rejects malformed filters and pagination (3.9417ms)
+  ✔ unauthenticated and guard requests are denied on all endpoints (85.6776ms)
+  ✔ chief reads are authorized but mapping writes are denied (37.5848ms)
+  ✔ Phase 4 API rejects expired JWT and invalid query filters (11.9259ms)
+  ✔ admin can unlink and operational responses prohibit HTTP caching (10.1258ms)
+  ✔ API rejects SQL-shaped IDs and invalid ranges with 400; unknown IDs give 404 (9.6585ms)
+3D API error: ECONNREFUSED
+  ✔ failed database connection is handled without exposing SQL or credentials (3.2742ms)
+✔ PostgreSQL integration and actual JWT/role middleware in a rolled-back schema (770.3287ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1651.2664

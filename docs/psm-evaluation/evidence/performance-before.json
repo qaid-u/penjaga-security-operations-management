@@ -1,0 +1,163 @@
+{
+  "label": "before",
+  "measured_at": "2026-10-24T14:49:18.247Z",
+  "conditions": {
+    "browser": "Edge Chromium headless",
+    "renderer": "SwiftShader software WebGL",
+    "network": "localhost without throttling",
+    "frame_counter": "default framebuffer color clears; offscreen shadow passes excluded",
+    "node": "v24.15.0",
+    "platform": "win32",
+    "cpu": "12th Gen Intel(R) Core(TM) i7-12650H",
+    "logical_cpus": 16
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "route_to_model_ready_ms": 4320.930899999999,
+      "glb_resources": [
+        {
+          "duration_ms": 17.5,
+          "transfer_bytes": 0,
+          "decoded_bytes": 0,
+          "response_end": 2565.399999976158
+        },
+        {
+          "duration_ms": 40.299999952316284,
+          "transfer_bytes": 300,
+          "decoded_bytes": 2537652,
+          "response_end": 2595.1999999284744
+        }
+      ],
+      "download_to_ready_upper_bound_ms": 1727.7000000476837,
+      "orbit": {
+        "duration_ms": 8139.700000047684,
+        "rendered_frames": 81,
+        "draw_calls": 31104,
+        "rendered_fps": 9.951226703628572
+      },
+      "animation": {
+        "duration_ms": 1789.8999999761581,
+        "rendered_frames": 13,
+        "draw_calls": 4866,
+        "rendered_fps": 7.262569832402234
+      },
+      "selection_to_data_panel_ms": 628.5511000000006
+    },
+    {
+      "name": "mobile-emulated",
+      "width": 390,
+      "height": 844,
+      "route_to_model_ready_ms": 2035.6818999999996,
+      "glb_resources": [
+        {
+          "duration_ms": 11.199999928474426,
+          "transfer_bytes": 0,
+          "decoded_bytes": 0,
+          "response_end": 1472.1000000238419
+        },
+        {
+          "duration_ms": 100.39999997615814,
+          "transfer_bytes": 300,
+          "decoded_bytes": 2537652,
+          "response_end": 1566.8000000715256
+        }
+      ],
+      "download_to_ready_upper_bound_ms": 450.1999999284744,
+      "orbit": {
+        "duration_ms": 7295.099999904633,
+        "rendered_frames": 79,
+        "draw_calls": 30336,
+        "rendered_fps": 10.828889833251047
+      },
+      "animation": {
+        "duration_ms": 2416.100000023842,
+        "rendered_frames": 19,
+        "draw_calls": 6927,
+        "rendered_fps": 7.863912917434091
+      },
+      "selection_to_data_panel_ms": 1978.3872999999985
+    }
+  ],
+  "api": {
+    "/3d/overview?date=2026-10-24&from=2026-09-25&to=2026-10-24&mapping=all": {
+      "samples": [
+        63.332000000002154,
+        70.33520000000135,
+        32.96979999999894,
+        29.893499999998312,
+        24.054599999995844,
+        24.52479999999923,
+        25.63470000000234
+      ],
+      "median_ms": 29.893499999998312,
+      "min_ms": 24.054599999995844,
+      "max_ms": 70.33520000000135
+    },
+    "/3d/locations/1/summary?date=2026-10-24&from=2026-09-25&to=2026-10-24&mapping=all": {
+      "samples": [
+        37.47529999999824,
+        41.97869999999966,
+        40.05319999999483,
+        31.346199999999953,
+        30.18819999999687,
+        34.568299999999,
+        33.713199999998324
+      ],
+      "median_ms": 34.568299999999,
+      "min_ms": 30.18819999999687,
+      "max_ms": 41.97869999999966
+    },
+    "/3d/incidents?from=2026-09-25&to=2026-10-24&mapping=all": {
+      "samples": [
+        42.170899999997346,
+        35.89299999999639,
+        31.069600000002538,
+        31.225800000000163,
+        26.065300000002026,
+        31.80000000000291,
+        32.977099999996426
+      ],
+      "median_ms": 31.80000000000291,
+      "min_ms": 26.065300000002026,
+      "max_ms": 42.170899999997346
+    },
+    "/dashboard": {
+      "samples": [
+        33.69470000000001,
+        23.188399999999092,
+        20.606299999999464,
+        17.989500000003318,
+        19.50250000000233,
+        27.096300000004703,
+        20.432999999997264
+      ],
+      "median_ms": 20.606299999999464,
+      "min_ms": 17.989500000003318,
+      "max_ms": 33.69470000000001
+    }
+  },
+  "repeated_navigation": {
+    "cycles": 4,
+    "additional_completed_glb_requests": 4,
+    "js_heap_before_bytes": 47281576,
+    "js_heap_after_bytes": 50654680,
+    "js_heap_delta_bytes": 3373104
+  },
+  "asset": {
+    "bytes": 2537652,
+    "meshes": 192,
+    "triangles": 57310,
+    "distinct_materials": 13,
+    "node_parse_median_ms": 29.84100000000035,
+    "node_parse_samples_ms": [
+      56.82690000000002,
+      25.195200000001932,
+      34.34599999999773,
+      29.84100000000035,
+      20.95270000000164
+    ]
+  }
+}

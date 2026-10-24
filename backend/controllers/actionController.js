@@ -2,20 +2,21 @@ const pool = require('../config/db');
 const { logAudit } = require('../utils/audit');
 
 const getActions = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
-    const [actions, progress] = await Promise.all([
-      client.query(
+    client = await pool.connect();
+    const [actions, progress] = [
+      await client.query(
         `select a.*, l.tajuk_laporan, l.tarikh_laporan, l.id_pengguna,
                 p.nama_penuh, pos.nama_pos, n.kategori_dikesan, n.tahap_risiko
          from tbl_tindakan_susulan a
          join tbl_laporan_harian l on l.id_laporan = a.id_laporan
          join tbl_pengguna p on p.id_pengguna = l.id_pengguna
          join tbl_pos_kawalan pos on pos.id_pos = l.id_pos
-         left join tbl_hasil_nlp n on n.id_laporan = l.id_laporan
+         left join lateral (select * from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) n on true
          order by a.tarikh_mula desc, a.id_tindakan desc`
       ),
-      client.query(
+      await client.query(
         `select pr.*, u.nama_penuh, r.nama_peranan,
                 pr.catatan_progress, pr.lampiran_fail, pr.tarikh_progress
          from tbl_progress_tindakan pr
@@ -23,46 +24,47 @@ const getActions = async (req, res) => {
          join tbl_peranan r on r.id_peranan = u.id_peranan
          order by pr.tarikh_progress`
       ),
-    ]);
+    ];
     res.json(actions.rows.map((action) => ({
       ...action,
       progress_notes: progress.rows.filter((note) => note.id_tindakan === action.id_tindakan),
     })));
   } catch (error) {
-    console.error('Get actions error:', error);
+    console.error('Get actions error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan tindakan susulan' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
 const createAction = async (req, res) => {
   const { id_laporan, pegawai_bertanggungjawab, tindakan_diambil, tahap_keutamaan, tarikh_mula, catatan_tindakan } = req.body;
-  if (!id_laporan || !pegawai_bertanggungjawab?.trim() || !tindakan_diambil?.trim()) {
+  if (!id_laporan || typeof pegawai_bertanggungjawab !== 'string' || typeof tindakan_diambil !== 'string' || !pegawai_bertanggungjawab.trim() || !tindakan_diambil.trim()) {
     return res.status(400).json({ message: 'Laporan, pegawai bertanggungjawab dan tindakan diambil diperlukan' });
   }
   if (tahap_keutamaan && !['Low', 'Medium', 'High', 'Critical'].includes(tahap_keutamaan)) {
     return res.status(400).json({ message: 'Tahap keutamaan tidak sah' });
   }
 
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query('begin');
     const report = await client.query(
       'select status_laporan from tbl_laporan_harian where id_laporan = $1 for update',
       [id_laporan]
     );
     if (!report.rowCount) {
-      await client.query('rollback');
+      if (client) await client.query('rollback');
       return res.status(404).json({ message: 'Laporan tidak ditemui' });
     }
     if (report.rows[0].status_laporan !== 'Diluluskan') {
-      await client.query('rollback');
+      if (client) await client.query('rollback');
       return res.status(409).json({ message: 'Tindakan hanya boleh dibuat untuk laporan yang diluluskan' });
     }
     const existing = await client.query('select 1 from tbl_tindakan_susulan where id_laporan = $1', [id_laporan]);
     if (existing.rowCount) {
-      await client.query('rollback');
+      if (client) await client.query('rollback');
       return res.status(409).json({ message: 'Laporan ini sudah mempunyai tindakan susulan' });
     }
     const result = await client.query(
@@ -83,11 +85,11 @@ const createAction = async (req, res) => {
     await client.query('commit');
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    await client.query('rollback');
-    console.error('Create action error:', error);
+    if (client) await client.query('rollback');
+    console.error('Create action error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal mencipta tindakan susulan' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
@@ -97,8 +99,9 @@ const updateAction = async (req, res) => {
   if (!validStatuses.includes(status_tindakan)) {
     return res.status(400).json({ message: 'Status tindakan tidak sah' });
   }
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       `update tbl_tindakan_susulan
        set status_tindakan = $1,
@@ -112,19 +115,20 @@ const updateAction = async (req, res) => {
     await logAudit(client, req.user.id_pengguna, 'UPDATE_ACTION', `Tindakan #${req.params.id}`, `Status: ${status_tindakan}`);
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Update action error:', error);
+    console.error('Update action error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal mengemas kini tindakan' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
 const saveProgress = async (req, res, type) => {
   const { catatan_progress } = req.body;
-  if (!catatan_progress?.trim()) return res.status(400).json({ message: 'Catatan progress diperlukan' });
+  if (typeof catatan_progress !== 'string' || !catatan_progress.trim()) return res.status(400).json({ message: 'Catatan progress diperlukan' });
   const uploads = req.files || [];
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       `insert into tbl_progress_tindakan
          (id_tindakan, id_pengguna, catatan_progress, jenis_progress, perlu_respon_ketua, lampiran_fail)
@@ -144,14 +148,14 @@ const saveProgress = async (req, res, type) => {
     await logAudit(client, req.user.id_pengguna, type === 'Permintaan Admin' ? 'REQUEST_ACTION_UPDATE' : 'ADD_ACTION_PROGRESS', `Tindakan #${req.params.id}`, type);
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Save action progress error:', error);
+    console.error('Save action progress error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal menyimpan progress tindakan' });
   } finally {
-    client.release();
+    client?.release();
   }
 };
 
 const addProgress = (req, res) => saveProgress(req, res, 'Kemaskini Ketua');
 const requestUpdate = (req, res) => saveProgress(req, res, 'Permintaan Admin');
 
-module.exports = { getActions, createAction, updateAction, addProgress, requestUpdate };
+module.exports = require('../utils/asyncHandlers')({ getActions, createAction, updateAction, addProgress, requestUpdate });

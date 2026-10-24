@@ -38,7 +38,7 @@ export function Shell({ auth, children }) {
             <span className="brand-mark flex h-10 w-10 items-center justify-center rounded-xl"><Shield size={20} /></span>
             <span><span className="block text-white">PENJAGA</span><span className="block text-[11px] font-normal text-white/60">Operasi Keselamatan</span></span>
           </div>
-          <button className="lg:hidden" onClick={() => setOpen(false)}><X size={20} /></button>
+          <button className="lg:hidden min-h-11 min-w-11 flex items-center justify-center" aria-label="Tutup menu" onClick={() => setOpen(false)}><X size={20} /></button>
         </div>
         <nav className="space-y-1 p-3">
           {nav.map((item) => {
