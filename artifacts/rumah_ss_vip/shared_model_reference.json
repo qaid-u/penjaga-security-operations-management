@@ -1,0 +1,20 @@
+{
+  "shared_model_id": "JOHOR_SS_VIP_RESIDENCE",
+  "confirmed_on": "2026-10-25",
+  "geometry_source": "Rumah_SS_VIP_Shared_Exterior.glb",
+  "editable_source": "Rumah_SS_VIP_Shared_Exterior.blend",
+  "source_manifest": "model_manifest.json",
+  "identities": [
+    {
+      "building_id": "RUMAH_SS",
+      "building": "Kediaman Rasmi Setiausaha Kerajaan Johor",
+      "post": "Pos Rumah SS"
+    },
+    {
+      "building_id": "RUMAH_VIP",
+      "building": "Rumah VIP Setiausaha Kerajaan Johor",
+      "post": "Pos Rumah VIP"
+    }
+  ],
+  "scope": "One user-requested shared exterior geometry asset; separate building/post identities. No operational positions inferred."
+}

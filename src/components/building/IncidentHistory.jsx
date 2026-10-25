@@ -30,7 +30,7 @@ export function IncidentHistory({ query, page, setPage, onLocate, zone }) {
       {selected && <div ref={detailRef} tabIndex={-1} className="rounded-xl border border-amber-400 p-4 space-y-2" aria-label="Butiran laporan dipilih">
         <h3>{selected.tajuk_laporan}</h3><p>{selected.nama_pos} · {selected.tahap_risiko} · {selected.status_laporan}</p>
         <p className="text-sm">{selected.open_actions} tindakan terbuka · {selected.completed_actions} selesai. Status tindakan: {selected.action_statuses?.join(', ') || 'Tiada'}. Metadata sahaja; naratif dan bukti melalui modul laporan.</p>
-        {selected.locations.length ? <div className="flex flex-wrap gap-2">{selected.locations.filter((l) => !zone || l.hotspot_id === zone).map((l) => <Button key={l.id_lokasi} variant="ghost" onClick={() => onLocate(l.hotspot_id)}>Fokus {l.nama_paparan}</Button>)}</div> : <p>Pos ini tiada pautan 3D. Tiada kedudukan bangunan diandaikan.</p>}
+        {selected.locations.length ? <div className="flex flex-wrap gap-2">{selected.locations.filter((l) => !zone || l.hotspot_id === zone).map((l) => <Button key={l.id_lokasi} variant="ghost" onClick={() => onLocate(l.hotspot_id)}>Lihat pos {l.nama_paparan}</Button>)}</div> : <p>Pos ini tiada pautan 3D. Tiada kedudukan bangunan diandaikan.</p>}
         {selected.locations.length > 1 && <p className="text-xs">Pos dipautkan ke beberapa zon; pilih zon yang ingin dilihat. Lokasi kejadian tepat tidak direkodkan.</p>}
         <Link className="inline-block rounded-lg border p-3 app-button-ghost" to="/semakan">Buka modul laporan</Link><p className="text-xs">Cari laporan #{selected.id_laporan} / tajuk di modul laporan. Pautan membuka senarai umum.</p>
       </div>}

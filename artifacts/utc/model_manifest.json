@@ -1,0 +1,77 @@
+{
+  "building": "Kaunter UTC Pejabat Setiausaha Kerajaan Johor",
+  "building_id": "UTC_JOHOR",
+  "post": "Pos UTC",
+  "exterior_context": "UTC Johor / Galleria @ Kotaraya corner complex",
+  "counter_position": null,
+  "revision": "20261025-photo-study-v1",
+  "scene": "UTC_Johor_Exterior_Study",
+  "blend_file": "UTC_Johor_Exterior.blend",
+  "glb_file": "UTC_Johor_Exterior.glb",
+  "mesh_objects": 170,
+  "source_triangles": 58930,
+  "glb_triangles": 58930,
+  "materials": 38,
+  "glb_nodes": 180,
+  "glb_bytes": 2895524,
+  "bounds_blender": {
+    "min": [
+      -86.0,
+      -77.0,
+      -1.2999999523162842
+    ],
+    "max": [
+      86.0,
+      89.0,
+      62.849998474121094
+    ]
+  },
+  "standalone_scenes": [
+    "UTC_Johor_Exterior_Study"
+  ],
+  "references": [
+    "codex-clipboard-668d7e60-029b-4e63-baca-a49d5b2cbbaf.png",
+    "codex-clipboard-867dbd19-2396-4df4-9644-d494162c7145.png",
+    "codex-clipboard-0e8dbe37-b19f-490f-bf1e-43ac823ae3d4.png",
+    "codex-clipboard-b7254b9f-d98a-4a94-ae1a-afb8b15bd1e0.png",
+    "codex-clipboard-9cd4ab94-4b01-403a-81f1-30ae9254075a.png",
+    "codex-clipboard-73c4f990-528f-4dd9-b066-826ac8e1b8d5.png",
+    "codex-clipboard-5d05962a-c23f-4428-b9ba-1cf835e392b0.png"
+  ],
+  "features": [
+    "Stepped white tower with ribbon windows and arched stone portico",
+    "Blue/red UTC podium, upper fins, horizontal louvres and sign panel near the tower",
+    "Extruded UTC JOHOR and Galleria lettering",
+    "Seven silver billowing facade panels and pale folded roof strips",
+    "Coral feature portal and red return gateway",
+    "Retail glazing and mezzanine bands",
+    "Deep steel entrance canopy with triangular trusses and a lighter slatted walkway",
+    "Short rooftop service drum, schematic plant, two streets, paving, parking and planting"
+  ],
+  "checks": [
+    "One isolated UTC scene",
+    "UTC-prefixed nodes only",
+    "Finite vertices and bounds",
+    "Valid glTF 2 header and length",
+    "Presentation camera/sun excluded",
+    "No external textures",
+    "No counter interior or post coordinates inferred"
+  ],
+  "limitations": [
+    "Scale, window bands, roof junctions, rear elevations and site extents interpreted, not surveyed",
+    "Window bands are visual facade divisions, not confirmed floor numbers",
+    "Most glazing uses layered facade geometry; portico arch openings are open",
+    "Logo lettering is simplified using converted local font geometry; retail artwork is omitted",
+    "Planting, rooftop plant, parking and ramps are schematic exterior features",
+    "No interior counter plan, operational routes, room allocation or security-post coordinates"
+  ],
+  "preview_files": [
+    "UTC_exterior_preview.png",
+    "UTC_street_preview.png",
+    "UTC_tower_preview.png",
+    "UTC_mall_preview.png",
+    "UTC_corner_preview.png",
+    "UTC_plan_preview.png"
+  ],
+  "previous_session_backup": "backups/Before_UTC_Creation_20261025.blend"
+}

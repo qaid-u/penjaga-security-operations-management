@@ -18,6 +18,17 @@ const locations = [
 ];
 const run = text => analyzeText({ text, categories, locations, model });
 
+test('official DJM post names are recognized as records without inferring spatial coordinates', () => {
+  const { catalogue } = require('../services/securityPostCatalogue');
+  const official = catalogue.posts.map((post,i) => ({id_lokasi:100+i,hotspot_id:post.id,nama_paparan:post.name,id_pos:i+1}));
+  for (const location of official) {
+    const found = extractLocations(`Rondaan selesai di ${location.nama_paparan}.`, official);
+    assert.equal(found.length,1); assert.equal(found[0].hotspot_id,location.hotspot_id); assert.equal(found[0].id_pos,location.id_pos);
+    assert.equal(found[0].position,undefined);
+  }
+  assert.deepEqual(extractLocations('Rondaan di tingkat 4.',official),[]);
+});
+
 test('saved model and runtime share a validated count format and preprocessing version', () => {
   assert.equal(validateModel(model), true);
   assert.equal(model.weights, undefined);

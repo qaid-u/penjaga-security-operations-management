@@ -1,0 +1,13 @@
+{
+  "building": "Bangunan Dato’ Jaafar Muhammad",
+  "site": "Kota Iskandar",
+  "posts": [
+    { "id": "POST_DJM_MAIN_LOBBY", "name": "Pos Lobi Utama", "floor": null, "section": "Lobi utama" },
+    { "id": "POST_DJM_CCTV_CONTROL", "name": "Pos Bilik Kawalan CCTV", "floor": null, "section": "Bilik kawalan CCTV" },
+    { "id": "POST_DJM_SS_LEVEL_3", "name": "Pos Tingkat 3 Pejabat Setiausaha Kerajaan Johor", "floor": "Tingkat 3", "section": "Pejabat Setiausaha Kerajaan Johor" },
+    { "id": "POST_DJM_MB_LEVEL_4_FRONT", "name": "Pos Tingkat 4 Hadapan Pejabat Menteri Besar Johor", "floor": "Tingkat 4", "section": "Hadapan Pejabat Menteri Besar Johor" },
+    { "id": "POST_DJM_MB_LEVEL_4_REAR", "name": "Pos Tingkat 4 Belakang Pejabat Menteri Besar Johor", "floor": "Tingkat 4", "section": "Belakang Pejabat Menteri Besar Johor" },
+    { "id": "POST_DJM_SS_LG_LIFT", "name": "Pos Lif LG Pejabat Setiausaha Kerajaan Johor", "floor": "LG", "section": "Lif Pejabat Setiausaha Kerajaan Johor" },
+    { "id": "POST_DJM_MB_LG_LIFT", "name": "Pos Lif LG Pejabat Menteri Besar Johor", "floor": "LG", "section": "Lif Pejabat Menteri Besar Johor" }
+  ]
+}

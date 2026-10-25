@@ -14,8 +14,9 @@ async function main() {
     await client.query("set local statement_timeout = '60s'");
     await client.query('select pg_advisory_xact_lock(730003)');
     await client.query(await fs.readFile(path.join(__dirname, '../database/migrations/003_lokasi_3d.sql'), 'utf8'));
+    await client.query(await fs.readFile(path.join(__dirname, '../database/migrations/005_djm_security_posts.sql'), 'utf8'));
     await client.query('commit');
-    console.log('Phase 3 additive migration complete. Existing mappings preserved.');
+    console.log('Official DJM post migration complete. Seven posts configured; existing record links and inactive exterior history preserved.');
   } catch (error) {
     await client.query('rollback');
     throw error;

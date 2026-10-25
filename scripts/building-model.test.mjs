@@ -7,28 +7,66 @@ import { Group, Vector3, Raycaster } from 'three';
 import { inspectBuilding, focusPose, overviewPose, presetPose, disposeModel } from '../src/components/building/modelGeometry.js';
 import { klDay, dateRange } from '../src/components/building/operationalFilters.js';
 import { indicator } from '../src/components/building/operationalIndicators.js';
+import { matchingOfficialPost, buildingIdentity } from '../src/components/building/buildingHotspots.js';
 
 const bytes = await readFile(new URL('../public/models/Bangunan_SUK.glb', import.meta.url));
 const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 const { scene } = await new GLTFLoader().parseAsync(buffer, '');
 const data = inspectBuilding(scene);
+const manifest = JSON.parse(await readFile(new URL('../artifacts/suk/model_manifest.json', import.meta.url), 'utf8'));
+const backendCatalogue = JSON.parse(await readFile(new URL('../backend/config/djmSecurityPosts.json', import.meta.url), 'utf8'));
 
-test('approved public asset exactly preserves the original export', async () => {
+test('seven official posts retain stated floor labels without reusing exterior coordinates', () => {
+  assert.deepEqual(buildingIdentity, backendCatalogue);
+  assert.equal(data.hotspots.length, 7);
+  assert.deepEqual(data.hotspots.map(p => p.floor), [null,null,'Tingkat 3','Tingkat 4','Tingkat 4','LG','LG']);
+  assert.ok(data.hotspots.every(p => p.position === null && p.positionStatus === 'unconfirmed'));
+  assert.ok(data.hotspots.every(p => !data.landmarks.some(l => l.id === p.id)));
+  const impostor = new Group(); impostor.name = data.hotspots[0].id; impostor.position.set(1,2,3); scene.add(impostor);
+  assert.equal(inspectBuilding(scene).hotspots[0].position, null);
+  scene.remove(impostor);
+  const record = { nama_pos:'Pos Lobi Utama', nama_bangunan:"Bangunan Dato' Jaafar Muhammad" };
+  assert.equal(matchingOfficialPost(record, data.hotspots[0].id), true);
+  assert.equal(matchingOfficialPost({...record,nama_bangunan:'Other building'}, data.hotspots[0].id), false);
+  assert.equal(matchingOfficialPost(record, data.hotspots[1].id), false);
+});
+
+test('approved public asset exactly preserves the current Blender export', async () => {
   const original = await readFile(new URL('../artifacts/suk/Bangunan_SUK_Exterior.glb', import.meta.url));
   assert.equal(createHash('sha256').update(bytes).digest('hex'), createHash('sha256').update(original).digest('hex'));
 });
 test('GLB contains real geometry, materials, ground and all seven world-space anchors', () => {
   let meshCount = 0;
   scene.traverse((object) => { if (object.isMesh) { meshCount++; assert.ok(object.material); } });
-  assert.equal(meshCount, 192);
+  assert.equal(meshCount, manifest.mesh_objects);
+  assert.ok(meshCount < 350);
   assert.ok(data.hasGround);
-  assert.equal(data.hotspots.filter((h) => h.position).length, 7);
+  assert.equal(data.landmarks.filter((h) => h.position).length, 7);
   assert.ok(Math.abs(data.size.x - 192) < .01);
-  const entrance = data.hotspots.find((h) => h.id === 'HOTSPOT_MAIN_ENTRANCE');
+  const entrance = data.landmarks.find((h) => h.id === 'HOTSPOT_MAIN_ENTRANCE');
   entrance.position.forEach((value, i) => assert.ok(Math.abs(value - [0, 7, 44][i]) < .001));
 });
+
+test('reference refinement includes rear pavilions and site structures within the web geometry budget', () => {
+  for (const name of ['SUK_Left_RearWing', 'SUK_Right_RearWing', 'SUK_Left_InnerPavilion', 'SUK_Right_InnerPavilion', 'SUK_Central_AxialGallery', 'SUK_Central_Courtyard', 'SUK_Rear_EntryPavilion', 'SUK_SideAccess_Roads', 'SUK_Entry_BarrierArms']) {
+    assert.ok(scene.getObjectByName(name)?.isMesh, name);
+  }
+  for (const name of ['SUK_Rear_Hall', 'SUK_Rear_Belvedere', 'Cube', 'Camera', 'SUK_Presentation_Camera']) assert.equal(scene.getObjectByName(name), undefined, name);
+  let triangles = 0;
+  scene.traverse((object) => { if (object.isMesh) triangles += (object.geometry.index?.count ?? object.geometry.attributes.position.count) / 3; });
+  assert.ok(triangles < 200000, `${triangles} triangles`);
+  assert.ok(bytes.length < 12 * 1024 * 1024);
+  const expected = {
+    HOTSPOT_MAIN_ENTRANCE: [0, 7, 44], HOTSPOT_CENTRAL_BLOCK: [0, 21, 25],
+    HOTSPOT_LEFT_WING: [-54, 13, 27], HOTSPOT_RIGHT_WING: [54, 13, 27],
+    HOTSPOT_FRONT_PLAZA: [0, 1, 54], HOTSPOT_LEFT_TOWER: [-23, 25, 29.5], HOTSPOT_RIGHT_TOWER: [23, 25, 29.5],
+  };
+  for (const hotspot of data.landmarks) hotspot.position.forEach((value, i) => assert.ok(Math.abs(value - expected[hotspot.id][i]) < .001, hotspot.id));
+  assert.ok(data.zones.find((z) => z.id === 'HOTSPOT_CENTRAL_BLOCK').meshes.some((m) => m.name === 'SUK_Central_AxialGallery'));
+  assert.ok(data.occluders.some((r) => r.current.name === 'SUK_Left_InnerPavilion'));
+});
 test('focus poses stay outside site bounds for every location', () => {
-  for (const hotspot of data.hotspots) {
+  for (const hotspot of data.landmarks) {
     const pose = focusPose(hotspot.position, data.bounds);
     assert.equal(data.bounds.containsPoint(pose.position), false);
     assert.ok(pose.position.z > data.bounds.max.z);
@@ -55,11 +93,11 @@ test('Phase 4 camera presets fit bounds and stay outside the exterior for deskto
     assert.ok(pose.position.toArray().every(Number.isFinite));
     assert.ok(pose.position.distanceTo(pose.target) >= data.size.length());
   }
-  assert.ok(focusPose(data.hotspots[0].position,data.bounds,.5).position.distanceTo(new Vector3(...data.hotspots[0].position)) > focusPose(data.hotspots[0].position,data.bounds,1).position.distanceTo(new Vector3(...data.hotspots[0].position)));
+  assert.ok(focusPose(data.landmarks[0].position,data.bounds,.5).position.distanceTo(new Vector3(...data.landmarks[0].position)) > focusPose(data.landmarks[0].position,data.bounds,1).position.distanceTo(new Vector3(...data.landmarks[0].position)));
 });
 
 test('coarse occlusion geometry blocks a rear-to-front ray without blocking the entrance front view', () => {
-  const anchor = new Vector3(...data.hotspots[0].position);
+  const anchor = new Vector3(...data.landmarks[0].position);
   const occluded = (origin) => {
     const ray = new Raycaster(origin,anchor.clone().sub(origin).normalize(),0,origin.distanceTo(anchor));
     return ray.intersectObjects(data.occluders.map((r) => r.current),false).length>0;
@@ -85,7 +123,7 @@ test('unknown, filtered, completed and unavailable indicators remain distinct', 
 test('anchor resolution includes parent rotation, translation and scale', () => {
   const parent = new Group(); parent.position.set(10, 20, 30); parent.scale.setScalar(2); parent.rotation.y = .5;
   parent.add(scene); parent.updateMatrixWorld(true);
-  const transformed = inspectBuilding(scene).hotspots[0].position;
+  const transformed = inspectBuilding(scene).landmarks[0].position;
   const expected = new Vector3(0, 7, 44).applyMatrix4(parent.matrixWorld);
   assert.ok(new Vector3(...transformed).distanceTo(expected) < .001);
   parent.remove(scene); disposeModel(scene);

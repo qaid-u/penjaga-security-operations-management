@@ -15,7 +15,7 @@ async function context(db=pool){
   const result=await db.query("select id_kategori_insiden,nama_kategori,tahap_keutamaan,kata_kunci_rujukan from tbl_kategori_insiden where status_kategori='Aktif' order by id_kategori_insiden");
   const categories=result.rows.map(r=>({id:r.id_kategori_insiden,name:r.nama_kategori,priority:r.tahap_keutamaan,keywords:Array.isArray(r.kata_kunci_rujukan)?r.kata_kunci_rujukan:[]}));
   let locations=[];
-  try{locations=(await db.query('select id_lokasi,hotspot_id,nama_paparan from tbl_lokasi_3d where status_aktif order by id_lokasi')).rows;}
+  try{locations=(await db.query('select id_lokasi,hotspot_id,nama_paparan,id_pos from tbl_lokasi_3d where status_aktif order by id_lokasi')).rows;}
   catch(error){if(error.code!=='42P01')throw error;}
   return {categories,locations};
 }

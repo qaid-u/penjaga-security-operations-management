@@ -1,0 +1,70 @@
+{
+  "building": "Bangunan Sultan Ismail (BSI), Kota Iskandar",
+  "building_id": "BSI_KOTA_ISKANDAR",
+  "revision": "20261025-photo-study-v1",
+  "scene": "BSI_KotaIskandar_Exterior_Study",
+  "blend_file": "Bangunan_Sultan_Ismail_Kota_Iskandar.blend",
+  "glb_file": "Bangunan_Sultan_Ismail_Kota_Iskandar.glb",
+  "mesh_objects": 283,
+  "source_triangles": 317140,
+  "glb_triangles": 317140,
+  "materials": 37,
+  "glb_nodes": 292,
+  "glb_bytes": 16283000,
+  "bounds_blender": {
+    "min": [
+      -124.0,
+      -130.0,
+      -1.25
+    ],
+    "max": [
+      124.0,
+      126.0,
+      51.0
+    ]
+  },
+  "standalone_scenes": [
+    "BSI_KotaIskandar_Exterior_Study"
+  ],
+  "references": [
+    "codex-clipboard-e68d0b08-aca1-4073-ae6f-00bc4d7b1116.png",
+    "codex-clipboard-2cad101e-ffc3-4690-8b18-69c748e8cc44.png",
+    "codex-clipboard-5e543616-5bc9-4ed3-8f9b-00781e156ac7.png",
+    "codex-clipboard-c4d52a30-a5d4-485a-bd05-118b4a02184e.png",
+    "codex-clipboard-37d00d2a-2e54-47a1-9e3b-7731169ddf90.png"
+  ],
+  "features": [
+    "Tall tiered entrance tower with open ground portal, upper loggias and finial",
+    "Screened horseshoe side recesses and cusped arch trim",
+    "Square main hall with low oval lattice skylight",
+    "Octagonal front hall and polygonal glazed cap",
+    "Four terracotta-hipped outer blocks and connecting galleries",
+    "Small arched roof pavilions and gold finials",
+    "Raised garden parterres, scroll hedges and star paving",
+    "Entrance steps, curved drive, reflecting pool, palms, shade trees and schematic parking"
+  ],
+  "checks": [
+    "One standalone BSI scene",
+    "BSI nodes only in GLB",
+    "Finite vertices and bounds",
+    "Valid glTF 2 header and length",
+    "Presentation camera and sunlight excluded",
+    "No external textures",
+    "No operational/internal coordinates"
+  ],
+  "limitations": [
+    "Dimensions, roof rises, tower proportions, grades and hidden links interpreted, not surveyed",
+    "Most facade windows/screens use layered recess geometry; the gate passage is open",
+    "Geometric screens, paving, landscaping and ceremonial ornaments simplified",
+    "Gold rosette is abstract decoration, not a reproduction of official heraldry",
+    "No interiors, room allocations, floor numbering or security-post coordinates"
+  ],
+  "preview_files": [
+    "BSI_exterior_preview.png",
+    "BSI_tower_preview.png",
+    "BSI_front_preview.png",
+    "BSI_screened_arch_preview.png",
+    "BSI_plan_preview.png"
+  ],
+  "previous_session_backup": "backups/Before_BSI_Creation_20261025.blend"
+}

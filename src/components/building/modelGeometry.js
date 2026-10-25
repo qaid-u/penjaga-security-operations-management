@@ -1,5 +1,5 @@
 import { Box3, Vector3 } from 'three';
-import { buildingHotspots } from './buildingHotspots.js';
+import { buildingHotspots, exteriorLandmarks } from './buildingHotspots.js';
 import { inspectZones } from './buildingZones.js';
 
 export function inspectBuilding(scene) {
@@ -7,10 +7,12 @@ export function inspectBuilding(scene) {
   const bounds = new Box3().setFromObject(scene);
   const size = bounds.getSize(new Vector3());
   if (bounds.isEmpty() || !size.toArray().every(Number.isFinite) || size.length() === 0) throw new Error('Model tidak mempunyai geometri yang sah.');
-  const hotspots = buildingHotspots.map((location) => {
+  const landmarks = exteriorLandmarks.map((location) => {
     const anchor = scene.getObjectByName(location.id);
     return { ...location, position: anchor?.getWorldPosition(new Vector3()).toArray() ?? null };
   });
+  // Floor labels are known; no surveyed indoor coordinates or floor meshes exist.
+  const hotspots = buildingHotspots.map((post) => ({ ...post, position: null }));
   let hasGround = false;
   scene.traverse((object) => {
     if (!object.isMesh) return;
@@ -18,10 +20,10 @@ export function inspectBuilding(scene) {
     object.receiveShadow = true;
     if (object.name === 'SUK_Ground') hasGround = true;
   });
-  const zones = inspectZones(scene, hotspots);
+  const zones = inspectZones(scene, landmarks);
   const occluders = [];
-  scene.traverse((o) => { if (o.isMesh && /^SUK_(Main_Body|Left_Wing|Right_Wing|Left_Tower|Right_Tower|Rear_Hall)$/.test(o.name)) occluders.push({ current: o }); });
-  return { scene, bounds, size, hotspots, hasGround, zones, occluders };
+  scene.traverse((o) => { if (o.isMesh && /^SUK_(Main_Body|Central_AxialGallery|Rear_EntryPavilion|(Left|Right)_(Wing|Tower|RearWing|InnerPavilion|CourtyardGallery|RearCornerTower))$/.test(o.name)) occluders.push({ current: o }); });
+  return { scene, bounds, size, hotspots, landmarks, hasGround, zones, occluders };
 }
 
 export function overviewPose(bounds, aspect = 1) {

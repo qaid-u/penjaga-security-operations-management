@@ -71,7 +71,9 @@ function LoadedViewer({ onRetry, supported }) {
   const location = viewData.hotspots.find((item) => item.id === selected);
   const select = (id, openPanel = true) => {
     trigger.current = document.activeElement;
-    setSelected(id); setSheet(openPanel && Boolean(id)); setCommand((old) => ({ ...old, preset: id ? 'selected' : 'overview', reset: old.reset + 1 }));
+    setSelected(id); setSheet(openPanel && Boolean(id));
+    // Unconfirmed indoor posts must not move the camera to exterior anchors.
+    if (viewData.hotspots.find((item) => item.id === id)?.position) setCommand((old) => ({ ...old, preset: 'selected', reset: old.reset + 1 }));
     if (openPanel) requestAnimationFrame(() => panel.current?.focus({ preventScroll: true }));
   };
   const reset = () => { setSelected(null); setSheet(false); change('zone',''); setCommand((old) => ({ ...old, preset: 'overview', reset: old.reset + 1 })); };
@@ -93,8 +95,8 @@ function LoadedViewer({ onRetry, supported }) {
     {user?.nama_peranan === ROLE.admin && <LocationMappingPanel locations={operations.overview.data?.locations} userId={user.id_pengguna} />}
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
     <section className="app-surface min-w-0 overflow-hidden rounded-2xl border" aria-label="Model interaktif Bangunan SUK">
-      <ViewerToolbar onReset={reset} onZoom={(direction) => setCommand((old) => ({ ...old, zoom: { direction } }))} showHotspots={showHotspots} onToggle={() => setShowHotspots((old) => !old)} />
-      <div className="border-b p-3"><Field label="Pratetap kamera"><Select value={command.preset || 'selected'} onChange={(e) => setCommand((old) => ({...old,preset:e.target.value,reset:old.reset+1}))}>{Object.entries(cameraPresets).map(([key,label]) => <option key={key} value={key} disabled={key === 'selected' && !selected}>{label}</option>)}</Select></Field><p className="text-xs mt-2" aria-live="polite">Zon diserlahkan: {viewData.zones.find((z) => z.id === (filters.zone || selected))?.name || 'Seluruh bangunan'}</p></div>
+      <ViewerToolbar onReset={reset} onZoom={(direction) => setCommand((old) => ({ ...old, zoom: { direction } }))} showHotspots={showHotspots} hasHotspots={viewData.hotspots.some((item) => item.position)} onToggle={() => setShowHotspots((old) => !old)} />
+      <div className="border-b p-3"><Field label="Pratetap kamera"><Select value={command.preset || 'selected'} onChange={(e) => setCommand((old) => ({...old,preset:e.target.value,reset:old.reset+1}))}>{Object.entries(cameraPresets).map(([key,label]) => <option key={key} value={key} disabled={key === 'selected' && !location?.position}>{label}</option>)}</Select></Field><p className="text-xs mt-2" aria-live="polite">Pos dipilih: {location?.name || 'Tiada'}</p></div>
       <div className="building-canvas">
         {!supported || lost || error || !data ? <BuildingLoadingState error={!supported ? 'WebGL 2 tidak tersedia. Gunakan senarai lokasi untuk mengakses data operasi.' : lost ? 'Konteks grafik terputus. Muat semula paparan 3D.' : error} progress={progress} onRetry={onRetry} /> : <Canvas shadows frameloop="demand" dpr={buildingConfig.pixelRatio} camera={{ position: [180, 130, 220], fov: 40, near: .5, far: 3000 }} gl={{ antialias: true, powerPreference: 'high-performance' }} fallback={<BuildingLoadingState error="WebGL tidak tersedia dalam pelayar ini." onRetry={onRetry} />}>
           <color attach="background" args={[buildingConfig.background]} />
@@ -107,9 +109,10 @@ function LoadedViewer({ onRetry, supported }) {
         </Canvas>}
       </div>
       <p className="border-t px-4 py-3 text-xs">Seret untuk putar · Skrol / cubit untuk zum · Seret kanan / dua jari untuk alih</p>
-      <details open id="building-location-list" tabIndex={-1} className="border-t p-4"><summary className="mb-3 cursor-pointer font-semibold">Lokasi bangunan</summary>
+      <details open id="building-location-list" tabIndex={-1} className="border-t p-4"><summary className="mb-3 cursor-pointer font-semibold">Pos keselamatan — Bangunan Dato’ Jaafar Muhammad</summary>
+        <p className="mb-3 text-xs">7 pos rasmi · Kedudukan 3D belum disahkan. Pilih pos untuk melihat rekod operasi.</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {visibleHotspots.map((item) => <button key={item.id} type="button" aria-pressed={selected === item.id} onClick={() => select(item.id)} className={`flex min-h-11 items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm ${selected === item.id ? 'app-nav-active' : 'app-button-ghost'}`}><span className="font-mono">{String(item.number).padStart(2, '0')}</span><span>{item.name}<small className="block text-secondary-token">{locationIndicator(item.id).text}</small></span></button>)}
+          {visibleHotspots.map((item) => <button key={item.id} type="button" aria-pressed={selected === item.id} onClick={() => select(item.id)} className={`flex min-h-11 items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm ${selected === item.id ? 'app-nav-active' : 'app-button-ghost'}`}><span className="font-mono">{String(item.number).padStart(2, '0')}</span><span>{item.name}<small className="block text-secondary-token">{item.area} · {locationIndicator(item.id).text}</small></span></button>)}
         </div>
       </details>
     </section>

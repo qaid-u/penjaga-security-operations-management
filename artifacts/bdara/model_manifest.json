@@ -1,0 +1,67 @@
+{
+  "building": "Bangunan Dato’ Abdul Rahman Andak, Kota Iskandar",
+  "scene": "BDARA_Exterior_Study",
+  "revision": "20261025-photo-study-v1",
+  "blend_file": "Bangunan_Dato_Abdul_Rahman_Andak.blend",
+  "glb_file": "Bangunan_Dato_Abdul_Rahman_Andak.glb",
+  "mesh_objects": 182,
+  "source_triangles": 206786,
+  "glb_triangles": 206786,
+  "glb_nodes": 191,
+  "materials": 28,
+  "glb_bytes": 10497372,
+  "bounds_blender": {
+    "min": [
+      -118.0,
+      -129.0,
+      -1.25
+    ],
+    "max": [
+      118.0,
+      93.0,
+      29.351388931274414
+    ]
+  },
+  "standalone_scenes": [
+    "BDARA_Exterior_Study"
+  ],
+  "references": [
+    "Screenshot 2026-10-25 120700.png",
+    "Screenshot 2026-10-25 120754.png",
+    "Screenshot 2026-10-25 120833.png",
+    "Screenshot 2026-10-25 120900.png"
+  ],
+  "features": [
+    "Four bowed wings in two rows with faceted ends",
+    "Central spine and layered cream standing-seam roofs",
+    "Stacked entrance gables and front portico",
+    "Ribbon glazing, cream spandrels and external sunshades",
+    "Taller faceted end pavilion",
+    "Interpreted covered side driveway",
+    "Palm-lined patterned axis, water features, benches and bins",
+    "Curved parking courts and schematic vehicles"
+  ],
+  "checks": [
+    "One owned scene in standalone Blender file",
+    "Only BDARA nodes in GLB",
+    "Finite vertices and bounds",
+    "Valid glTF 2 binary header",
+    "No external textures",
+    "Presentation camera and sun excluded from GLB",
+    "No indoor or security-post coordinates"
+  ],
+  "limitations": [
+    "Dimensions and storey elevations inferred from photographs, not surveyed",
+    "Faceted pavilion treated as a photograph-derived volume, not confirmed floor numbering",
+    "Side-canopy location, hidden connections and site boundaries interpreted",
+    "Landscaping, public-art-like forms, cars and furniture are schematic",
+    "No interiors or agency-specific layouts"
+  ],
+  "preview_files": [
+    "BDARA_exterior_preview.png",
+    "BDARA_front_preview.png",
+    "BDARA_side_preview.png",
+    "BDARA_plan_preview.png"
+  ],
+  "previous_session_backup": "backups/Before_BDARA_Creation_20261025.blend"
+}

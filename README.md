@@ -34,7 +34,12 @@ Load schema and seed data:
 ```bash
 psql -d penjaga_db -f backend/database/schema.sql
 psql -d penjaga_db -f backend/database/seed.sql
+node backend/scripts/migrate-3d.js
 ```
+
+The 3D page uses the seven official security posts for Bangunan Dato’ Jaafar Muhammad. Floor labels are shown where supplied; indoor coordinates remain unconfirmed. See [official post configuration](docs/testing/DJM_OFFICIAL_POSTS.md). Restart the backend after updating an existing installation.
+
+Editable Blender sources, GLB exports and preview images for the additional buildings are listed in the [exterior model catalogue](artifacts/README.md). BDMIM shares the BDMSP geometry, and Rumah SS/Rumah VIP share one residence asset. These standalone models, including UTC Johor, are prepared for later application integration; the current public viewer asset remains DJM. See the [model release checks](docs/testing/MODEL_LIBRARY_RELEASE.md).
 
 Optional backend environment file: `backend/.env`
 

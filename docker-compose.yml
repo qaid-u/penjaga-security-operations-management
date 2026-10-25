@@ -13,6 +13,7 @@ services:
       - ./backend/database/roles.sql:/docker-entrypoint-initdb.d/02-roles.sql:ro
       - ./backend/database/migrations/003_lokasi_3d.sql:/docker-entrypoint-initdb.d/03-lokasi-3d.sql:ro
       - ./backend/database/migrations/004_nlp_review.sql:/docker-entrypoint-initdb.d/04-nlp-review.sql:ro
+      - ./backend/database/migrations/005_djm_security_posts.sql:/docker-entrypoint-initdb.d/05-djm-security-posts.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-penjaga_admin} -d ${POSTGRES_DB:-penjaga_db}"]
       interval: 10s

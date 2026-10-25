@@ -26,13 +26,19 @@ test('PostgreSQL integration and actual JWT/role middleware in a rolled-back sch
     await client.query("set local timezone = 'Asia/Kuala_Lumpur'");
     await client.query(await fs.readFile(path.join(__dirname, '../database/schema.sql'), 'utf8'));
     const migration = await fs.readFile(path.join(__dirname, '../database/migrations/003_lokasi_3d.sql'), 'utf8');
+    const officialMigration = await fs.readFile(path.join(__dirname, '../database/migrations/005_djm_security_posts.sql'), 'utf8');
     await client.query(migration);
     await client.query(await fs.readFile(path.join(__dirname, '../database/migrations/004_nlp_review.sql'), 'utf8'));
     await client.query(`
       insert into tbl_peranan(id_peranan,nama_peranan,tahap_capaian) values (1,'Pentadbir Sistem',1),(2,'Ketua Pengawal',2),(3,'Pengawal Keselamatan',3);
       insert into tbl_pengguna(id_pengguna,id_peranan,nama_penuh,emel,nama_pengguna,kata_laluan) values
        (1,1,'Test Admin','admin@test.invalid','test-admin','unused'),(2,2,'Test Chief','chief@test.invalid','test-chief','unused'),(3,3,'Test Guard','guard@test.invalid','test-guard','unused');
-      insert into tbl_pos_kawalan(id_pos,nama_pos,status_pos) values (1,'Test Post A','Aktif'),(2,'Test Post B','Aktif'),(3,'Test Inactive','Tidak Aktif');
+      insert into tbl_pos_kawalan(id_pos,nama_pos,nama_bangunan,status_pos) values
+       (1,'Pos Lobi Utama','Bangunan Dato’ Jaafar Muhammad','Aktif'),
+       (2,'Pos Bilik Kawalan CCTV','Bangunan Dato’ Jaafar Muhammad','Aktif'),
+       (3,'Test Inactive','Other Building','Tidak Aktif'),(4,'Pos Lobi Utama','Other Building','Aktif');
+      select setval(pg_get_serial_sequence('tbl_pos_kawalan','id_pos'),4);
+      update tbl_lokasi_3d set id_pos=1 where hotspot_id='HOTSPOT_MAIN_ENTRANCE';
       insert into tbl_jadual_mingguan(id_jadual_mingguan,tarikh_mula,tarikh_tamat,status_jadual) values (1,'2026-10-19','2026-10-25','Disahkan'),(2,'2026-10-19','2026-10-25','Draf'),(3,'2026-10-19','2026-10-25','Dikunci');
       insert into tbl_jadual_bertugas(id_jadual,id_jadual_mingguan,id_pengguna,id_pos,tarikh_tugas,syif,masa_mula,masa_tamat) values
        (1,1,3,1,'2026-10-23','Malam','23:00','08:00'),(2,2,3,1,'2026-10-24','Pagi','07:00','16:00'),
@@ -43,15 +49,18 @@ test('PostgreSQL integration and actual JWT/role middleware in a rolled-back sch
       insert into tbl_laporan_harian(id_laporan,id_pengguna,id_pos,tajuk_laporan,syif,tarikh_laporan,masa_laporan,kandungan_laporan) values
        (1,3,1,'Test Report A','Pagi','2026-10-24','09:00','PRIVATE NARRATIVE'),(2,3,1,'Test Report B','Pagi','2026-10-24','10:00','PRIVATE NARRATIVE'),
        (3,3,1,'Test Report C','Pagi','2026-10-24','11:00','PRIVATE NARRATIVE'),(4,3,2,'Other Post','Pagi','2026-10-24','12:00','PRIVATE NARRATIVE'),
-       (5,3,1,'Outside range','Pagi','2026-10-22','12:00','PRIVATE NARRATIVE');
+       (5,3,1,'Outside range','Pagi','2026-10-22','12:00','PRIVATE NARRATIVE'),
+       (6,3,4,'Foreign building report','Pagi','2026-10-24','13:00','PRIVATE NARRATIVE');
       insert into tbl_hasil_nlp(id_laporan,teks_diproses,kategori_dikesan,skor_risiko,tahap_risiko,tarikh_analisis) values
        (1,'private','Test',10,'Low','2026-10-24 09:00'),(1,'private','Test',80,'High','2026-10-24 09:01'),
-       (2,'private','Test',20,'Low','2026-10-24 10:00'),(4,'private','Test',99,'Critical','2026-10-24 12:00');
+       (2,'private','Test',20,'Low','2026-10-24 10:00'),(4,'private','Test',99,'Critical','2026-10-24 12:00'),
+       (6,'private','Foreign only',99,'Critical','2026-10-24 13:00');
       insert into tbl_tindakan_susulan(id_tindakan,id_laporan,pegawai_bertanggungjawab,tindakan_diambil,status_tindakan) values
        (1,1,'Test','private','Dalam Tindakan'),(2,2,'Test','private','Selesai'),(3,3,'Test','private','Baru');
       insert into tbl_progress_tindakan(id_tindakan,id_pengguna,catatan_progress,jenis_progress,tarikh_progress) values
        (1,2,'private','Kemaskini Ketua','2026-10-24 12:00'),(1,1,'private','Permintaan Admin','2026-10-24 13:00');
     `);
+    await client.query(officialMigration);
     // Services use transactions. Savepoints keep their commits inside this test's outer rollback.
     const adapter = { release() {}, async query(sql, params) {
       if (/^begin/i.test(sql)) return client.query('savepoint api_request');
@@ -61,13 +70,41 @@ test('PostgreSQL integration and actual JWT/role middleware in a rolled-back sch
     } };
     pool.connect = async () => adapter; pool.query = (sql, params) => client.query(sql, params);
     const service = createService(pool); const p = period({ date: '2026-10-24' });
+    await t.test('official post migration reuses existing IDs, preserves history and repeats without duplicates or invented positions', async () => {
+      const before = await service.locations();
+      const { catalogue } = require('../services/securityPostCatalogue');
+      assert.equal(before.length,7); assert.ok(before.every(l => l.id_pos && l.position === null && l.position_status === 'unconfirmed'));
+      assert.deepEqual(before.map(l=>[l.hotspot_id,l.nama_paparan,l.label_aras]),catalogue.posts.map(post=>[post.id,post.name,post.floor]));
+      assert.equal(before[0].id_pos,1); assert.equal(before[1].id_pos,2);
+      assert.deepEqual(before.map(l=>l.label_aras),[null,null,'Tingkat 3','Tingkat 4','Tingkat 4','LG','LG']);
+      await client.query(migration); await client.query(officialMigration); await client.query(officialMigration);
+      assert.deepEqual(await service.locations(),before);
+      assert.equal((await client.query('select count(*)::int n from tbl_pos_kawalan')).rows[0].n,9);
+      const legacy=(await client.query("select id_pos,status_aktif from tbl_lokasi_3d where hotspot_id='HOTSPOT_MAIN_ENTRANCE'")).rows[0];
+      assert.deepEqual(legacy,{id_pos:1,status_aktif:false});
+      assert.equal((await service.filters()).posts.length,7);
+      await assert.rejects(service.map(before[0].id_lokasi,{id_pos:4},1),{status:400});
+      await assert.rejects(service.map(before[0].id_lokasi,{id_pos:2},1),{status:400});
+    });
+    await t.test('ambiguous duplicate posts abort the migration instead of choosing an arbitrary ID', async () => {
+      await client.query('savepoint duplicate_post');
+      try {
+        await client.query("insert into tbl_pos_kawalan(nama_pos,nama_bangunan) values('Pos Lobi Utama','Bangunan Dato’ Jaafar Muhammad')");
+        await assert.rejects(client.query(officialMigration), /Ambiguous official post/);
+      } finally {
+        await client.query('rollback to savepoint duplicate_post');
+        await client.query('release savepoint duplicate_post');
+      }
+      assert.equal((await service.locations()).length,7);
+    });
+    await client.query("update tbl_lokasi_3d set id_pos=null where hotspot_id like 'POST_DJM_%'");
     const rows = await service.locations(); const id = rows[0].id_lokasi;
     await t.test('retrieves seven unlinked locations without fabricated operations', async () => {
       assert.equal(rows.length, 7); assert.ok(rows.every((l) => l.id_pos === null));
       const summary = await service.summary(id, p); assert.equal(summary.linked, false); assert.equal(summary.metrics, undefined);
     });
     await t.test('maps an eligible post, records audit and preserves mapping on repeated migration', async () => {
-      await service.map(id, { id_pos: 1 }, 1); await client.query(migration);
+      await service.map(id, { id_pos: 1 }, 1); await client.query(officialMigration);
       assert.equal((await service.locations())[0].id_pos, 1);
       const audit = await client.query("select nilai_baharu from tbl_audit_trail where jenis_aktiviti='UPDATE_3D_MAPPING'");
       assert.equal(JSON.parse(audit.rows[0].nilai_baharu).id_pos_baharu, 1);
@@ -95,8 +132,8 @@ test('PostgreSQL integration and actual JWT/role middleware in a rolled-back sch
       assert.equal(action.jenis_progress,'Permintaan Admin'); assert.equal(action.status_tindakan,'Dalam Tindakan');
       assert.equal(action.catatan_progress, undefined);
     });
-    await t.test('overview de-duplicates a post linked to multiple locations', async () => {
-      await service.map(rows[1].id_lokasi,{ id_pos: 1 },1);
+    await t.test('official identities reject mapping the lobby record to the CCTV post', async () => {
+      await assert.rejects(service.map(rows[1].id_lokasi,{ id_pos: 1 },1),{status:400});
       const result = await service.overview(p);
       assert.equal(result.totals.linked_posts,1); assert.equal(result.totals.reports,3); assert.equal(result.totals.assignments,3);
     });
@@ -115,7 +152,7 @@ test('PostgreSQL integration and actual JWT/role middleware in a rolled-back sch
       assert.equal(first.total,4); assert.deepEqual(first.items.map((r) => r.id_laporan),[4,3]);
       assert.deepEqual(second.items.map((r) => r.id_laporan),[2,1]);
       assert.equal(first.items[0].locations.length,0);
-      assert.equal(second.items[1].locations.length,2);
+      assert.equal(second.items[1].locations.length,1);
       assert.deepEqual(second.items[1].action_statuses,['Dalam Tindakan']);
       assert.equal(second.items[1].open_actions,1);
       assert.ok(!JSON.stringify(first).includes('PRIVATE NARRATIVE'));
@@ -138,7 +175,9 @@ test('PostgreSQL integration and actual JWT/role middleware in a rolled-back sch
       const zone = period({date:'2026-10-24',mapping:'all',zone:rows[0].hotspot_id});
       assert.equal((await service.incidents(zone)).total,3);
       assert.equal((await service.overview(zone)).locations.filter((l) => l.metrics).length,1);
+      await service.map(rows[1].id_lokasi,{id_pos:2},1);
       assert.equal((await service.summary(rows[1].id_lokasi,zone)).in_scope,false);
+      await service.map(rows[1].id_lokasi,{id_pos:null},1);
       const unlinked = period({date:'2026-10-24',mapping:'unlinked'});
       assert.equal((await service.incidents(unlinked)).items[0].id_pos,2);
       assert.equal((await service.overview(unlinked)).totals.linked_posts,0);
@@ -147,7 +186,7 @@ test('PostgreSQL integration and actual JWT/role middleware in a rolled-back sch
     });
     await t.test('Phase 4 reference data uses stored categories and server Kuala Lumpur date', async () => {
       const refs = await service.filters();
-      assert.deepEqual(refs.categories,['Test','Unknown']); assert.equal(refs.posts.length,3);
+      assert.deepEqual(refs.categories,['Test','Unknown']); assert.equal(refs.posts.length,7);
       assert.equal(refs.timezone,'Asia/Kuala_Lumpur'); assert.equal(refs.today,period().date);
     });
     await t.test('Phase 4 safely rejects malformed filters and pagination', async () => {

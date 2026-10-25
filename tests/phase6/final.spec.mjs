@@ -103,12 +103,12 @@ test('P6-02 actual synthetic application screenshots',async({page})=>{
       await capture('16-stored-nlp-analysis');
     }
   }
-  await page.goto('/3d-command-centre');await expect(page.locator('.building-hotspot')).toHaveCount(7);await capture('10-3d-overview');
-  await page.getByRole('button',{name:/01.*Pintu Masuk Utama/}).click();await expect(page.getByRole('heading',{name:'DEMO Pos A',exact:true})).toBeVisible();await capture('11-selected-hotspot');
+  await page.goto('/3d-command-centre');await expect(page.locator('canvas')).toBeVisible();await capture('10-3d-overview');
+  await page.getByRole('button',{name:/01.*Pos Lobi Utama/}).click();await expect(page.getByRole('heading',{name:'Pos Lobi Utama',exact:true})).toBeVisible();await capture('11-selected-hotspot');
   await page.locator('.building-canvas').screenshot({path:`${output}/17-building-canvas.png`});
   await page.getByLabel('Panel lokasi',{exact:true}).screenshot({path:`${output}/12-information-panel.png`});
-  await page.getByLabel('Lapisan penanda').selectOption('incidents');await capture('13-incident-mode');
-  await page.getByLabel('Zon bangunan').selectOption('HOTSPOT_MAIN_ENTRANCE');await capture('14-zone-navigation');
+  await page.getByLabel('Paparan operasi').selectOption('incidents');await capture('13-incident-mode');
+  await page.getByLabel('Pos keselamatan bangunan').selectOption('POST_DJM_MAIN_LOBBY');await capture('14-zone-navigation');
   await page.getByRole('region',{name:'Sejarah laporan'}).screenshot({path:`${output}/15-incident-history.png`});
   await page.getByRole('button',{name:'Logout',exact:true}).click();await login(page,'guard_a');await capture('03-guard-dashboard');
   await page.goto('/jadual');await page.waitForLoadState('networkidle');await capture('05-attendance');

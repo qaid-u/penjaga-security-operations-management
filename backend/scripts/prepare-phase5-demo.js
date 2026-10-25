@@ -4,6 +4,7 @@ const { Pool } = require('pg');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const bcrypt = require('bcrypt');
+const { upgradeDemoPosts } = require('./upgrade-djm-demo-posts');
 async function main() {
   configureDemo();
   const connection = process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : { host:process.env.PGHOST || 'localhost',port:Number(process.env.PGPORT)||5432,user:process.env.PGUSER || 'postgres',password:process.env.PGPASSWORD || 'postgres',database };
@@ -22,7 +23,10 @@ async function main() {
       const manifest = await client.query('select version from phase5_demo_manifest');
       if(manifest.rows[0]?.version !== 1)throw new Error('Unexpected demo version; no changes made.');
       await client.query(await fs.readFile(path.join(__dirname,'../database/migrations/004_nlp_review.sql'),'utf8'));
-      console.log('Existing Phase 5 synthetic demo retained. No reseeding performed.');return;
+      await client.query('begin');
+      try { await upgradeDemoPosts(client); await client.query('commit'); }
+      catch (error) { await client.query('rollback'); throw error; }
+      console.log('Existing Phase 5 synthetic reports retained; official post configuration upgraded.');return;
     }
     await client.query('begin');
     await client.query("set local timezone = 'Asia/Kuala_Lumpur'");
@@ -52,6 +56,7 @@ async function main() {
       insert into phase5_demo_manifest(version) values(1);
     `);
     for(const [table,column] of [['tbl_pengguna','id_pengguna'],['tbl_peranan','id_peranan'],['tbl_pos_kawalan','id_pos'],['tbl_jadual_mingguan','id_jadual_mingguan'],['tbl_jadual_bertugas','id_jadual'],['tbl_laporan_harian','id_laporan'],['tbl_tindakan_susulan','id_tindakan']])await client.query(`select setval(pg_get_serial_sequence('${table}','${column}'),(select max(${column}) from ${table}))`);
+    await upgradeDemoPosts(client);
     await client.query('commit');
     console.log('Created penjaga_phase5_demo: 4 synthetic accounts, 3 posts, 240 reports; date 2026-10-24. No operational database records changed.');
   } catch(error) {await client.query('rollback');throw error;}

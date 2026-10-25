@@ -5,6 +5,7 @@ const { Pool } = require('pg');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const bcrypt = require('bcrypt');
+const { upgradeDemoPosts } = require('./upgrade-djm-demo-posts');
 async function main() {
   configureDemo('penjaga_phase6_demo');
   const config = dbOptions();
@@ -26,9 +27,10 @@ async function main() {
       if (!tables.rows.some(r => r.tablename === 'phase6_demo_manifest')) throw new Error('Target is not an identified Phase 6 demonstration database; refusing changes.');
       if ((await client.query('select version from phase6_demo_manifest')).rows[0]?.version !== 1) throw new Error('Unexpected demonstration version.');
       await client.query(await fs.readFile(path.join(__dirname,'../database/migrations/004_nlp_review.sql'),'utf8'));
+      await upgradeDemoPosts(client);
       await client.query("insert into tbl_jadual_mingguan(tarikh_mula,tarikh_tamat,tajuk_jadual,dicipta_oleh) select current_date-1,current_date+5,'DEMO Phase 6',1 where not exists(select 1 from tbl_jadual_mingguan where current_date between tarikh_mula and tarikh_tamat)");
       await client.query('commit');
-      console.log('Existing Phase 6 synthetic database retained; a current demonstration week is appended only if needed.'); return;
+      console.log('Existing Phase 6 synthetic reports retained; official posts upgraded and a current demonstration week appended only if needed.'); return;
     }
     await client.query("set local timezone='Asia/Kuala_Lumpur'");
     for (const file of ['schema.sql', 'roles.sql', 'migrations/003_lokasi_3d.sql','migrations/004_nlp_review.sql']) await client.query(await fs.readFile(path.join(__dirname, '../database', file), 'utf8'));
@@ -52,6 +54,7 @@ async function main() {
       create table phase6_demo_manifest(version int not null,created_at timestamptz default now());
       insert into phase6_demo_manifest(version) values(1);
     `);
+    await upgradeDemoPosts(client);
     await client.query('commit');
     console.log('Prepared penjaga_phase6_demo with synthetic accounts, categories, checklist, posts and week. No operational records changed.');
   } catch (error) { await client.query('rollback'); throw error; }

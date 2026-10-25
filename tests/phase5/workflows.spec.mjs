@@ -7,16 +7,16 @@ test('R01 genuine login, database-connected mapped hotspot, history, module and 
   await page.emulateMedia({reducedMotion:'reduce'});await login(page);
   await page.getByRole('link',{name:'Pusat Kawalan 3D',exact:true}).click();
   await page.getByLabel('Tarikh tugas (MYT)').fill('2026-10-24');await page.getByLabel('Laporan dari').fill('2026-09-25');await page.getByLabel('Laporan hingga').fill('2026-10-24');
-  await page.getByRole('button',{name:/01.*Pintu Masuk Utama/}).click();
-  await expect(page.getByRole('heading',{name:'DEMO Pos A',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:/01.*Pos Lobi Utama/}).click();
+  await expect(page.getByRole('heading',{name:'Pos Lobi Utama',exact:true})).toBeVisible();
   await expect(page.getByText('Demo guard_a',{exact:true})).toBeVisible();
   await expect(page.getByText(/23\/10\/(?:20)?26/).first()).toBeVisible();
-  await page.getByLabel('Lapisan penanda').selectOption('incidents');await page.getByLabel('Tahap risiko').selectOption('High');
+  await page.getByLabel('Paparan operasi').selectOption('incidents');await page.getByLabel('Tahap risiko').selectOption('High');
   const history=page.getByRole('region',{name:'Sejarah laporan'});await history.getByRole('button',{name:/DEMO Laporan 1\s+High/}).click();
   await expect(page.getByLabel('Butiran laporan dipilih')).toContainText('Dalam Tindakan');
   await page.getByLabel('Butiran laporan dipilih').getByRole('link',{name:'Buka modul laporan'}).click();await expect(page).toHaveURL(/semakan$/);
-  await page.getByRole('link',{name:'Pusat Kawalan 3D',exact:true}).click();await expect(page.locator('.building-hotspot')).toHaveCount(7);
-  expect(errors).toEqual([]);await page.screenshot({path:'artifacts/suk/phase5-live-demo.png',fullPage:true});
+  await page.getByRole('link',{name:'Pusat Kawalan 3D',exact:true}).click();await expect(page.locator('canvas')).toBeVisible();
+  expect(errors).toEqual([]);await page.screenshot({path:'artifacts/suk/djm-posts-live-demo.png',fullPage:true});
 });
 test('R02 account switches never display the previous guard report cache',async({page})=>{
   const consoleErrors=[];page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(message.text());});
@@ -42,14 +42,14 @@ test('A02 chief mobile touch, keyboard and two-finger pinch use the real demo ba
   const context=await browser.newContext({hasTouch:true,isMobile:true,viewport:{width:390,height:844}});
   try{
     const page=await context.newPage();await page.emulateMedia({reducedMotion:'reduce'});await login(page,'demo_chief');
-    await page.getByRole('button',{name:'Buka menu',exact:true}).tap();await page.getByRole('link',{name:'Pusat Kawalan 3D',exact:true}).first().tap();await expect(page.locator('.building-hotspot')).toHaveCount(7);
+    await page.getByRole('button',{name:'Buka menu',exact:true}).tap();await page.getByRole('link',{name:'Pusat Kawalan 3D',exact:true}).first().tap();await expect(page.locator('canvas')).toBeVisible();
     await page.locator('canvas').scrollIntoViewIfNeeded();const box=await page.locator('canvas').boundingBox();
     const cdp=await context.newCDPSession(page);const touch=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points});
     const p=(x,y,id)=>({x,y,id,radiusX:2,radiusY:2});
     const x=box.x+box.width*.5,y=box.y+box.height*.3;
     await touch('touchStart',[p(x-25,y,1),p(x+25,y,2)]);await touch('touchMove',[p(x-55,y,1),p(x+55,y,2)]);await touch('touchEnd',[]);
     await touch('touchStart',[p(x,y,1)]);await touch('touchMove',[p(x+40,y+10,1)]);await touch('touchEnd',[]);
-    await page.getByRole('button',{name:/01.*Pintu Masuk Utama/}).tap();await expect(page.getByRole('button',{name:'Tutup maklumat lokasi'})).toBeVisible();await page.getByRole('button',{name:'Tutup maklumat lokasi'}).tap();
+    await page.getByRole('button',{name:/01.*Pos Lobi Utama/}).tap();await expect(page.getByRole('button',{name:'Tutup maklumat lokasi'})).toBeVisible();await page.getByRole('button',{name:'Tutup maklumat lokasi'}).tap();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await expect(page.getByText('Pemetaan lokasi — Pentadbir Sistem',{exact:true})).toHaveCount(0);
   }finally{await context.close();}

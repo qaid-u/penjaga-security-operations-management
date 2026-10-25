@@ -1,0 +1,86 @@
+{
+  "model": "Rumah SS / Rumah VIP shared residence exterior",
+  "shared_model_id": "JOHOR_SS_VIP_RESIDENCE",
+  "revision": "20261025-photo-study-v1",
+  "identities": [
+    {
+      "building_id": "RUMAH_SS",
+      "building": "Kediaman Rasmi Setiausaha Kerajaan Johor",
+      "post": "Pos Rumah SS"
+    },
+    {
+      "building_id": "RUMAH_VIP",
+      "building": "Rumah VIP Setiausaha Kerajaan Johor",
+      "post": "Pos Rumah VIP"
+    }
+  ],
+  "scene": "Rumah_SS_VIP_Shared_Exterior_Study",
+  "blend_file": "Rumah_SS_VIP_Shared_Exterior.blend",
+  "glb_file": "Rumah_SS_VIP_Shared_Exterior.glb",
+  "mesh_objects": 284,
+  "source_triangles": 122560,
+  "glb_triangles": 122560,
+  "materials": 34,
+  "glb_nodes": 293,
+  "glb_bytes": 5517040,
+  "bounds_blender": {
+    "min": [
+      -75.24365997314453,
+      -92.0,
+      -1.2999999523162842
+    ],
+    "max": [
+      77.82837677001953,
+      145.093505859375,
+      28.56999969482422
+    ]
+  },
+  "standalone_scenes": [
+    "Rumah_SS_VIP_Shared_Exterior_Study"
+  ],
+  "references": [
+    "codex-clipboard-15a653b0-c373-48b2-a735-82c59d96a40b.png",
+    "codex-clipboard-d67b3a0d-ec33-42b3-ab54-459f95848d3f.png",
+    "codex-clipboard-d06a609f-b8eb-4098-a4ca-ecb325c7acff.png",
+    "codex-clipboard-29a8720c-4371-4406-a53d-e51322081fbf.png",
+    "codex-clipboard-16a27f0e-f428-4783-be90-b2659fa22222.png",
+    "codex-clipboard-9f139fc3-33f4-4cab-b24e-f3bb959929c2.png",
+    "codex-clipboard-7138cffb-b7fb-4943-b9a2-8540f44390fc.png",
+    "codex-clipboard-d1522b2a-945f-482e-8af3-48201845b04c.png"
+  ],
+  "features": [
+    "Stone lower walls and white upper main house",
+    "Intersecting terracotta hip roofs with tile courses",
+    "Open arched porch, upper balcony and French doors",
+    "Small railed balconies and tiled door canopies",
+    "Two-storey white annex and low linking gallery",
+    "Three detached lodges, utility pavilion and covered court pavilion",
+    "Red patterned court, arrival island, looping drive and schematic parking",
+    "Sloping lawn, retaining walls, white balustraded landscape stair, mature trees and palms"
+  ],
+  "checks": [
+    "Single shared residence scene",
+    "RUMAH-prefixed nodes only",
+    "Valid glTF 2 header and length",
+    "Finite vertices and bounds",
+    "Presentation camera and sunlight excluded",
+    "No external textures",
+    "Distinct building/post identities recorded without operational coordinates"
+  ],
+  "limitations": [
+    "Scale, grades, rear elevations and hidden building connections interpreted, not surveyed",
+    "Window and door recesses use layered facade geometry; porch arches are open",
+    "Tile courses, stone joints, vegetation, furniture and service props simplified",
+    "Court use not inferred; sign panels have no invented lettering or heraldry",
+    "No interiors, floor labels, room allocations or security-post coordinates"
+  ],
+  "preview_files": [
+    "Rumah_SS_VIP_exterior_preview.png",
+    "Rumah_SS_VIP_house_preview.png",
+    "Rumah_SS_VIP_porch_preview.png",
+    "Rumah_SS_VIP_annex_preview.png",
+    "Rumah_SS_VIP_approach_preview.png",
+    "Rumah_SS_VIP_plan_preview.png"
+  ],
+  "previous_session_backup": "backups/Before_Residence_Creation_20261025.blend"
+}

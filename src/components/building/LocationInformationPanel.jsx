@@ -7,8 +7,9 @@ const attendance = { 'Checked In': 'Daftar masuk direkodkan', 'Checked Out': 'Da
 export function LocationInformationPanel({ location, operations }) {
   const q = operations.summary; const data = q.data;
   return <Card title="Maklumat Lokasi" className="h-fit min-w-0">
-    {!location ? <div className="space-y-3 py-5"><h3>Pilih lokasi bangunan</h3><p>Pilih penanda atau senarai lokasi untuk melihat snapshot rekod operasi.</p></div> : <div className="space-y-4">
+    {!location ? <div className="space-y-3 py-5"><h3>Pilih lokasi bangunan</h3><p>Pilih pos daripada senarai untuk melihat rekod operasi dan label aras.</p></div> : <div className="space-y-4">
       <h3 className="text-lg">{location.name}</h3><p>{location.description}</p>
+      <p className="rounded-lg border p-3 text-sm">Aras: {location.floor || 'Belum disahkan'}<br />Kedudukan 3D belum disahkan. Tiada penanda dalaman atau geometri aras diandaikan.</p>
       {!operations.location && <p>{operations.overview.isPending ? 'Memuatkan konfigurasi lokasi...' : operations.overview.isError ? 'Konfigurasi lokasi tidak tersedia. Model masih boleh digunakan.' : 'Hotspot ini belum dikonfigurasi dalam pangkalan data.'}</p>}
       {operations.location && q.isPending && <p role="status">Memuatkan ringkasan lokasi...</p>}
       {q.isError && <div role="alert"><p>{apiMessage(q.error)} {data && 'Data di bawah ialah snapshot terdahulu dan mungkin lapuk.'}</p><Button variant="ghost" onClick={() => q.refetch()}>Cuba semula lokasi</Button></div>}
@@ -16,7 +17,7 @@ export function LocationInformationPanel({ location, operations }) {
         <p className="text-xs">Snapshot: {klTimestamp(data.refreshed_at)} (MYT)<br />Tugas {data.period.date}; laporan {data.period.from} hingga {data.period.to}.</p>
         <p>{data.location.nama_paparan} · {data.location.kawasan}<br />Aras: {data.location.label_aras || missing}</p>
         {!data.linked ? <p className="rounded-lg bg-slate-100 p-3">{data.reason}. Tiada rekod operasi dipautkan; ini tidak menandakan insiden.</p> : data.in_scope === false ? <p>Pos ini di luar penapis semasa. Tetapkan semula penapis untuk melihat rekodnya.</p> : <>
-          <section className="rounded-lg border p-3"><h3>{data.post.nama_pos}</h3><p>{data.post.nama_bangunan || missing}<br />{data.post.lokasi || missing}<br />Waktu operasi: {data.post.waktu_operasi || missing}<br />Status pos: {data.post.status_pos || missing}</p></section>
+          <section className="rounded-lg border p-3"><strong>{data.post.nama_pos}</strong><p>{data.post.nama_bangunan || missing}<br />{data.post.lokasi || missing}<br />Waktu operasi: {data.post.waktu_operasi || missing}<br />Status pos: {data.post.status_pos || missing}</p></section>
           <details open><summary className="cursor-pointer font-semibold">Jadual & rekod kehadiran</summary>
             <p className="my-2 text-xs">{data.metrics.schedule.confirmed} disahkan / dikunci · {data.metrics.schedule.draft} belum disahkan. Kehadiran bukan lokasi fizikal atau GPS.</p>
             {!data.assignments.length && <p>Tiada tugasan direkodkan bagi tempoh ini.</p>}

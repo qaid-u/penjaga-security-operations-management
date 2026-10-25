@@ -1,0 +1,9 @@
+{
+  "building": "Bangunan Dato' Muhamad Ibrahim Munsyi, Kota Iskandar",
+  "model_reuse": "User confirmed the same model as Bangunan Dato’ Mohamad Salleh Perang",
+  "confirmed_on": "2026-10-25",
+  "geometry_source": "../bdmsp/Bangunan_Dato_Mohamad_Salleh_Perang.glb",
+  "editable_source": "../bdmsp/Bangunan_Dato_Mohamad_Salleh_Perang.blend",
+  "source_manifest": "../bdmsp/model_manifest.json",
+  "scope": "Shared exterior geometry; building identity remains separate. No internal positions or agency layout are inferred."
+}

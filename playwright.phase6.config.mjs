@@ -1,5 +1,6 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
+  outputDir:'./test-results/phase6',
   testDir:'./tests/phase6',timeout:180000,workers:1,
   use:{baseURL:'http://127.0.0.1:4180',channel:process.env.PLAYWRIGHT_CHANNEL || 'msedge',viewport:{width:1440,height:1000},launchOptions:{args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']},trace:'retain-on-failure'},
   webServer:[

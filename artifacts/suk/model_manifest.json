@@ -1,9 +1,11 @@
 {
+  "revision": "20261025-v1",
   "scene": "SUK_Exterior_Study",
-  "mesh_objects": 192,
-  "triangles": 57422,
-  "materials": 13,
-  "glb_nodes": 211,
+  "mesh_objects": 287,
+  "triangles": 185786,
+  "materials": 27,
+  "glb_nodes": 306,
+  "glb_bytes": 8808384,
   "hotspots": [
     "HOTSPOT_CENTRAL_BLOCK",
     "HOTSPOT_FRONT_PLAZA",
@@ -13,21 +15,76 @@
     "HOTSPOT_RIGHT_TOWER",
     "HOTSPOT_RIGHT_WING"
   ],
-  "glb_bytes": 2537652,
+  "anchor_positions_blender": {
+    "HOTSPOT_MAIN_ENTRANCE": [
+      0,
+      -44,
+      7
+    ],
+    "HOTSPOT_CENTRAL_BLOCK": [
+      0,
+      -25,
+      21
+    ],
+    "HOTSPOT_LEFT_WING": [
+      -54,
+      -27,
+      13
+    ],
+    "HOTSPOT_RIGHT_WING": [
+      54,
+      -27,
+      13
+    ],
+    "HOTSPOT_FRONT_PLAZA": [
+      0,
+      -54,
+      1
+    ],
+    "HOTSPOT_LEFT_TOWER": [
+      -23,
+      -29.5,
+      25
+    ],
+    "HOTSPOT_RIGHT_TOWER": [
+      23,
+      -29.5,
+      25
+    ]
+  },
+  "bounds_blender": {
+    "min": [
+      -96,
+      -81,
+      -1.5
+    ],
+    "max": [
+      96,
+      113,
+      32.20000076293945
+    ]
+  },
   "blend_file": "Bangunan_SUK_Exterior.blend",
   "glb_file": "Bangunan_SUK_Exterior.glb",
+  "changes": [
+    "Four rear roof volumes replacing the speculative single hall",
+    "Central courtyard, axial gallery and rear entry pavilion",
+    "Street-facing and courtyard colonnades with lower windows",
+    "Side drives, parking bays and schematic vehicles",
+    "Palms, cypresses, clipped hedges, shade trees and entrance props"
+  ],
   "checks": [
-    "Seven anchors preserved in GLB",
-    "Left/right wing and tower positions balanced",
-    "Finite object locations",
-    "Valid GLB 2.0 header and declared file length",
-    "Starter scene objects excluded from GLB"
+    "Seven hotspot names and positions retained",
+    "Archived original masses excluded from GLB",
+    "Presentation camera and lighting excluded from GLB",
+    "Valid binary glTF 2 header",
+    "Finite site bounds"
   ],
   "limitations": [
-    "Approximate dimensions from photographs, not surveyed",
-    "Rear elevations, courtyard depths and roof junctions inferred",
-    "Window recesses represented by layered facade geometry",
-    "Simplified ornaments, landscaping and site plan",
-    "No interiors or security equipment"
-  ]
+    "Photograph-derived approximate dimensions, not a survey",
+    "Hidden connections, roof junctions and site extents interpreted",
+    "Schematic vegetation, parking and entrance props; not operational placements",
+    "No interiors, room plans or new database mappings"
+  ],
+  "backup": "backups/Bangunan_SUK_Exterior_before_refinement_20261025.blend"
 }

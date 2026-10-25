@@ -1,5 +1,5 @@
 import { buildingHotspots } from '../../src/components/building/buildingHotspots.js';
-export const locations = buildingHotspots.map((item, i) => ({ id_lokasi: 101+i, hotspot_id: item.id, nama_paparan: item.name, kawasan: item.section, label_aras: null, id_pos: null, status_aktif: true, tarikh_kemaskini: '2026-10-24T00:00:00Z' }));
+export const locations = buildingHotspots.map((item, i) => ({ id_lokasi: 101+i, hotspot_id: item.id, nama_paparan: item.name, kawasan: item.section, label_aras: item.floor, position:null, position_status:'unconfirmed', id_pos: null, status_aktif: true, tarikh_kemaskini: '2026-10-24T00:00:00Z' }));
 export const metrics = { schedule: { assignments: 1, confirmed: 1, draft: 0 }, attendance: { checked_in: 1, checked_out: 0, no_check_in: 0, unknown: 0 }, incidents: { total: 1, Low: 0, Medium: 0, High: 1, Critical: 0, Unknown: 0 }, follow_up: { total: 1, open: 1, in_progress: 1, completed: 0 } };
 export function summary(location, period, linked = false) {
   const base = { location, period, refreshed_at:'2026-10-24T01:30:00Z', linked, reason:'Belum dipautkan kepada pos kawalan', post:null };

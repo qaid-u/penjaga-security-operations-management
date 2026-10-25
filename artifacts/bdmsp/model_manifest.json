@@ -1,0 +1,70 @@
+{
+  "building": "Bangunan Dato' Mohamad Salleh Perang, Kota Iskandar",
+  "revision": "20261025-photo-study-v1",
+  "scene": "BDMSP_Exterior_Study",
+  "blend_file": "Bangunan_Dato_Mohamad_Salleh_Perang.blend",
+  "glb_file": "Bangunan_Dato_Mohamad_Salleh_Perang.glb",
+  "mesh_objects": 167,
+  "source_triangles": 109216,
+  "glb_triangles": 109216,
+  "materials": 35,
+  "glb_nodes": 176,
+  "glb_bytes": 5742048,
+  "bounds_blender": {
+    "min": [
+      -114.0,
+      -129.0,
+      -1.2599999904632568
+    ],
+    "max": [
+      114.0,
+      85.0,
+      34.04999923706055
+    ]
+  },
+  "standalone_scenes": [
+    "BDMSP_Exterior_Study"
+  ],
+  "references": [
+    "Screenshot 2026-10-25 125701.png",
+    "Screenshot 2026-10-25 125734.png",
+    "Screenshot 2026-10-25 125810.png",
+    "Screenshot 2026-10-25 125828.png",
+    "codex-clipboard-05fb423d-87f7-4748-859b-240a7331764e.png",
+    "codex-clipboard-a86d804f-e922-472c-9d30-c578682aa473.png"
+  ],
+  "reference_note": "Images 4 and 6 duplicate the same side view.",
+  "features": [
+    "Two shallow V-plan wings with taller central hub",
+    "Seven separate inclined open louvre screens",
+    "Exposed raking masts, rafters, purlins and knee braces",
+    "Three principal wing window bands above open parking pilotis",
+    "Pale concrete frames, green glazing and grey cladding",
+    "Repeated nested timber A-frame portico with tiled roof",
+    "Raised entry platform and central/flanking stair flights",
+    "Patterned garden axis, palms, water features, furniture and parking"
+  ],
+  "checks": [
+    "One standalone owned BDMSP scene",
+    "No DJM or BDARA objects in export",
+    "Finite vertices and bounds",
+    "Valid binary glTF 2 header and length",
+    "Presentation camera/sun excluded from GLB",
+    "No external textures",
+    "No internal security-post coordinates or agency layouts"
+  ],
+  "limitations": [
+    "Footprint angles, dimensions, storey heights and hidden connections inferred, not surveyed",
+    "Window bands and taller hub do not establish official floor numbering",
+    "Roof-screen pitches, structural sizes and rear elevations interpreted",
+    "Landscape, water-feature art, parking, cars and barrier props are schematic"
+  ],
+  "preview_files": [
+    "BDMSP_exterior_preview.png",
+    "BDMSP_entrance_preview.png",
+    "BDMSP_front_preview.png",
+    "BDMSP_side_preview.png",
+    "BDMSP_plan_preview.png"
+  ],
+  "previous_session_backup": "backups/Before_BDMSP_Creation_20261025.blend"
+}
