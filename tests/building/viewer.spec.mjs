@@ -8,7 +8,7 @@ async function auth(page, role) {
   await page.addInitScript((nama_peranan) => { localStorage.setItem('penjaga_user', JSON.stringify({ nama_peranan, nama_penuh: 'Ujian Tempatan' })); }, role);
 }
 
-test('admin loads model and selects all official posts without inventing indoor markers', async ({ page }) => {
+test('admin selects all official posts using clearly labelled estimated exterior markers', async ({ page }) => {
   const errors = []; page.on('pageerror', (error) => errors.push(error.message));
   await auth(page, 'Pentadbir Sistem');
   await page.setViewportSize({ width: 1440, height: 1100 });
@@ -18,13 +18,15 @@ test('admin loads model and selects all official posts without inventing indoor 
   await expect(page.getByRole('button', { name: /01.*Pos Lobi Utama/ })).toBeVisible();
   for (const name of names) {
     await page.getByRole('button', { name: 'Tetap semula' }).click();
-    // Official posts remain selectable even though their indoor coordinates are unknown.
+    // The estimate can guide the camera while the physical location stays unverified.
     await page.getByRole('button', { name: new RegExp(`0[1-7].*${name}`) }).click();
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: new RegExp(`0[1-7].*${name}`) })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByLabel('Panel lokasi')).toContainText('Kedudukan 3D belum disahkan');
     await expect(page.getByLabel('Panel lokasi')).toContainText(`Aras: ${buildingHotspots.find(post => post.name === name).floor || 'Belum disahkan'}`);
-    await expect(page.getByLabel('Pratetap kamera').locator('option[value="selected"]')).toHaveJSProperty('disabled',true);
+    await expect(page.getByLabel('Pratetap kamera').locator('option[value="selected"]')).toHaveJSProperty('disabled',false);
+    await expect(page.getByLabel('Pratetap kamera')).toHaveValue('selected');
+    await expect(page.getByLabel('Panel lokasi')).toContainText('Keyakinan: rendah');
   }
   await expect(page.getByText(/Tiada rekod operasi dipautkan/)).toBeVisible();
   await expect(page.getByRole('link', { name: 'Lihat Jadual' })).toHaveCount(0);
@@ -32,8 +34,9 @@ test('admin loads model and selects all official posts without inventing indoor 
   await page.getByRole('button', { name: 'Zum keluar', exact: true }).click();
   await page.getByRole('button', { name: 'Tetap semula' }).click();
   await expect(page.getByRole('heading', { name: 'Pilih lokasi bangunan' })).toBeVisible();
-  await expect(page.locator('.building-hotspot')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Penanda', exact: true })).toHaveCount(0);
+  await expect(page.locator('.building-hotspot')).toHaveCount(7);
+  await expect(page.locator('.building-hotspot[data-placement="verified"]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Penanda anggaran', exact: true })).toHaveAttribute('aria-pressed', 'true');
   const canvas = page.locator('canvas'); const box = await canvas.boundingBox();
   await page.mouse.move(box.x + box.width * .3, box.y + box.height * .5);
   await page.mouse.down(); await page.mouse.move(box.x + box.width * .5, box.y + box.height * .55, { steps: 12 }); await page.mouse.up();
@@ -68,7 +71,8 @@ test('download failure has a working retry', async ({ page }) => {
   await page.goto(url); await expect(page.getByRole('alert')).toContainText('HTTP 503');
   await page.unroute('**/models/Bangunan_SUK.glb'); await page.getByRole('button', { name: 'Cuba lagi' }).click();
   await expect(page.locator('canvas')).toBeVisible();
-  await expect(page.locator('.building-hotspot')).toHaveCount(0);
+  await expect(page.locator('.building-hotspot')).toHaveCount(7);
+  await expect(page.locator('.building-hotspot[data-placement="verified"]')).toHaveCount(0);
 });
 test('unsupported WebGL produces an explanation', async ({ page }) => {
   await auth(page, 'Pentadbir Sistem');

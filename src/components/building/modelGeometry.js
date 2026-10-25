@@ -2,6 +2,7 @@ import { Box3, Vector3 } from 'three';
 import { buildingHotspots, exteriorLandmarks } from './buildingHotspots.js';
 import { inspectZones } from './buildingZones.js';
 import { getBuilding } from './buildingModels.js';
+import { resolvePostPlacements } from './postPlacements.js';
 
 export function inspectBuilding(scene, building = getBuilding()) {
   scene.updateMatrixWorld(true);
@@ -13,7 +14,7 @@ export function inspectBuilding(scene, building = getBuilding()) {
     return { ...location, position: anchor?.getWorldPosition(new Vector3()).toArray() ?? null };
   });
   // Floor labels are known; no surveyed indoor coordinates or floor meshes exist.
-  const hotspots = (building.hotspots || buildingHotspots).map((post) => ({ ...post, position: null }));
+  const hotspots = resolvePostPlacements(scene, { ...building, hotspots:building.hotspots || buildingHotspots });
   let hasGround = false;
   scene.traverse((object) => {
     if (!object.isMesh) return;
@@ -46,12 +47,12 @@ export function overviewPose(bounds, aspect = 1, direction = [.75, .65, 1]) {
   return { target, position: target.clone().add(eye.multiplyScalar(distance)) };
 }
 
-export function focusPose(position, bounds, aspect = 1) {
+export function focusPose(position, bounds, aspect = 1, direction) {
   const target = new Vector3(...position);
   const span = bounds.getSize(new Vector3()).x;
-  // Every current anchor is on the front exterior. Approach from +Z (glTF),
-  // beyond the entire site's bounding box, rather than crossing a roof.
-  const camera = new Vector3(target.x, Math.max(target.y + span * .18, bounds.max.y + 8), bounds.max.z + span * .22);
+  // Estimates use their building's viewing side, including the rear DJM post.
+  // Older front-only anchors retain their existing outside-site approach.
+  const camera = direction ? target.clone().add(new Vector3(...direction).normalize().multiplyScalar(span*.9)) : new Vector3(target.x, Math.max(target.y + span * .18, bounds.max.y + 8), bounds.max.z + span * .22);
   if (aspect < 1) camera.sub(target).multiplyScalar(Math.min(1.8, 1 / aspect)).add(target);
   return { target, position: camera };
 }

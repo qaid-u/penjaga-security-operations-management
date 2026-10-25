@@ -11,7 +11,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:building": "node --test scripts/building-model.test.mjs scripts/building-library.test.mjs",
+    "test:building": "node --test scripts/building-model.test.mjs scripts/building-library.test.mjs scripts/post-placement.test.mjs scripts/marker-layout.test.mjs scripts/marker-projection-cache.test.mjs",
     "test:building:browser": "playwright test --config playwright.building.config.mjs",
     "test:phase5:browser": "playwright test --config playwright.phase5.config.mjs --grep-invert benchmark",
     "test:backend": "node --test backend/tests/*.test.js",

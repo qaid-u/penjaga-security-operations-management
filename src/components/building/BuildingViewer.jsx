@@ -22,6 +22,7 @@ import { cameraPresets } from './buildingZones';
 import { Button, Field, Select } from '../ui';
 import { Box, Maximize2 } from 'lucide-react';
 import { getBuilding } from './buildingModels';
+import { markerPosition } from './postPlacements';
 
 class ViewerBoundary extends Component {
   state = { failed: false };
@@ -69,13 +70,13 @@ function LoadedViewer({ onRetry, supported, building }) {
   const [lost, setLost] = useState(false);
   const [command, setCommand] = useState({ reset: 0, zoom: null, preset: 'overview' });
   const viewData = data || { hotspots: building.hotspots, zones: [] };
+  const modelReady = supported && !lost && !error && Boolean(data);
   const stage = useRef(null);
   const location = viewData.hotspots.find((item) => item.id === selected);
   const select = (id, openPanel = true) => {
     trigger.current = document.activeElement;
     setSelected(id); setSheet(openPanel && Boolean(id));
-    // Unconfirmed indoor posts must not move the camera to exterior anchors.
-    if (viewData.hotspots.find((item) => item.id === id)?.position) setCommand((old) => ({ ...old, preset: 'selected', reset: old.reset + 1 }));
+    if (modelReady && markerPosition(viewData.hotspots.find((item) => item.id === id))) setCommand((old) => ({ ...old, preset: 'selected', reset: old.reset + 1 }));
     if (openPanel) requestAnimationFrame(() => panel.current?.focus({ preventScroll: true }));
   };
   const reset = () => { setSelected(null); setSheet(false); change('zone',''); setCommand((old) => ({ ...old, preset: 'overview', reset: old.reset + 1 })); };
@@ -90,6 +91,9 @@ function LoadedViewer({ onRetry, supported, building }) {
     requestAnimationFrame(() => { const node = document.getElementById(['reports','high_critical','unmapped_reports','open_actions','completed_actions'].includes(key) ? 'incident-history' : 'building-location-list'); node?.focus({ preventScroll: true }); node?.scrollIntoView({ block:'nearest' }); });
   };
   const visibleHotspots = viewData.hotspots.filter((h) => !filters.zone || filters.zone === h.id);
+  const positionedHotspots = visibleHotspots.filter((item) => markerPosition(item));
+  const markerNotice = !modelReady ? null : !positionedHotspots.length ? 'Penanda anggaran tidak tersedia · Gunakan senarai pos' : !showHotspots ? 'Penanda anggaran disembunyikan · Gunakan senarai pos' : `${positionedHotspots.length} penanda anggaran · Keyakinan rendah · Bukan lokasi tepat`;
+  const modelState = !supported || lost || error ? 'unavailable' : data ? 'ready' : 'loading';
   const closeSheet = () => { setSheet(false); trigger.current?.focus?.({preventScroll:true}); };
   return <div className="building-workspace" data-building={building.id}>
     <div className="building-stage-layout">
@@ -102,16 +106,17 @@ function LoadedViewer({ onRetry, supported, building }) {
           <hemisphereLight args={['#fff4db','#75846f',1.0]} />
           <directionalLight position={[-90, 160, 110]} intensity={2.2} castShadow shadow-autoUpdate={false} shadow-needsUpdate={true} shadow-mapSize={[1024, 1024]} shadow-camera-left={-140} shadow-camera-right={140} shadow-camera-top={140} shadow-camera-bottom={-140} shadow-camera-far={500} shadow-normalBias={.25} />
           <BuildingModel data={data} zone={filters.zone || selected} />
-          {showHotspots && visibleHotspots.filter((item) => item.position).map((item) => <BuildingHotspot key={item.id} location={item} selected={selected === item.id} onSelect={select} indicator={locationIndicator(item.id)} occluders={data.occluders} count={mode === 'incidents' && !operations.overview.isError ? operations.overview.data?.locations.find((l) => l.hotspot_id === item.id)?.metrics?.incidents.total : undefined} />)}
+          {showHotspots && positionedHotspots.map((item) => <BuildingHotspot key={item.id} location={item} locations={positionedHotspots} selected={selected === item.id} onSelect={select} indicator={locationIndicator(item.id)} occluders={data.occluders} count={mode === 'incidents' && !operations.overview.isError ? operations.overview.data?.locations.find((l) => l.hotspot_id === item.id)?.metrics?.incidents.total : undefined} />)}
           <CameraController data={data} selected={selected} command={command} />
           <ContextMonitor onLost={() => setLost(true)} />
         </Canvas>}
-        <div className="building-stage-tools"><ViewerToolbar onReset={reset} onZoom={(direction) => setCommand((old) => ({ ...old, zoom: { direction } }))} showHotspots={showHotspots} hasHotspots={viewData.hotspots.some((item) => item.position)} onToggle={() => setShowHotspots((old) => !old)} /></div>
-        <div className="building-stage-stamp" aria-live="polite"><span className={data ? 'is-ready' : ''} />{data ? 'Model sedia' : error || lost ? 'Model tidak tersedia' : 'Memuatkan model'}<small>{building.meshes} komponen · {building.region}</small></div>
+        <div className="building-stage-tools"><ViewerToolbar onReset={reset} onZoom={(direction) => setCommand((old) => ({ ...old, zoom: { direction } }))} showHotspots={showHotspots} modelReady={modelReady} hasHotspots={modelReady && positionedHotspots.length > 0} onToggle={() => setShowHotspots((old) => !old)} /></div>
+        {markerNotice && <p className="building-estimate-notice" role="status">{markerNotice}</p>}
+        <div className="building-stage-stamp" data-state={modelState} aria-live="polite"><span className={modelReady ? 'is-ready' : ''} />{modelState === 'ready' ? 'Model sedia' : modelState === 'unavailable' ? 'Model tidak tersedia' : 'Memuatkan model'}<small>{building.meshes} komponen · {building.region}</small></div>
       </div>
-      <div className="building-camera-strip"><Field label="Pratetap kamera"><Select value={command.preset || 'selected'} onChange={(e) => setCommand((old) => ({...old,preset:e.target.value,reset:old.reset+1}))}>{Object.entries(cameraPresets).map(([key,label]) => <option key={key} value={key} disabled={key === 'selected' && !location?.position}>{label}</option>)}</Select></Field><p>Seret untuk putar · Skrol / cubit untuk zum<br /><span aria-live="polite">Pos dipilih: {location?.name || 'Tiada'}</span></p></div>
+      <div className="building-camera-strip"><Field label="Pratetap kamera"><Select disabled={!modelReady} value={modelReady ? command.preset || 'selected' : 'overview'} onChange={(e) => setCommand((old) => ({...old,preset:e.target.value,reset:old.reset+1}))}>{Object.entries(cameraPresets).map(([key,label]) => <option key={key} value={key} disabled={key === 'selected' && (!modelReady || !markerPosition(location))}>{key === 'selected' ? 'Anggaran pos dipilih' : label}</option>)}</Select></Field><p>Seret untuk putar · Skrol / cubit untuk zum<br /><span aria-live="polite">Pos dipilih: {location?.name || 'Tiada'}</span></p></div>
       <details open id="building-location-list" tabIndex={-1} className="building-post-list" aria-label="Pos keselamatan"><summary className="mb-3 cursor-pointer font-semibold">Pos keselamatan — {building.shortName}</summary>
-        <p className="mb-3 text-xs">{building.postCount} pos rasmi · Kedudukan 3D belum disahkan. Pilih pos untuk melihat rekod operasi.</p>
+        <p className="mb-3 text-xs">{building.postCount} pos rasmi · Penanda ialah anggaran visual. Kedudukan 3D belum disahkan.</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {visibleHotspots.map((item) => <button key={item.id} type="button" aria-pressed={selected === item.id} onClick={() => select(item.id)} className={`flex min-h-11 items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm ${selected === item.id ? 'app-nav-active' : 'app-button-ghost'}`}><span className="font-mono">{String(item.number).padStart(2, '0')}</span><span>{item.name}<small className="block text-secondary-token">{item.area} · {locationIndicator(item.id).text}</small></span></button>)}
         </div>

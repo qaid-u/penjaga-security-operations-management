@@ -9,7 +9,9 @@ export function LocationInformationPanel({ location, operations }) {
   return <Card title="Maklumat Lokasi" className="h-fit min-w-0">
     {!location ? <div className="space-y-3 py-5"><h3>Pilih lokasi bangunan</h3><p>Pilih pos daripada senarai untuk melihat rekod operasi dan label aras.</p></div> : <div className="space-y-4">
       <h3 className="text-lg">{location.name}</h3><p>{location.description}</p>
-      <p className="rounded-lg border p-3 text-sm">Aras: {location.floor || 'Belum disahkan'}<br />Kedudukan 3D belum disahkan. Tiada penanda dalaman atau geometri aras diandaikan.</p>
+      <p className="rounded-lg border p-3 text-sm">Aras: {location.floor || 'Belum disahkan'}<br />Kedudukan 3D belum disahkan. Penanda visual bukan lokasi tepat atau pengesahan bilik dalaman.</p>
+      {location.placement?.status === 'estimated' && <section className="building-placement-basis" aria-label="Asas anggaran kedudukan"><strong>Anggaran visual — belum disahkan</strong><p>Keyakinan: rendah</p><p><b>Asas anggaran:</b> {location.placement.basis}</p>{location.floor && <p>Nama aras dibekalkan; ketinggian pada model tetap anggaran.</p>}<p>Penanda diproyeksikan pada eksterior untuk navigasi. Foto dan geometri model tidak membuktikan lokasi sebenar pos.</p></section>}
+      {location.placement?.status === 'unavailable' && <p className="building-placement-basis">{location.placement.basis}</p>}
       {!operations.location && <p>{operations.overview.isPending ? 'Memuatkan konfigurasi lokasi...' : operations.overview.isError ? 'Konfigurasi lokasi tidak tersedia. Model masih boleh digunakan.' : 'Hotspot ini belum dikonfigurasi dalam pangkalan data.'}</p>}
       {operations.location && q.isPending && <p role="status">Memuatkan ringkasan lokasi...</p>}
       {q.isError && <div role="alert"><p>{apiMessage(q.error)} {data && 'Data di bawah ialah snapshot terdahulu dan mungkin lapuk.'}</p><Button variant="ghost" onClick={() => q.refetch()}>Cuba semula lokasi</Button></div>}

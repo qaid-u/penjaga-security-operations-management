@@ -3,6 +3,7 @@ import { CameraControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { Box3, Vector3 } from 'three';
 import { focusPose, presetPose } from './modelGeometry';
+import { markerPosition } from './postPlacements';
 
 const motionQuery = () => window.matchMedia('(prefers-reduced-motion: reduce)');
 const subscribe = (callback) => { const query = motionQuery(); query.addEventListener('change', callback); return () => query.removeEventListener('change', callback); };
@@ -12,7 +13,7 @@ export function CameraController({ data, selected, command }) {
   const initialized = useRef(false);
   const { size, invalidate } = useThree();
   const reduceMotion = useSyncExternalStore(subscribe, () => motionQuery().matches, () => false);
-  const positionedSelection = data.hotspots.find((item) => item.id === selected && item.position)?.id ?? null;
+  const positionedSelection = data.hotspots.find((item) => item.id === selected && markerPosition(item))?.id ?? null;
   useEffect(() => {
     const instance = controls.current;
     if (!instance) return;
@@ -22,7 +23,7 @@ export function CameraController({ data, selected, command }) {
     instance.setBoundary(new Box3(data.bounds.min.clone().sub(new Vector3(radius, 0, radius)), data.bounds.max.clone().add(new Vector3(radius, radius * 3, radius))));
     const hotspot = data.hotspots.find((item) => item.id === positionedSelection);
     const aspect = size.width / size.height;
-    const pose = hotspot && (!command.preset || command.preset === 'selected') ? focusPose(hotspot.position, data.bounds, aspect) : presetPose(data.bounds, aspect, command.preset, data.viewDirection);
+    const pose = hotspot && (!command.preset || command.preset === 'selected') ? focusPose(markerPosition(hotspot), data.bounds, aspect, hotspot.placement?.viewDirection) : presetPose(data.bounds, aspect, command.preset, data.viewDirection);
     instance.setLookAt(...pose.position.toArray(), ...pose.target.toArray(), initialized.current && !reduceMotion);
     invalidate(); // An immediate reduced-motion command must wake the demand-driven canvas.
     initialized.current = true;

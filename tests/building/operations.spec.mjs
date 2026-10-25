@@ -35,7 +35,8 @@ test('rapid hotspot switching does not display a late response for the previous 
   await expect(page.getByText(/Tiada rekod operasi dipautkan/)).toBeVisible();
   await page.waitForTimeout(2000); // Let the old server response arrive after selection changed.
   await expect(page.getByLabel('Panel lokasi').getByText('Pos Ujian API',{exact:true})).toHaveCount(0);
-  await expect(page.locator('.building-hotspot')).toHaveCount(0);
+  await expect(page.locator('.building-hotspot')).toHaveCount(7);
+  await expect(page.locator('.building-hotspot.is-selected')).toHaveAttribute('data-placement','estimated');
 });
 test('API failure is recoverable without remounting or hiding the model',async({page})=>{
   const fixture=await mockOperations(page,{linked:true,failSummary:true}); await login(page); await page.goto('/3d-command-centre');

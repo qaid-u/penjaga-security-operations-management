@@ -86,7 +86,8 @@ test('all eight buildings load their selected model and distinct official post l
     await expect(page.locator('canvas')).toBeVisible();
     await expect(postButton(page, building.hotspots[0])).toBeVisible();
     await expect(page.getByLabel('Pos keselamatan bangunan').locator('option')).toHaveCount(building.postCount + 1);
-    await expect(page.locator('.building-hotspot')).toHaveCount(0);
+    await expect(page.locator('.building-hotspot')).toHaveCount(building.postCount);
+    await expect(page.locator('.building-hotspot[data-placement="verified"]')).toHaveCount(0);
     visited.add(pathOf(building.modelUrl));
     expect(new Set(models)).toEqual(visited);
     if (['BSI_KOTA_ISKANDAR', 'UTC_JOHOR'].includes(building.id)) {

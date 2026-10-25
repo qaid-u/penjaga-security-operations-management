@@ -33,15 +33,16 @@ async function setup(page, role = 'Pentadbir Sistem') {
   return {fixture,calls,fail:()=>{failure=true;},recover:()=>{failure=false;}};
 }
 
-test('official post filters retain exterior camera controls and do not mark unconfirmed indoor positions',async({page})=>{
+test('official post filters focus labelled exterior estimates and retain independent camera controls',async({page})=>{
   await setup(page);const models=[];page.on('request',(r)=>{if(r.url().endsWith('.glb'))models.push(r.url());});
   await page.goto('/3d-command-centre');await expect(page.locator('canvas')).toBeVisible();
   await expect(page.getByText(/Aras pos mengikut senarai rasmi/)).toBeVisible();
   await expect(page.getByLabel('Pos keselamatan bangunan').locator('option')).toHaveCount(8);
   const initialModelRequests=models.length; // React StrictMode can abort one initial development fetch.
   for(const [id,name] of [['POST_DJM_SS_LEVEL_3','Pos Tingkat 3 Pejabat Setiausaha Kerajaan Johor'],['POST_DJM_MB_LEVEL_4_FRONT','Pos Tingkat 4 Hadapan Pejabat Menteri Besar Johor'],['POST_DJM_MAIN_LOBBY','Pos Lobi Utama']]) {
-    await page.getByLabel('Pos keselamatan bangunan').selectOption(id);await expect(page.getByText(`Pos dipilih: ${name}`,{exact:true})).toBeVisible();await expect(page.locator('.building-hotspot')).toHaveCount(0);
-    await expect(page.getByLabel('Pratetap kamera')).toHaveValue('overview');
+    await page.getByLabel('Pos keselamatan bangunan').selectOption(id);await expect(page.getByText(`Pos dipilih: ${name}`,{exact:true})).toBeVisible();await expect(page.locator('.building-hotspot')).toHaveCount(1);
+    await expect(page.locator('.building-hotspot')).toHaveAttribute('data-placement','estimated');
+    await expect(page.getByLabel('Pratetap kamera')).toHaveValue('selected');
     if(id==='POST_DJM_SS_LEVEL_3')await page.getByRole('region',{name:'Model interaktif Bangunan Dato’ Jaafar Muhammad'}).screenshot({path:'artifacts/suk/djm-posts-zone.png'});
   }
   await page.getByRole('button',{name:'Tetap semula',exact:true}).click();
@@ -60,7 +61,7 @@ test('history paginates, resolves mapped reports, preserves unmapped records and
   await expect(history.getByText(/22 laporan/)).toBeVisible();
   await history.getByRole('button',{name:/Sejarah berisiko tinggi/}).click();
   await expect(page.getByLabel('Butiran laporan dipilih')).toContainText('Sejarah berisiko tinggi');
-  await expect(page.getByLabel('Pratetap kamera')).toHaveValue('overview');
+  await expect(page.getByLabel('Pratetap kamera')).toHaveValue('selected');
   await expect(page.getByRole('button',{name:/01.*Pos Lobi Utama/})).toHaveAttribute('aria-pressed','true');
   await history.getByRole('button',{name:/Sejarah tanpa pautan/}).click();
   await expect(page.getByLabel('Butiran laporan dipilih')).toContainText('Pos ini tiada pautan 3D');
@@ -131,8 +132,8 @@ test('operational location list remains usable without WebGL',async({page})=>{
   await page.getByRole('button',{name:/01.*Pos Lobi Utama/}).click();await expect(page.getByLabel('Panel lokasi').getByText('Pos Ujian API',{exact:true})).toBeVisible();
 });
 
-test('selecting an unconfirmed indoor post preserves the manually orbited exterior view',async({page})=>{
-  await setup(page,'Ketua Pengawal');
+test('selecting a post focuses its low-confidence exterior estimate without verifying an indoor location',async({page})=>{
+  const {fixture}=await setup(page,'Ketua Pengawal');
   // Observe the actual WebGL camera matrix without adding application test hooks.
   await page.addInitScript(()=>{
     const original=HTMLCanvasElement.prototype.getContext;
@@ -166,9 +167,13 @@ test('selecting an unconfirmed indoor post preserves the manually orbited exteri
   const cameraBefore=await page.evaluate(()=>window.__djmViewMatrix);
   await page.getByRole('button',{name:/03.*Pos Tingkat 3/}).click();
   await expect(page.getByLabel('Panel lokasi')).toContainText('Aras: Tingkat 3');
-  await expect(page.getByLabel('Pratetap kamera')).toHaveValue('left');
+  await expect(page.getByLabel('Pratetap kamera')).toHaveValue('selected');
   await canvas.screenshot();
-  expect(await page.evaluate(()=>window.__djmViewMatrix)).toEqual(cameraBefore);
-  await expect(page.locator('.building-hotspot')).toHaveCount(0);
+  await expect.poll(()=>page.evaluate(()=>window.__djmViewMatrix)).not.toEqual(cameraBefore);
+  await expect(page.getByLabel('Panel lokasi')).toContainText('Anggaran visual — belum disahkan');
+  await expect(page.getByLabel('Panel lokasi')).toContainText('Keyakinan: rendah');
+  await expect(page.locator('.building-hotspot')).toHaveCount(7);
+  await expect(page.locator('.building-hotspot[data-placement="verified"]')).toHaveCount(0);
+  expect(fixture.requests.every((request)=>request.method==='GET')).toBe(true);
   await page.screenshot({path:'artifacts/suk/djm-posts-level3.png',fullPage:true});
 });

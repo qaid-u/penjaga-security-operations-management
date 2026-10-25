@@ -21,7 +21,7 @@ Run `node backend/scripts/migrate-3d.js` and restart the backend. It applies mig
 
 Every 3D read and mapping request accepts a validated `building` query parameter. Omission defaults to DJM for compatibility. Location summaries, post/category references, history, metrics and mapping writes enforce that scope. Query-cache keys include building and signed-in identity. Switching buildings resets the selected post and filters, and abandoned requests cannot display another building's summary. NLP recognition accepts the official names while keeping source evidence and uncertainty rules.
 
-Post coordinates remain unconfirmed and API responses return `position: null`. Selecting a post opens its record without placing an indoor marker, moving the camera to a guessed wing or inventing a floor. Models are approximate exteriors. Operating data is stored-record information rather than GPS monitoring or a prediction.
+Post coordinates remain unconfirmed and API responses return `position: null`. The viewer now calculates separate `estimatedPosition` display coordinates for all 15 posts from named exterior features. Amber dashed markers are labeled “Anggaran”; selecting a marker or list item focuses that estimate and shows its basis and low confidence. The front/rear and supplied floor labels guide DJM estimates, while office sides, CCTV rooms and lift cores are explicitly identified as assumptions. The marker toggle hides the overlays without disabling post records. These display estimates do not change database coordinates, Blender geometry, floor labels or operational records. See [estimated post placement](ESTIMATED_POST_PLACEMENT.md) for the rules and limitations.
 
 ## Assets and performance
 
@@ -34,9 +34,9 @@ All deployed GLBs and previews are public files; authenticated operational APIs 
 ## Verification
 
 - `npm run check`: lint, syntax and production build.
-- `npm run test:building`: 20 model, catalogue, geometry, frustum, byte-copy and existing DJM checks.
+- `npm run test:building`: model, catalogue, geometry, frustum, byte-copy and estimated-placement checks, including all 15 posts across six assets and eight building identities.
 - `node --test backend/tests/threeD.test.js`: 29 isolated PostgreSQL/API checks, including cross-building rejection, repeat migration, shared-identity separation and matching rules.
 - `npm run test:nlp`: 42 NLP/reviewer/queue checks with provider responses mocked.
-- `npm run test:building:browser`: 26 browser scenarios, including eight building choices, shared geometry, stale-response cancellation, mobile/WebGL fallback, dashboard showcase, roles and existing operational controls. Set `BUILDING_TEST_PORT` to use an unused local test port.
+- `npm run test:building:browser`: browser scenarios covering all eight buildings, shared geometry, estimated marker selection/toggling, stale-response cancellation, mobile/WebGL fallback, dashboard showcase, roles and operational controls. Set `BUILDING_TEST_PORT` to use an unused local test port.
 
 The local database migration and authenticated HTTP probes succeeded for all eight buildings and 15 linked official posts. Verification preserved every existing post row and all 17 posts, 102 reports and 8 duty records. Summary evidence is in `artifacts/integration/database-verification.json`; UI screenshots in the same folder use synthetic test records. Existing Fast Refresh and large-bundle build advisories remain separate from test failures.

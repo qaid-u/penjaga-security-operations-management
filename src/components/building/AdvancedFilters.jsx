@@ -11,7 +11,7 @@ export function AdvancedFilters({ data, filters, change, mode, operations, perio
   return <section className="app-surface rounded-2xl border p-4">
     <div className="grid gap-3 sm:grid-cols-2 items-end">
       <Field label="Pos keselamatan bangunan"><Select value={filters.zone} onChange={(e) => onZone(e.target.value)}><option value="">Semua pos bangunan ini</option>{data.hotspots.map((post) => <option key={post.id} value={post.id}>{post.name}</option>)}</Select></Field>
-      <p className="text-xs">Model eksterior sahaja. Aras pos mengikut senarai rasmi; kedudukan dalaman belum disahkan. Pemilihan pos menapis rekod tanpa menandakan lokasi pada model.</p>
+      <p className="text-xs">Model eksterior sahaja. Aras pos mengikut senarai rasmi; kedudukan dalaman belum disahkan. Penanda berlabel anggaran ialah proksi visual, bukan lokasi tepat.</p>
     </div>
     <p className="mt-2 text-xs" aria-live="polite">Penapis aktif: {filters.mapping === 'all' ? 'semua pos' : filters.mapping === 'linked' ? 'pos dipautkan' : 'pos tanpa pautan'}{filters.post && ` · pos #${filters.post}`}{incident && [filters.risk,filters.category,filters.report_status,filters.action_status].filter(Boolean).map((v) => ` · ${v}`).join('')}</p>
     <details open={initialOpen} className="mt-3">
