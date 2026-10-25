@@ -20,6 +20,7 @@ jobs:
       PGPASSWORD: ci-fixture-only
       PGDATABASE: penjaga_phase5_demo
       PLAYWRIGHT_CHANNEL: chromium
+      PHASE6_DEMO_PASSWORD: ci-phase6-synthetic-only
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,6 +39,8 @@ jobs:
       - run: npm run test:backend
       - run: npm run test:building:browser
       - run: npm run test:phase5:browser
+      - run: npm run demo:phase6:prepare
+      - run: npm run test:phase6
       - run: npm audit --audit-level=high && npm --prefix backend audit --audit-level=high
       - uses: actions/upload-artifact@v4
         if: failure()

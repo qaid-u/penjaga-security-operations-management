@@ -14,7 +14,8 @@
     "dev": "nodemon server.js",
     "train:nlp": "node scripts/train-nlp-model.js",
     "replace:reports": "node scripts/replace-demo-reports.js",
-    "smoke": "node scripts/smoke-test.js"
+    "smoke": "node scripts/smoke-test.js",
+    "migrate:nlp": "node scripts/migrate-nlp.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

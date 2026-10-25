@@ -1,0 +1,167 @@
+{
+  "date": "2026-10-24T19:22:44.515Z",
+  "database": "penjaga_phase6_demo",
+  "checks": [
+    {
+      "method": "post",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "post",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "post",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "post",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "get",
+      "path": "/api/auth/me",
+      "status": 401
+    },
+    {
+      "method": "get",
+      "path": "/api/users",
+      "status": 403
+    },
+    {
+      "method": "get",
+      "path": "/api/3d/overview",
+      "status": 403
+    },
+    {
+      "method": "post",
+      "path": "/api/auth/change-password",
+      "status": 404
+    },
+    {
+      "method": "get",
+      "path": "/api/3d/filters",
+      "status": 200
+    },
+    {
+      "method": "post",
+      "path": "/api/jadual/check-conflict",
+      "status": 200
+    },
+    {
+      "method": "post",
+      "path": "/api/jadual/mingguan/1/assignments",
+      "status": 409
+    },
+    {
+      "method": "post",
+      "path": "/api/jadual/mingguan/1/confirm",
+      "status": 200
+    },
+    {
+      "method": "post",
+      "path": "/api/jadual/mingguan/1/lock",
+      "status": 200
+    },
+    {
+      "method": "put",
+      "path": "/api/jadual/assignments/3",
+      "status": 409
+    },
+    {
+      "method": "post",
+      "path": "/api/jadual/mingguan/1/unlock",
+      "status": 200
+    },
+    {
+      "method": "get",
+      "path": "/api/jadual/mingguan/1/coverage-summary",
+      "status": 200
+    },
+    {
+      "method": "post",
+      "path": "/api/jadual/assignments/3/check-in",
+      "status": 409
+    },
+    {
+      "method": "post",
+      "path": "/api/jadual/assignments/3/check-in",
+      "status": 404
+    },
+    {
+      "method": "post",
+      "path": "/api/reports",
+      "status": 400
+    },
+    {
+      "method": "post",
+      "path": "/api/reports/2/reanalyse",
+      "status": 202
+    },
+    {
+      "method": "get",
+      "path": "/api/reports/2",
+      "status": 200
+    },
+    {
+      "method": "get",
+      "path": "/api/reports/2",
+      "status": 403
+    },
+    {
+      "method": "get",
+      "path": "/uploads/1792858442337-553850453-demo-evidence.png",
+      "status": 401
+    },
+    {
+      "method": "get",
+      "path": "/uploads/1792858442337-553850453-demo-evidence.png",
+      "status": 404
+    },
+    {
+      "method": "get",
+      "path": "/uploads/1792858442337-553850453-demo-evidence.png",
+      "status": 200
+    },
+    {
+      "method": "patch",
+      "path": "/api/reports/2/review",
+      "status": 403
+    },
+    {
+      "method": "patch",
+      "path": "/api/actions/2",
+      "status": 200
+    },
+    {
+      "method": "get",
+      "path": "/api/notifications",
+      "status": 200
+    },
+    {
+      "method": "patch",
+      "path": "/api/notifications/3/read",
+      "status": 200
+    },
+    {
+      "method": "get",
+      "path": "/api/3d/locations/1/summary?date=2026-10-25&from=2026-10-25&to=2026-10-25",
+      "status": 200
+    },
+    {
+      "method": "get",
+      "path": "/api/nlp/analysis/2",
+      "status": 200
+    }
+  ],
+  "limitations": [
+    "Password change endpoint missing (404 confirmed)",
+    "Attendance is restricted to assignments dated current_date",
+    "Saved Naive Bayes artifact has no runtime weights"
+  ],
+  "applicationProducedReportId": 2
+}

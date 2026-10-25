@@ -38,8 +38,9 @@ router.get('/', auth, requireRole(roles.admin), async (req, res) => {
     left join tbl_pos_kawalan pos on pos.id_pos = s.id_pos
     ${conditions.length ? `where ${conditions.join(' and ')}` : ''}
   `;
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const countResult = await client.query(`select count(*)::int as total ${baseQuery}`, params);
     const result = await client.query(
       `select a.*, p.nama_penuh, r.nama_peranan, pos.nama_pos
@@ -71,10 +72,10 @@ router.get('/', auth, requireRole(roles.admin), async (req, res) => {
     const total = countResult.rows[0].total;
     res.json({ data: result.rows, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
   } catch (error) {
-    console.error('Get audit trail error:', error);
+    console.error('Get audit trail error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan audit trail' });
   } finally {
-    client.release();
+    client?.release();
   }
 });
 

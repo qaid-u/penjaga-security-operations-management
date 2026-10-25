@@ -1,0 +1,47 @@
+{
+  "collected_at": "2026-10-25 Asia/Kuala_Lumpur",
+  "scope": "Local synthetic verification; no production deployment or participant study",
+  "checks": {
+    "backend": {
+      "passed": 33,
+      "failed": 0
+    },
+    "model_logic": {
+      "passed": 10,
+      "failed": 0
+    },
+    "evaluation_analyzer": {
+      "passed": 3,
+      "failed": 0
+    },
+    "isolated_3d_browser": {
+      "passed": 18,
+      "failed": 0
+    },
+    "real_api_browser": {
+      "passed": 5,
+      "failed": 0
+    },
+    "phase6_workflow_and_screenshots": {
+      "passed": 2,
+      "failed": 0
+    },
+    "total_cases": 71,
+    "frontend_check": "passed; one existing Fast Refresh warning and bundle warning",
+    "compose_config": "passed",
+    "schema_dictionary": "matched 20 application tables and 178 actual columns",
+    "editable_presentation": "16 native-editable slides and 16 notes; all source renders visually reviewed",
+    "screenshots": 17,
+    "documentation_local_links": "passed"
+  },
+  "pending": [
+    "Official proposal/template/objectives/metadata",
+    "Human usability and independent labelled NLP data",
+    "Representative physical hardware/phones",
+    "Docker image execution, approved hosting, TLS and recovery"
+  ],
+  "publication": {
+    "blender_source_and_backup": "pushed to GitHub main, 2123350",
+    "phase6_changes": "local"
+  }
+}

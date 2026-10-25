@@ -1,0 +1,12 @@
+flowchart LR
+  U[Browser: three authorized roles] --> R[React / Router / Query]
+  R --> V[React Three Fiber / Drei / Three.js]
+  V --> G[Approved exterior GLB]
+  R -->|Bearer JWT / REST| E[Express API]
+  E --> A[JWT validation + database role lookup]
+  E --> P[(PostgreSQL)]
+  E --> N[Keyword classifier]
+  N --> P
+  E --> F[Protected uploads on disk]
+  V -->|Selected anchor ID| E
+  P --> M[Location to security-post mapping]

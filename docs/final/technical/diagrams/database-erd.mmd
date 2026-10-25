@@ -1,0 +1,249 @@
+erDiagram
+  tbl_peranan {
+    serial id_peranan PK
+    varchar nama_peranan
+    text keterangan_peranan
+    int tahap_capaian
+    timestamp tarikh_dicipta
+  }
+  tbl_pengguna {
+    serial id_pengguna PK
+    int id_peranan FK
+    varchar nama_penuh
+    varchar no_kad_pengenalan
+    varchar no_telefon
+    varchar emel
+    varchar nama_pengguna
+    text kata_laluan
+    varchar status_akaun
+    timestamp tarikh_dicipta
+    timestamp tarikh_kemaskini
+  }
+  tbl_peranan ||--o{ tbl_pengguna : "id_peranan"
+  tbl_pos_kawalan {
+    serial id_pos PK
+    varchar nama_pos
+    varchar nama_bangunan
+    text lokasi
+    varchar waktu_operasi
+    varchar status_pos
+    timestamp tarikh_dicipta
+  }
+  tbl_kategori_insiden {
+    serial id_kategori_insiden PK
+    varchar nama_kategori
+    varchar tahap_keutamaan
+    text penerangan_kategori
+    text_array kata_kunci_rujukan
+    varchar status_kategori
+    timestamp tarikh_dicipta
+  }
+  tbl_laporan_harian {
+    serial id_laporan PK
+    int id_pengguna FK
+    int id_pos FK
+    int id_kategori_insiden FK
+    varchar tajuk_laporan
+    varchar syif
+    date tarikh_laporan
+    time masa_laporan
+    text kandungan_laporan
+    varchar status_laporan
+    varchar tahap_risiko
+    boolean perlu_tindakan_susulan
+    text lampiran_fail
+    timestamp tarikh_dicipta
+    timestamp tarikh_kemaskini
+  }
+  tbl_pengguna ||--o{ tbl_laporan_harian : "id_pengguna"
+  tbl_pos_kawalan ||--o{ tbl_laporan_harian : "id_pos"
+  tbl_kategori_insiden |o--o{ tbl_laporan_harian : "id_kategori_insiden"
+  tbl_hasil_nlp {
+    serial id_nlp PK
+    int id_laporan FK
+    text teks_diproses
+    text_array kata_kunci_dikesan
+    varchar kategori_dikesan
+    numeric skor_sentimen
+    int skor_risiko
+    varchar tahap_risiko
+    text ringkasan_automatik
+    numeric tahap_keyakinan
+    timestamp tarikh_analisis
+  }
+  tbl_laporan_harian ||--o{ tbl_hasil_nlp : "id_laporan"
+  tbl_pengesahan_laporan {
+    serial id_pengesahan PK
+    int id_laporan FK
+    int id_pengguna_pengesah FK
+    varchar status_pengesahan
+    text catatan_pengesahan
+    timestamp tarikh_pengesahan
+  }
+  tbl_laporan_harian ||--o{ tbl_pengesahan_laporan : "id_laporan"
+  tbl_pengguna ||--o{ tbl_pengesahan_laporan : "id_pengguna_pengesah"
+  tbl_tindakan_susulan {
+    serial id_tindakan PK
+    int id_laporan FK
+    varchar pegawai_bertanggungjawab
+    text tindakan_diambil
+    varchar status_tindakan
+    varchar tahap_keutamaan
+    date tarikh_mula
+    date tarikh_selesai
+    text catatan_tindakan
+    timestamp tarikh_kemaskini
+  }
+  tbl_laporan_harian ||--o{ tbl_tindakan_susulan : "id_laporan"
+  tbl_progress_tindakan {
+    serial id_progress PK
+    int id_tindakan FK
+    int id_pengguna FK
+    text catatan_progress
+    varchar jenis_progress
+    boolean perlu_respon_ketua
+    text lampiran_fail
+    timestamp tarikh_progress
+    boolean dilihat_admin
+  }
+  tbl_tindakan_susulan ||--o{ tbl_progress_tindakan : "id_tindakan"
+  tbl_pengguna ||--o{ tbl_progress_tindakan : "id_pengguna"
+  tbl_checklist {
+    serial id_checklist PK
+    varchar nama_checklist
+    text penerangan_checklist
+    varchar kategori_checklist
+    boolean status_aktif
+    timestamp tarikh_dicipta
+  }
+  tbl_jawapan_checklist {
+    serial id_jawapan PK
+    int id_laporan FK
+    int id_checklist FK
+    varchar jawapan
+    text catatan
+    timestamp tarikh_jawapan
+  }
+  tbl_laporan_harian ||--o{ tbl_jawapan_checklist : "id_laporan"
+  tbl_checklist ||--o{ tbl_jawapan_checklist : "id_checklist"
+  tbl_status_bertugas {
+    serial id_status PK
+    int id_pengguna FK
+    int id_pos FK
+    date tarikh
+    varchar syif
+    varchar status_bertugas
+    time masa_mula
+    time masa_tamat
+    timestamp tarikh_kemaskini
+  }
+  tbl_pengguna ||--o{ tbl_status_bertugas : "id_pengguna"
+  tbl_pos_kawalan ||--o{ tbl_status_bertugas : "id_pos"
+  tbl_jadual_mingguan {
+    serial id_jadual_mingguan PK
+    date tarikh_mula
+    date tarikh_tamat
+    varchar tajuk_jadual
+    varchar status_jadual
+    int dicipta_oleh FK
+    int disahkan_oleh FK
+    timestamp tarikh_dicipta
+    timestamp tarikh_disahkan
+    text catatan
+  }
+  tbl_pengguna |o--o{ tbl_jadual_mingguan : "dicipta_oleh"
+  tbl_pengguna |o--o{ tbl_jadual_mingguan : "disahkan_oleh"
+  tbl_jadual_bertugas {
+    serial id_jadual PK
+    int id_jadual_mingguan FK
+    int id_pengguna FK
+    int id_pos FK
+    date tarikh_tugas
+    varchar syif
+    time masa_mula
+    time masa_tamat
+    varchar status_bertugas
+    text catatan
+    int dicipta_oleh FK
+    timestamp tarikh_dicipta
+    timestamp tarikh_kemaskini
+  }
+  tbl_jadual_mingguan ||--o{ tbl_jadual_bertugas : "id_jadual_mingguan"
+  tbl_pengguna ||--o{ tbl_jadual_bertugas : "id_pengguna"
+  tbl_pos_kawalan ||--o{ tbl_jadual_bertugas : "id_pos"
+  tbl_pengguna |o--o{ tbl_jadual_bertugas : "dicipta_oleh"
+  tbl_keperluan_pos {
+    serial id_keperluan PK
+    int id_pos FK
+    varchar syif
+    int bilangan_diperlukan
+    boolean status_aktif
+    timestamp tarikh_dicipta
+  }
+  tbl_pos_kawalan ||--o{ tbl_keperluan_pos : "id_pos"
+  tbl_kehadiran_tugas {
+    serial id_kehadiran PK
+    int id_jadual FK
+    int id_pengguna FK
+    timestamp masa_check_in
+    timestamp masa_check_out
+    varchar status_kehadiran
+    text catatan
+    timestamp tarikh_dicipta
+  }
+  tbl_jadual_bertugas ||--o{ tbl_kehadiran_tugas : "id_jadual"
+  tbl_pengguna ||--o{ tbl_kehadiran_tugas : "id_pengguna"
+  tbl_fail_jadual {
+    serial id_fail PK
+    int id_jadual_mingguan FK
+    varchar nama_fail
+    varchar jenis_fail
+    text path_fail
+    int dimuat_naik_oleh FK
+    timestamp tarikh_muat_naik
+  }
+  tbl_jadual_mingguan ||--o{ tbl_fail_jadual : "id_jadual_mingguan"
+  tbl_pengguna |o--o{ tbl_fail_jadual : "dimuat_naik_oleh"
+  tbl_notifikasi {
+    serial id_notifikasi PK
+    int id_pengguna FK
+    int id_laporan FK
+    int id_tindakan FK
+    varchar tajuk_notifikasi
+    text mesej_notifikasi
+    varchar jenis_notifikasi
+    varchar tahap_keutamaan
+    varchar status_bacaan
+    timestamp tarikh_hantar
+    timestamp tarikh_dibaca
+  }
+  tbl_pengguna ||--o{ tbl_notifikasi : "id_pengguna"
+  tbl_laporan_harian |o--o{ tbl_notifikasi : "id_laporan"
+  tbl_tindakan_susulan |o--o{ tbl_notifikasi : "id_tindakan"
+  tbl_audit_trail {
+    serial id_audit PK
+    int id_pengguna FK
+    varchar modul_sistem
+    varchar jenis_aktiviti
+    text penerangan_aktiviti
+    varchar rekod_terlibat
+    text nilai_lama
+    text nilai_baharu
+    varchar alamat_ip
+    text peranti_pengguna
+    varchar status_aktiviti
+    timestamp tarikh_masa_aktiviti
+  }
+  tbl_pengguna |o--o{ tbl_audit_trail : "id_pengguna"
+  tbl_lokasi_3d {
+    serial id_lokasi PK
+    varchar hotspot_id
+    varchar nama_paparan
+    varchar kawasan
+    varchar label_aras
+    integer id_pos FK
+    boolean status_aktif
+    timestamptz tarikh_dicipta
+    timestamptz tarikh_kemaskini
+  }
+  tbl_pos_kawalan |o--o{ tbl_lokasi_3d : "id_pos"

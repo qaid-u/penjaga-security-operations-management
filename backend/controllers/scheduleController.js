@@ -6,6 +6,9 @@ const { roles } = require('../middleware/auth');
 
 const validShifts = ['Pagi', 'Petang', 'Malam', 'Office Hour'];
 
+// PostgreSQL DATE must retain its calendar value, independent of Node's timezone.
+const weekQuery = 'select *, tarikh_mula::text as tarikh_mula, tarikh_tamat::text as tarikh_tamat from tbl_jadual_mingguan where id_jadual_mingguan = $1';
+
 const parseWeekId = (value) => Number.parseInt(value, 10);
 const validDate = (value) => {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -48,7 +51,7 @@ const getWeek = async (req, res) => {
   try {
     client = await pool.connect();
     const result = await client.query(
-      'select * from tbl_jadual_mingguan where id_jadual_mingguan = $1',
+      weekQuery,
       [req.params.id]
     );
     if (!result.rowCount) return res.status(404).json({ message: 'Jadual mingguan tidak ditemui' });
@@ -66,7 +69,7 @@ const getCoverage = async (req, res) => {
   try {
     client = await pool.connect();
     const weekResult = await client.query(
-      'select * from tbl_jadual_mingguan where id_jadual_mingguan = $1',
+      weekQuery,
       [req.params.id]
     );
     const week = weekResult.rows[0];
@@ -273,7 +276,7 @@ const saveAssignment = async (req, res) => {
       weekId = existing.rows[0].id_jadual_mingguan;
     }
     const weekResult = await client.query(
-      'select * from tbl_jadual_mingguan where id_jadual_mingguan = $1',
+      weekQuery,
       [weekId]
     );
     const week = weekResult.rows[0];
@@ -365,9 +368,9 @@ const updateWeekStatus = async (req, res) => {
     client = await pool.connect();
     const result = await client.query(
       `update tbl_jadual_mingguan
-       set status_jadual = $1,
-           disahkan_oleh = case when $1 = 'Disahkan' then $2 else disahkan_oleh end,
-           tarikh_disahkan = case when $1 = 'Disahkan' then now() else tarikh_disahkan end
+       set status_jadual = $1::text,
+           disahkan_oleh = case when $1::text = 'Disahkan' then $2::int else disahkan_oleh end,
+           tarikh_disahkan = case when $1::text = 'Disahkan' then now() else tarikh_disahkan end
        where id_jadual_mingguan = $3
        returning *`,
       [status, req.user.id_pengguna, req.params.id]
@@ -493,7 +496,7 @@ const importSchedules = async (req, res) => {
     }
     if (!rows.length) return res.status(400).json({ message: 'CSV tidak mengandungi tugasan untuk diimport' });
     const indexOf = Object.fromEntries(expectedHeaders.map((header) => [header, headers.indexOf(header)]));
-    const weekResult = await client.query('select * from tbl_jadual_mingguan where id_jadual_mingguan = $1', [req.params.id]);
+    const weekResult = await client.query(weekQuery, [req.params.id]);
     const week = weekResult.rows[0];
     if (!week) return res.status(404).json({ message: 'Jadual mingguan tidak ditemui' });
     await client.query('begin');

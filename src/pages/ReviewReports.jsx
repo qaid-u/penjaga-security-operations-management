@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, Eye, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/axios';
@@ -16,10 +16,14 @@ export function ReviewReports({ auth }) {
   const [confirmReview, setConfirmReview] = useState(null);
   const [reviewFilters, setReviewFilters] = useState({ status: 'Dihantar', search: '', post: '', shift: '', risk: '', date: '' });
   const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedReport = searchParams.get('report');
+  const [attentionOnly, setAttentionOnly] = useState(false);
+  const detailSequence = useRef(0);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['reports', { page }],
     queryFn: async () => {
       const res = await api.get('/reports', { params: { page, limit: 50 } });
@@ -56,18 +60,33 @@ export function ReviewReports({ auth }) {
     const matchesShift = !reviewFilters.shift || report.syif === reviewFilters.shift;
     const matchesRisk = !reviewFilters.risk || report.tahap_risiko === reviewFilters.risk;
     const matchesDate = !reviewFilters.date || report.tarikh_laporan?.slice(0, 10) === reviewFilters.date;
-    return matchesSearch && matchesStatus && matchesPost && matchesShift && matchesRisk && matchesDate;
+    const needsAttention = report.nlp_review_status === 'needs_review' || report.nlp_metadata?.sourceChecks?.status === 'needs_review';
+    return matchesSearch && matchesStatus && matchesPost && matchesShift && matchesRisk && matchesDate && (!attentionOnly || needsAttention);
   }).sort((a, b) => Number(pinnedReports.includes(b.id_laporan)) - Number(pinnedReports.includes(a.id_laporan)));
 
-  const loadDetail = async (id) => {
+  const loadDetail = useCallback(async (id) => {
+    const sequence = ++detailSequence.current;
     try {
       const { data } = await api.get(`/reports/${id}`);
+      if (sequence !== detailSequence.current) return;
       setDetail(data);
       notifyAction('Detail laporan dibuka');
     } catch (error) {
-      notifyError(error, 'Detail laporan gagal dibuka');
+      if (sequence === detailSequence.current) notifyError(error, 'Detail laporan gagal dibuka');
     }
-  };
+  }, []);
+
+  const closeDetail = useCallback(() => { detailSequence.current += 1; setDetail(null); setSearchParams((current) => { const next = new URLSearchParams(current); next.delete('report'); return next; }); }, [setSearchParams]);
+  useEffect(() => {
+    if (/^[1-9]\d*$/.test(requestedReport || '')) loadDetail(Number(requestedReport));
+  }, [requestedReport, loadDetail]);
+
+  useEffect(() => {
+    if (!detail) return undefined;
+    const closeOnEscape = (event) => { if (event.key === 'Escape') closeDetail(); };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [detail, closeDetail]);
 
   const review = (id, status) => {
     if (status === 'approved' && typeof followUpFlags[id] !== 'boolean') {
@@ -81,6 +100,8 @@ export function ReviewReports({ auth }) {
     <div className="desktop-ops">
       <Card title={canReviewReports ? 'Semakan Laporan' : 'Pemantauan Laporan'} action={<Button variant="ghost" onClick={() => downloadCsv('/reports/export.csv', 'laporan-harian.csv')}><Download size={16} /> CSV</Button>}>
         {!canReviewReports && <AlertMessage type="success">Admin boleh membaca dan memantau laporan, tetapi kelulusan atau penolakan laporan hanya dibuat oleh Ketua Pengawal.</AlertMessage>}
+        <p className="mb-4 max-w-3xl text-sm text-secondary-token">Baca laporan asal bersama ringkasan dan semakan automatik. Tandakan keputusan rasmi selepas maklumat dinilai.</p>
+        {isError && <AlertMessage>Senarai laporan belum dapat dimuatkan. <button type="button" className="underline" onClick={() => refetch()}>Cuba sekali lagi</button></AlertMessage>}
         <div className="mb-4 grid gap-2 sm:grid-cols-4 xl:max-w-3xl">
           {['Dihantar', 'Diluluskan', 'Ditolak', 'Semua'].map((status) => <Button key={status} variant={reviewFilters.status === status ? 'primary' : 'ghost'} onClick={() => setReviewFilters({ ...reviewFilters, status })}>{status}</Button>)}
         </div>
@@ -92,6 +113,10 @@ export function ReviewReports({ auth }) {
           <Input type="date" value={reviewFilters.date} onChange={(e) => setReviewFilters({ ...reviewFilters, date: e.target.value })} />
         </div>
         
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-primary-token"><input type="checkbox" checked={attentionOnly} onChange={(event) => setAttentionOnly(event.target.checked)} className="h-4 w-4 accent-[var(--color-brand-navy)]" /> Perlu perhatian analisis sahaja</label>
+          <Button type="button" variant="ghost" disabled={isFetching} onClick={() => refetch()}>{isFetching ? 'Memuatkan...' : 'Muat semula laporan'}</Button>
+        </div>
         {isLoading ? (
           <LoadingState message="Memuatkan laporan..." />
         ) : (
@@ -111,18 +136,25 @@ export function ReviewReports({ auth }) {
                   </div>
                 </div>
                 <p className="desktop-clamp mt-2 text-sm">{r.kandungan_laporan}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {['pending', 'processing'].includes(r.analysis_status) && <Badge>Sedang dianalisis</Badge>}
+                  {r.analysis_status === 'failed' && <Badge>Analisis belum selesai</Badge>}
+                  {r.nlp_review_status === 'needs_review' && <Badge tone="Medium">Perlu semakan AI</Badge>}
+                  {r.nlp_metadata?.sourceChecks?.status === 'needs_review' && <Badge tone="Medium">Perhatian semakan teks</Badge>}
+                  {r.nlp_review_status === 'consistent' && <Badge>Tiada percanggahan AI dikesan</Badge>}
+                </div>
                 <p className="mt-2 text-sm"><span className="font-medium text-primary-token">Risiko ringkas:</span> <Badge tone={r.tahap_risiko}>{r.tahap_risiko}</Badge></p>
                 {r.status_laporan === 'Diluluskan' && r.perlu_tindakan_susulan && !r.ada_tindakan_susulan && <AlertMessage>Laporan ini sudah diluluskan dan ditanda memerlukan tindakan susulan.</AlertMessage>}
                 <AttachmentLinks value={r.lampiran_fail} label="Lampiran bukti" />
                 <div className="mt-3 grid gap-2 sm:grid-cols-[auto_auto_1fr_auto_auto]">
                   <Button variant="ghost" onClick={() => setPinnedReports((current) => current.includes(r.id_laporan) ? current.filter((id) => id !== r.id_laporan) : [...current, r.id_laporan])}>{pinnedReports.includes(r.id_laporan) ? 'Nyahpin' : 'Pin'}</Button>
-                  <Button variant="ghost" onClick={() => loadDetail(r.id_laporan)}><Eye size={16} /> Detail</Button>
+                  <Button variant="ghost" onClick={() => setSearchParams({ report: r.id_laporan })}><Eye size={16} /> Detail</Button>
                   {canReviewReports && <Input placeholder="Catatan semakan" value={comments[r.id_laporan] || ''} onChange={(e) => setComments({ ...comments, [r.id_laporan]: e.target.value })} />}
-                  {canReviewReports && r.status_laporan === 'Dihantar' && <Button disabled={reviewMutation.isLoading} onClick={() => {
+                  {canReviewReports && r.status_laporan === 'Dihantar' && <Button disabled={reviewMutation.isPending} onClick={() => {
                     if (typeof followUpFlags[r.id_laporan] !== 'boolean') return notifyError({ message: 'Sila tentukan sama ada laporan ini memerlukan tindakan susulan atau tidak.' });
                     return setConfirmReview({ id: r.id_laporan, status: 'approved', title: r.tajuk_laporan });
                   }}>Lulus</Button>}
-                  {canReviewReports && r.status_laporan === 'Dihantar' && <Button disabled={reviewMutation.isLoading} variant="danger" onClick={() => setConfirmReview({ id: r.id_laporan, status: 'rejected', title: r.tajuk_laporan })}>Tolak</Button>}
+                  {canReviewReports && r.status_laporan === 'Dihantar' && <Button disabled={reviewMutation.isPending} variant="danger" onClick={() => setConfirmReview({ id: r.id_laporan, status: 'rejected', title: r.tajuk_laporan })}>Tolak</Button>}
                   {r.status_laporan === 'Diluluskan' && r.perlu_tindakan_susulan && <Button onClick={() => navigate('/tindakan')}>Tindakan</Button>}
                 </div>
                 {canReviewReports && r.status_laporan === 'Dihantar' && (
@@ -142,16 +174,16 @@ export function ReviewReports({ auth }) {
         )}
       </Card>
       {detail && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(0,0,0,0.55)] p-0 sm:items-center sm:p-4">
+        <div role="dialog" aria-modal="true" aria-labelledby="report-review-title" className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(0,0,0,0.55)] p-0 sm:items-center sm:p-4">
           <div className="app-elevated motion-sheet max-h-[94vh] w-full overflow-y-auto rounded-t-lg border p-4 shadow-xl sm:max-w-5xl sm:rounded-lg lg:p-6">
             <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex items-start justify-between gap-3 border-b bg-white px-4 py-4 lg:-mx-6 lg:-mt-6 lg:px-6">
               <div>
-                <h2>Dokumen Laporan #{detail.report.id_laporan}</h2>
+                <h2 id="report-review-title">Dokumen Laporan #{detail.report.id_laporan}</h2>
                 <p className="text-sm">Paparan lengkap laporan harian untuk semakan Ketua dan pemantauan Admin.</p>
               </div>
-              <Button variant="ghost" onClick={() => setDetail(null)}><X size={16} /> Tutup</Button>
+              <Button variant="ghost" onClick={closeDetail}><X size={16} /> Tutup</Button>
             </div>
-            <ReportDetailContent detail={detail} />
+            <ReportDetailContent detail={detail} canGiveNlpFeedback />
           </div>
         </div>
       )}

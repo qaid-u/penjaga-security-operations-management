@@ -1,51 +1,9 @@
-const fs = require('fs');
-const path = require('path');
-
-const dataPath = path.join(__dirname, '..', 'ml', 'data', 'nlp-training-samples.json');
-const modelDir = path.join(__dirname, '..', 'ml', 'model');
-const modelPath = path.join(modelDir, 'nlp-model.json');
-
-const stopwords = new Set([
-  'ada', 'adalah', 'akan', 'atau', 'bagi', 'dan', 'dari', 'dengan', 'di', 'dibuat', 'didapati',
-  'dikesan', 'dilaporkan', 'dalam', 'ini', 'itu', 'ke', 'kepada', 'kerana', 'oleh', 'pada',
-  'sebagai', 'semasa', 'serta', 'telah', 'terdapat', 'untuk', 'yang',
-]);
-
-function cleanText(text = '') {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function tokenize(text = '') {
-  const words = cleanText(text)
-    .split(' ')
-    .filter((word) => word.length > 2 && !stopwords.has(word));
-  const bigrams = [];
-  for (let index = 0; index < words.length - 1; index += 1) {
-    bigrams.push(`${words[index]}_${words[index + 1]}`);
-  }
-  return [...words, ...bigrams];
-}
-
-function splitSamples(samples) {
-  const train = [];
-  const test = [];
-  const byCategory = samples.reduce((groups, sample) => {
-    groups[sample.category] = groups[sample.category] || [];
-    groups[sample.category].push(sample);
-    return groups;
-  }, {});
-  Object.values(byCategory).forEach((group) => {
-    group.forEach((sample, index) => {
-      if (index % 5 === 0) test.push(sample);
-      else train.push(sample);
-    });
-  });
-  return { train, test };
-}
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const { cleanText, trainModel, evaluate } = require('../ml/textModel');
+const dataPath = path.join(__dirname, '../ml/data/nlp-training-samples.json');
+const modelPath = path.join(__dirname, '../ml/model/nlp-model.json');
 
 const operationProfiles = {
   'Rondaan Biasa': {
@@ -98,142 +56,75 @@ const operationProfiles = {
   },
 };
 
+
+function eventGroup(sample) {
+  const profile = operationProfiles[sample.category];
+  const normalized = cleanText(sample.text);
+  const eventIndex = profile?.events.findIndex(event => normalized.includes(cleanText(event)));
+  return eventIndex >= 0 ? `event:${sample.category}:${eventIndex}` : `source:${sample.category}:authored-seeds`;
+}
+
 function generateSyntheticSamples() {
   const shifts = ['syif pagi', 'syif petang', 'syif malam'];
   const guards = ['pengawal bertugas', 'anggota pos', 'ketua syif', 'petugas keselamatan'];
   const samples = [];
   for (const [category, profile] of Object.entries(operationProfiles)) {
-    profile.locations.forEach((location, locationIndex) => {
-      profile.events.forEach((event, eventIndex) => {
-        const action = profile.actions[(locationIndex + eventIndex) % profile.actions.length];
-        const shift = shifts[(locationIndex + eventIndex) % shifts.length];
-        const guard = guards[(locationIndex * 2 + eventIndex) % guards.length];
-        samples.push({
-          text: `${guard} melaporkan ${event} di ${location} semasa ${shift}. ${action}.`,
-          category,
-          risk: profile.risk,
-          synthetic: true,
-        });
-      });
-    });
+    profile.locations.forEach((location, locationIndex) => profile.events.forEach((event, eventIndex) => {
+      const action = profile.actions[(locationIndex + eventIndex) % profile.actions.length];
+      const shift = shifts[(locationIndex + eventIndex) % shifts.length];
+      const guard = guards[(locationIndex * 2 + eventIndex) % guards.length];
+      samples.push({text:`${guard} melaporkan ${event} di ${location} semasa ${shift}. ${action}.`,category,risk:profile.risk,synthetic:true,group:`event:${category}:${eventIndex}`});
+    }));
   }
   return samples;
 }
 
 function uniqueSamples(samples) {
   const seen = new Set();
-  return samples.filter((sample) => {
-    const key = `${cleanText(sample.text)}|${sample.category}|${sample.risk}`;
+  return samples.filter(sample => {
+    const key = `${sample.category}|${cleanText(sample.text)}`;
     if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+    seen.add(key); return true;
   });
 }
 
-function trainModel(samples) {
-  const categories = {};
-  const vocabulary = new Set();
-  const categoryRisk = {};
-
+function splitSamples(samples) {
+  const byCategory = new Map();
   for (const sample of samples) {
-    if (!categories[sample.category]) {
-      categories[sample.category] = { documentCount: 0, tokenCount: 0, tokens: {} };
-      categoryRisk[sample.category] = {};
-    }
-    categories[sample.category].documentCount += 1;
-    categoryRisk[sample.category][sample.risk] = (categoryRisk[sample.category][sample.risk] || 0) + 1;
-
-    for (const token of tokenize(sample.text)) {
-      vocabulary.add(token);
-      categories[sample.category].tokenCount += 1;
-      categories[sample.category].tokens[token] = (categories[sample.category].tokens[token] || 0) + 1;
-    }
+    const group = sample.group || eventGroup(sample);
+    const groups = byCategory.get(sample.category) || new Map();
+    groups.set(group,[...(groups.get(group) || []),{...sample,group}]);
+    byCategory.set(sample.category,groups);
   }
-
-  const totalDocuments = samples.length;
-  const topTerms = {};
-  const riskByCategory = {};
-  for (const [category, data] of Object.entries(categories)) {
-    topTerms[category] = Object.entries(data.tokens)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 16)
-      .map(([token]) => token.replace(/_/g, ' '));
-    riskByCategory[category] = Object.entries(categoryRisk[category]).sort((a, b) => b[1] - a[1])[0][0];
+  const train = [], test = [];
+  for (const groups of byCategory.values()) {
+    const ordered = [...groups].sort(([a],[b]) => crypto.createHash('sha256').update(a).digest('hex').localeCompare(crypto.createHash('sha256').update(b).digest('hex')));
+    ordered.forEach(([, members],index) => (ordered.length > 1 && index % 5 === 0 ? test : train).push(...members));
   }
-
-  return {
-    modelType: 'multinomial_naive_bayes',
-    language: 'ms-MY',
-    version: new Date().toISOString().slice(0, 10),
-    trainedAt: new Date().toISOString(),
-    totalDocuments,
-    vocabulary: Array.from(vocabulary).sort(),
-    categories,
-    riskByCategory,
-    topTerms,
-  };
-}
-
-function predict(model, text) {
-  const tokens = tokenize(text);
-  const vocabularySize = model.vocabulary.length || 1;
-  const scores = Object.entries(model.categories).map(([category, data]) => {
-    let logScore = Math.log(data.documentCount / model.totalDocuments);
-    for (const token of tokens) {
-      const count = data.tokens[token] || 0;
-      logScore += Math.log((count + 1) / (data.tokenCount + vocabularySize));
-    }
-    return { category, logScore };
-  }).sort((a, b) => b.logScore - a.logScore);
-
-  const max = scores[0]?.logScore || 0;
-  const probabilities = scores.map((score) => ({ ...score, probability: Math.exp(score.logScore - max) }));
-  const total = probabilities.reduce((sum, score) => sum + score.probability, 0) || 1;
-  return probabilities.map((score) => ({ ...score, confidence: score.probability / total })).sort((a, b) => b.confidence - a.confidence);
-}
-
-function evaluate(model, samples) {
-  let correctCategory = 0;
-  let correctRisk = 0;
-  const confusion = {};
-  for (const sample of samples) {
-    const prediction = predict(model, sample.text)[0];
-    const risk = model.riskByCategory[prediction.category];
-    if (prediction.category === sample.category) correctCategory += 1;
-    if (risk === sample.risk) correctRisk += 1;
-    confusion[sample.category] = confusion[sample.category] || {};
-    confusion[sample.category][prediction.category] = (confusion[sample.category][prediction.category] || 0) + 1;
-  }
-  return {
-    samples: samples.length,
-    categoryAccuracy: samples.length ? Number((correctCategory / samples.length).toFixed(3)) : 0,
-    riskAccuracy: samples.length ? Number((correctRisk / samples.length).toFixed(3)) : 0,
-    confusion,
-  };
+  return {train,test};
 }
 
 function main() {
-  const seedSamples = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-  const samples = uniqueSamples([...seedSamples, ...generateSyntheticSamples()]);
-  const missing = samples.find((sample) => !sample.text || !sample.category || !sample.risk);
-  if (missing) throw new Error('Every training sample must have text, category and risk');
-
-  const { train, test } = splitSamples(samples);
-  const model = trainModel(train);
-  model.metrics = evaluate(model, test);
+  const seeds = JSON.parse(fs.readFileSync(dataPath,'utf8')).map(sample => ({...sample,synthetic:true,source:'hand-authored-synthetic-seed'}));
+  const samples = uniqueSamples([...seeds,...generateSyntheticSamples()]);
+  const {train,test} = splitSamples(samples);
+  const trainGroups = [...new Set(train.map(sample => sample.group))].sort();
+  const testGroups = [...new Set(test.map(sample => sample.group))].sort();
+  if(testGroups.some(group => trainGroups.includes(group))) throw new Error('Source group leaked across train/test');
+  const model = trainModel(train,{language:'ms-MY',trainedAt:new Date().toISOString()});
+  model.metrics = evaluate(model,test);
   model.trainingSet = {
-    source: path.relative(path.join(__dirname, '..'), dataPath).replace(/\\/g, '/'),
-    seedSamples: seedSamples.length,
-    syntheticSamples: samples.length - seedSamples.length,
-    trainSamples: train.length,
-    testSamples: test.length,
+    source:'data/nlp-training-samples.json',scope:'synthetic_only',
+    seedSamples:seeds.length,syntheticSamples:samples.length-seeds.length,
+    trainSamples:train.length,testSamples:test.length,
+    split:'deterministic_category_stratified_event_source_groups',trainGroups,testGroups,
+    limitations:['Generated variants sharing an event family stay in one split.','Authored seeds without a recognized generated event are kept together by category.','This is an internal synthetic benchmark, not an independent operational holdout.','No risk accuracy is reported: urgency is a separate contextual policy.'],
   };
-
-  fs.mkdirSync(modelDir, { recursive: true });
-  fs.writeFileSync(modelPath, `${JSON.stringify(model, null, 2)}\n`);
-  console.log(`Trained NLP model: ${modelPath}`);
-  console.log(`Category accuracy: ${(model.metrics.categoryAccuracy * 100).toFixed(1)}%`);
-  console.log(`Risk accuracy: ${(model.metrics.riskAccuracy * 100).toFixed(1)}%`);
+  fs.mkdirSync(path.dirname(modelPath),{recursive:true});
+  fs.writeFileSync(modelPath,`${JSON.stringify(model,null,2)}\n`);
+  console.log(`Saved ${model.version}: ${train.length} synthetic training reports; ${test.length} grouped synthetic holdout reports.`);
+  console.log(`Synthetic category macro-F1: ${(model.metrics.macroF1*100).toFixed(1)}%; operational accuracy: not measured.`);
 }
 
-main();
+if(require.main===module)main();
+module.exports={generateSyntheticSamples,splitSamples,uniqueSamples,eventGroup};

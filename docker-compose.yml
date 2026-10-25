@@ -10,8 +10,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./backend/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./backend/database/roles.sql:/docker-entrypoint-initdb.d/02-roles.sql:ro
       - ./backend/database/migrations/003_lokasi_3d.sql:/docker-entrypoint-initdb.d/03-lokasi-3d.sql:ro
+      - ./backend/database/migrations/004_nlp_review.sql:/docker-entrypoint-initdb.d/04-nlp-review.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-penjaga_admin} -d ${POSTGRES_DB:-penjaga_db}"]
       interval: 10s
@@ -38,6 +39,9 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the deployment environment}
       FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL to the deployed frontend origin}
       TRUST_PROXY: '1'
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_REVIEW_MODEL: ${GEMINI_REVIEW_MODEL:-gemini-3.5-flash-lite}
+      NLP_AI_REVIEW_ENABLED: ${NLP_AI_REVIEW_ENABLED:-false}
     volumes:
       - backend_uploads:/app/uploads
 

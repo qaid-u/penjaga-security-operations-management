@@ -1,14 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, RotateCcw } from 'lucide-react';
+import { Camera, Eye, RotateCcw, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { ReportDetailContent } from '../components/ReportDetailContent';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/axios';
 import { maxEvidenceFiles, notifyError, notifyAction, notifySuccess, statusTone } from '../utils/helpers';
+import { NlpAssistant } from '../components/NlpAssistant';
+import { NlpReviewPanel } from '../components/NlpReviewPanel';
 import { Card, Field, Select, Input, Textarea, ChecklistChoice, Button, AlertMessage, Badge, EmptyState, AttachmentLinks, LoadingState } from '../components/ui';
 
 export function DailyReport() {
-  const [nlp, setNlp] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
+  const [analysisJob, setAnalysisJob] = useState(null);
   const [submitted, setSubmitted] = useState(null);
-  const [form, setForm] = useState({ syif: 'Pagi', tarikh_laporan: new Date().toISOString().slice(0, 10), masa_laporan: '08:00', checklist: [] });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedReport = searchParams.get('report');
+  const selectedReportId = /^[1-9]\d*$/.test(requestedReport || '') ? Number(requestedReport) : null;
+  const [form, setForm] = useState({ syif: 'Pagi', tarikh_laporan: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()), masa_laporan: new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date()), checklist: [] });
   const [fileKey, setFileKey] = useState(0);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState('');
@@ -34,15 +42,30 @@ export function DailyReport() {
     }
   });
 
+  const detailQuery = useQuery({
+    queryKey: ['ownReportDetail', selectedReportId],
+    queryFn: async () => (await api.get(`/reports/${selectedReportId}`)).data,
+    enabled: Boolean(selectedReportId),
+    retry: false,
+  });
+  const closeDetail = useCallback(() => setSearchParams((current) => { const next = new URLSearchParams(current); next.delete('report'); return next; }), [setSearchParams]);
+  useEffect(() => {
+    if (!selectedReportId) return undefined;
+    const closeOnEscape = (event) => { if (event.key === 'Escape') closeDetail(); };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [selectedReportId, closeDetail]);
+
   const submitMutation = useMutation({
     mutationFn: async (body) => {
       const res = await api.post('/reports', body, { headers: { 'Content-Type': 'multipart/form-data' } });
       return res.data;
     },
     onSuccess: (data) => {
-      setNlp(data.nlp);
+      setAnalysis(data.analysis || data.nlp || null);
+      setAnalysisJob(data.analysisJob || null);
       setSubmitted(data.report);
-      setForm({ syif: 'Pagi', tarikh_laporan: new Date().toISOString().slice(0, 10), masa_laporan: '08:00', checklist: [] });
+      setForm({ syif: 'Pagi', tarikh_laporan: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()), masa_laporan: new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date()), checklist: [] });
       clearEvidenceFiles();
       setFileKey((prev) => prev + 1);
       notifySuccess('Laporan berjaya dihantar');
@@ -158,19 +181,20 @@ export function DailyReport() {
     <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
       <Card title="Laporan Harian">
         <form onSubmit={submit} className="space-y-4">
-          <p className="label-caps">Bahagian 1: Tugasan dan pos</p>
+          <p className="nlp-step-label"><span>1</span> Tugasan dan pos</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Pos kawalan"><Select required value={form.id_pos || ''} onChange={(e) => setForm({ ...form, id_pos: e.target.value })}><option value="">Pilih pos</option>{meta.posts.map((p) => <option key={p.id_pos} value={p.id_pos}>{p.nama_pos}</option>)}</Select></Field>
             <Field label="Syif"><Select value={form.syif} onChange={(e) => setForm({ ...form, syif: e.target.value })}><option>Pagi</option><option>Petang</option><option>Malam</option></Select></Field>
             <Field label="Tarikh"><Input type="date" required value={form.tarikh_laporan} onChange={(e) => setForm({ ...form, tarikh_laporan: e.target.value })} /></Field>
             <Field label="Masa"><Input type="time" required value={form.masa_laporan} onChange={(e) => setForm({ ...form, masa_laporan: e.target.value })} /></Field>
           </div>
-          <p className="label-caps">Bahagian 2: Butiran laporan</p>
-          <Field label="Tajuk laporan"><Input required value={form.tajuk_laporan || ''} onChange={(e) => setForm({ ...form, tajuk_laporan: e.target.value })} /></Field>
-          <Field label="Kategori insiden pilihan"><Select value={form.id_kategori_insiden || ''} onChange={(e) => setForm({ ...form, id_kategori_insiden: e.target.value })}><option value="">Biarkan NLP klasifikasi</option>{meta.categories.map((c) => <option key={c.id_kategori_insiden} value={c.id_kategori_insiden}>{c.nama_kategori}</option>)}</Select></Field>
-          <Field label="Kandungan laporan"><Textarea required rows={6} value={form.kandungan_laporan || ''} onChange={(e) => setForm({ ...form, kandungan_laporan: e.target.value })} /></Field>
+          <p className="nlp-step-label"><span>2</span> Ceritakan apa yang berlaku</p>
+          <Field label="Kandungan laporan"><Textarea required maxLength={20000} placeholder="Nyatakan apa yang berlaku, lokasi dan tindakan yang telah diambil." rows={7} value={form.kandungan_laporan || ''} onChange={(e) => setForm({ ...form, kandungan_laporan: e.target.value })} /></Field>
+          <NlpAssistant text={form.kandungan_laporan || ''} postId={form.id_pos} reportTime={form.masa_laporan} title={form.tajuk_laporan || ''} onApplyTitle={(suggestion) => setForm((current) => ({ ...current, tajuk_laporan: suggestion.slice(0, 160) }))} />
+          <Field label="Tajuk laporan"><Input maxLength={160} required value={form.tajuk_laporan || ''} onChange={(e) => setForm({ ...form, tajuk_laporan: e.target.value })} /></Field>
+          <details className="nlp-disclosure"><summary>Nyatakan kategori sendiri (pilihan)</summary><p className="nlp-helper-hint mb-2">Sistem akan menganalisis kandungan secara automatik. Pilih kategori jika anda sudah mengenal pasti jenis laporan.</p><Field label="Kategori insiden pilihan"><Select value={form.id_kategori_insiden || ''} onChange={(e) => setForm({ ...form, id_kategori_insiden: e.target.value })}><option value="">Analisis secara automatik</option>{meta.categories.map((c) => <option key={c.id_kategori_insiden} value={c.id_kategori_insiden}>{c.nama_kategori}</option>)}</Select></Field></details>
           <div className="space-y-2">
-            <p className="label-caps">Bahagian 3: Checklist</p>
+            <p className="nlp-step-label"><span>3</span> Checklist pemeriksaan</p>
             <p className="text-sm">Tekan satu pilihan untuk setiap pemeriksaan. Checklist bermula kosong supaya setiap jawapan dibuat secara sengaja.</p>
             {meta.checklist.map((item) => {
               const current = getChecklistValue(item.id_checklist)?.jawapan || '';
@@ -186,7 +210,7 @@ export function DailyReport() {
             })}
           </div>
           <div className="gov-upload-panel space-y-3 rounded-2xl p-4">
-            <p className="label-caps">Bahagian 4: Lampiran bukti</p>
+            <p className="nlp-step-label"><span>4</span> Lampiran bukti</p>
             <p className="text-sm">Muat naik sehingga {maxEvidenceFiles} gambar/PDF, atau gunakan kamera beberapa kali jika terdapat lebih daripada satu isu.</p>
             <div className="grid gap-2 sm:grid-cols-2">
               <Button type="button" variant="ghost" onClick={openCamera}><Camera size={16} /> Guna kamera</Button>
@@ -219,16 +243,18 @@ export function DailyReport() {
             {(form.lampiran_fail || []).length > 0 && <p className="text-data">{form.lampiran_fail.length} lampiran dipilih.</p>}
           </div>
           <div className="space-y-2">
-            <p className="label-caps">Bahagian 5: Hantar laporan</p>
-            <Button className="w-full sm:w-auto" disabled={submitMutation.isLoading}>{submitMutation.isLoading ? 'Menghantar...' : 'Hantar laporan'}</Button>
+            <p className="nlp-step-label"><span>5</span> Semak dan hantar</p>
+            <Button className="w-full sm:w-auto" disabled={submitMutation.isPending}>{submitMutation.isPending ? 'Menghantar...' : 'Hantar laporan'}</Button>
           </div>
         </form>
       </Card>
       <div className="space-y-5">
-        {submitted && <AlertMessage type="success">Laporan berjaya dihantar. Status laporan boleh disemak selepas semakan Ketua.</AlertMessage>}
-        {nlp && <Card title="Keputusan NLP Rule-Based"><div className="space-y-4 text-sm"><p>Analisis automatik berdasarkan kata kunci laporan.</p><div className={`rounded-2xl border p-4 ${['High', 'Critical'].includes(nlp.tahap_risiko) ? 'app-row-alert' : 'app-row'}`}><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="label-caps">Kategori dikesan</p><h3>{nlp.kategori_dikesan}</h3></div><Badge tone={nlp.tahap_risiko}>{nlp.tahap_risiko}</Badge></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><p className="label-caps">Skor risiko</p><p className="text-kpi">{nlp.skor_risiko}</p></div><div><p className="label-caps">Status laporan</p><p className="font-medium text-primary-token">{submitted?.status_laporan}</p></div></div></div><div><p className="label-caps mb-2">Kata kunci dikesan</p><div className="flex flex-wrap gap-2">{nlp.kata_kunci_dikesan.length ? nlp.kata_kunci_dikesan.map((keyword) => <Badge key={keyword}>{keyword}</Badge>) : <Badge>Tiada kata kunci khusus</Badge>}</div></div><p><span className="font-medium text-primary-token">Ringkasan:</span> {nlp.ringkasan_automatik}</p></div></Card>}
-        <Card title="Laporan Saya">{reports.length ? reports.map((report) => <div key={report.id_laporan} className="app-row mb-2 rounded-md border p-3 text-sm"><div className="flex justify-between gap-2"><span className="font-medium text-primary-token">{report.tajuk_laporan}</span><Badge tone={report.tahap_risiko}>{report.tahap_risiko}</Badge></div><div className="mt-2 flex flex-wrap gap-2"><Badge tone={statusTone(report.status_laporan)}>{report.status_laporan}</Badge><span>{report.nama_pos}</span></div>{report.status_laporan === 'Ditolak' && <AlertMessage>Laporan ditolak. Semak catatan Ketua dan hantar laporan baharu jika pembetulan diperlukan.</AlertMessage>}{report.status_laporan === 'Diluluskan' && <AlertMessage type="success">Laporan telah diluluskan.</AlertMessage>}<AttachmentLinks value={report.lampiran_fail} label="Lampiran" /></div>) : <EmptyState title="Tiada laporan" description="Laporan yang anda hantar akan dipaparkan di sini." />}</Card>
+        {submitted && <AlertMessage type="success">Laporan berjaya disimpan. Analisis automatik diproses berasingan dan keputusan rasmi dibuat oleh Ketua Pengawal.</AlertMessage>}
+        {submitted && <NlpReviewPanel key={submitted.id_laporan} report={submitted} analysis={analysis} job={analysisJob} reportRoute="/laporan" />}
+
+        <Card title="Laporan Saya">{reports.length ? reports.map((report) => <div key={report.id_laporan} className="app-row mb-2 rounded-md border p-3 text-sm"><div className="flex justify-between gap-2"><span className="font-medium text-primary-token">{report.tajuk_laporan}</span><Badge tone={report.tahap_risiko}>{report.tahap_risiko}</Badge></div><div className="mt-2 flex flex-wrap gap-2"><Badge tone={statusTone(report.status_laporan)}>{report.status_laporan}</Badge><span>{report.nama_pos}</span></div>{report.status_laporan === 'Ditolak' && <AlertMessage>Laporan ditolak. Semak catatan Ketua dan hantar laporan baharu jika pembetulan diperlukan.</AlertMessage>}{report.status_laporan === 'Diluluskan' && <AlertMessage type="success">Laporan telah diluluskan.</AlertMessage>}<div className="mt-3"><Button type="button" variant="ghost" onClick={() => setSearchParams({ report: report.id_laporan })}><Eye size={15} /> Buka laporan</Button></div><AttachmentLinks value={report.lampiran_fail} label="Lampiran" /></div>) : <EmptyState title="Tiada laporan" description="Laporan yang anda hantar akan dipaparkan di sini." />}</Card>
       </div>
+      {selectedReportId && <div role="dialog" aria-modal="true" aria-labelledby="own-report-title" className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4"><div className="app-elevated max-h-[94vh] w-full overflow-y-auto rounded-t-2xl border p-4 shadow-xl sm:max-w-5xl sm:rounded-2xl lg:p-6"><div className="mb-5 flex items-start justify-between gap-3"><div><p className="label-caps">Laporan saya</p><h2 id="own-report-title">Dokumen Laporan #{selectedReportId}</h2></div><Button type="button" variant="ghost" onClick={closeDetail}><X size={16} /> Tutup</Button></div>{detailQuery.isPending ? <LoadingState message="Memuatkan laporan..." /> : detailQuery.isError ? <AlertMessage>Laporan ini belum dapat dibuka. Sila pastikan laporan tersebut milik akaun anda dan cuba sekali lagi.</AlertMessage> : detailQuery.data && <ReportDetailContent detail={detailQuery.data} reportRoute="/laporan" />}</div></div>}
     </div>
   );
 }

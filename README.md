@@ -159,10 +159,10 @@ Senarai pos kawalan rasmi dimasukkan dalam `backend/database/seed.sql`.
 
 ## Rule-Based NLP
 
-PENJAGA supports two NLP modes:
+The verified runtime uses database-configured keyword rules:
 
-- Trained ML model from `backend/ml/model/nlp-model.json`
-- Rule-based fallback using active keywords from `tbl_kategori_insiden`
+- Database-configured keyword rules at runtime. The saved Naive Bayes training artifact is not compatible with the runtime `weights` contract.
+- Active keywords are read from `tbl_kategori_insiden`; no confidence-based fallback is implemented.
 
 When a Pengawal Keselamatan submits a daily report, the backend:
 
@@ -177,7 +177,7 @@ When a Pengawal Keselamatan submits a daily report, the backend:
 9. Saves the result into `tbl_hasil_nlp`
 10. Creates a notification for Ketua Pengawal when the risk is High or Critical
 
-Pentadbir Sistem and Ketua Pengawal can tune the active NLP keywords and risk level in the Latihan NLP screen. New reports use the latest saved keyword rules.
+Pentadbir Sistem can tune the active NLP keywords and risk level in the Latihan NLP screen. New reports use the latest saved keyword rules.
 
 ## Train NLP Model
 
@@ -199,7 +199,7 @@ The generated model is saved to:
 backend/ml/model/nlp-model.json
 ```
 
-Restart the backend after retraining so the server loads the latest model.
+Training produces an experimental artifact; it does not activate the saved Naive Bayes classifier in the current runtime. See `backend/ml/README.md`.
 
 Risk levels:
 
@@ -276,3 +276,11 @@ Base URL: `http://localhost:3000/api`
 ## Deployment
 
 See `DEPLOYMENT.md` for production environment variables, build/start steps, readiness checks, smoke testing, backups, and release checklist.
+
+## Final delivery (Phase 6)
+
+Start with [handover](docs/final/PROJECT_HANDOVER.md), [implementation audit](docs/final/PROJECT_IMPLEMENTATION_AUDIT.md) and [academic draft](docs/psm/FINAL_PSM_REPORT_DRAFT.md). Deployment remains subject to the documented release checks.
+
+## NLP upgrade development snapshot
+
+See [Phase 7 implementation and limitations](docs/NLP_PHASE7.md) for trained inference, automatic source checks, the Gemini review connection, simplified reporting and test evidence. External review should remain disabled for operational use until alert persistence is separated from provider latency.

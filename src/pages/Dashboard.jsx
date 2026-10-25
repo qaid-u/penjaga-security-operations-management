@@ -3,42 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import { FileCheck, CalendarDays, ClipboardCheck, Bell, Brain, Activity } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import api from '../api/axios';
+import { ShiftBriefing } from '../components/ShiftBriefing';
 import { ROLE, riskColors } from '../utils/helpers';
-import { PageHeader, Card, ActionTile, StatCard, Badge, Button, FilterPanel, Input, Select, LoadingState, EmptyState } from '../components/ui';
+import { PageHeader, Card, ActionTile, StatCard, Badge, Button, FilterPanel, Input, Select, LoadingState, EmptyState, AlertMessage } from '../components/ui';
 
 function LiveTickerBanner({ priority }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-gradient-to-r from-sky-950 via-slate-900 to-indigo-950 p-4 text-white shadow-lg dark:border-sky-900">
-      <div className="flex items-center gap-3">
-        <span className="relative flex h-3 w-3">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500"></span>
-        </span>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
-            <Activity size={14} className="animate-pulse" /> Pusat Kawalan Operasi Keselamatan (AI-Engine Active)
-          </p>
-          <p className="text-sm font-medium text-slate-200">
-            Pemantauan masa-nyata beroperasi. {priority?.laporan_kritikal_menunggu ? `${priority.laporan_kritikal_menunggu} insiden berisiko memerlukan tindakan.` : 'Semua pos kawalan dalam keadaan selamat.'}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <Badge tone="urgent" className="px-3 py-1 text-xs">AI Security V2</Badge>
-      </div>
-    </div>
-  );
+  return <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-l-4 border-[var(--color-brand-gold)] bg-[var(--color-brand-dark)] px-5 py-4 text-white">
+    <div className="flex items-start gap-3"><Activity size={21} className="mt-0.5 shrink-0 text-[var(--color-brand-gold)]" aria-hidden="true" /><div><p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-brand-gold)]">Ringkasan rekod operasi</p><p className="mt-1 text-sm leading-relaxed text-slate-100">{Number(priority?.laporan_kritikal_menunggu) > 0 ? `${Number(priority.laporan_kritikal_menunggu)} laporan High/Critical menunggu perhatian.` : 'Tiada laporan High/Critical menunggu semakan dalam rekod yang dipaparkan.'}</p><p className="mt-1 text-xs text-slate-300">Maklumat berdasarkan rekod sistem dan penapis pilihan; bukan pengesahan keadaan fizikal di pos.</p></div></div>
+  </div>;
 }
 
 export function Dashboard({ auth }) {
   const [data, setData] = useState(null);
+  const [error, setError] = useState('');
   const [meta, setMeta] = useState({ posts: [] });
   const [filters, setFilters] = useState({ date: '', location: '', risk: '' });
   const navigate = useNavigate();
-  const load = useCallback(() => api.get('/dashboard', { params: filters }).then((res) => setData(res.data)), [filters]);
-  useEffect(() => { api.get('/meta').then((res) => setMeta(res.data)); }, []);
+  const load = useCallback(() => api.get('/dashboard', { params: filters }).then((res) => { setData(res.data); setError(''); }).catch(() => setError('Dashboard belum dapat dimuatkan. Semak sambungan dan cuba sekali lagi.')), [filters]);
+  useEffect(() => { api.get('/meta').then((res) => setMeta(res.data)).catch(() => setError('Pilihan pos belum dapat dimuatkan. Cuba muat semula halaman.')); }, []);
   useEffect(() => { load(); }, [load]);
-  if (!data) return <LoadingState message="Memuatkan pusat kawalan operasi..." />;
+  if (!data) return error ? <Card title="Dashboard"><AlertMessage>{error}</AlertMessage><Button type="button" variant="ghost" className="mt-3" onClick={load}>Cuba lagi</Button></Card> : <LoadingState message="Memuatkan pusat kawalan operasi..." />;
   const isChief = auth.user?.nama_peranan === ROLE.chief;
   const isAdmin = auth.user?.nama_peranan === ROLE.admin;
 
@@ -61,7 +45,9 @@ export function Dashboard({ auth }) {
       <div className="desktop-ops space-y-5">
         <PageHeader title="Dashboard Ketua Pengawal" description="Fokus kepada laporan yang perlu disemak, tugasan jadual dan komunikasi tindakan susulan." action={<Button variant="ghost" onClick={() => navigate('/semakan')}><FileCheck size={16} /> Semakan Laporan</Button>} />
 
+        {error && <AlertMessage>{error}</AlertMessage>}
         <LiveTickerBanner priority={data.priority} />
+        <ShiftBriefing />
 
         <Card title="Tindakan Ketua Hari Ini">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -99,9 +85,11 @@ export function Dashboard({ auth }) {
 
   return (
     <div className="desktop-ops space-y-5">
-      <PageHeader title="Dashboard Analitik Admin" description="Pantau trend laporan, taburan risiko, tindakan susulan dan prestasi NLP operasi." action={<Button variant="ghost" onClick={() => navigate('/nlp')}><Brain size={16} /> Analisis NLP Engine</Button>} />
+      <PageHeader title="Dashboard Analitik Admin" description="Pantau trend laporan, taburan risiko, tindakan susulan dan prestasi NLP operasi." action={<Button variant="ghost" onClick={() => navigate('/nlp')}><Brain size={16} /> Ringkasan & semakan NLP</Button>} />
 
+      {error && <AlertMessage>{error}</AlertMessage>}
       <LiveTickerBanner priority={data.priority} />
+      <ShiftBriefing />
 
       <FilterPanel>
         <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-[180px_1fr_180px]">

@@ -1,3 +1,4 @@
+process.env.NLP_WORKER_ENABLED='false';
 const {test}=require('node:test');const assert=require('node:assert/strict');
 const {configureDemo}=require('../scripts/phase5-demo-config');configureDemo();
 process.env.PORT='0';
@@ -61,6 +62,7 @@ test('Phase 5 security and legacy data regressions on separate synthetic databas
       const reportList=(await request('/api/reports?limit=100',1)).data;
       assert.equal(new Set(reportList.data.map((r)=>r.id_laporan)).size,reportList.data.length);
       const details=(await request('/api/reports/1',1)).data;assert.equal(details.report.tahap_risiko,'High');
+      const analysis=(await request('/api/nlp/analysis/1',1)).data;assert.equal(analysis.tahap_risiko,'High');assert.equal(analysis.tajuk_laporan,'DEMO Laporan 1');
       const dashboard=(await request('/api/dashboard',1)).data;assert.equal(dashboard.cards.total_laporan,240);
       assert.equal(dashboard.byRisk.reduce((n,r)=>n+r.value,0),240);
       assert.equal(dashboard.byRisk.find((r)=>r.name==='Unknown').value,1);
@@ -90,7 +92,7 @@ test('Phase 5 security and legacy data regressions on separate synthetic databas
     await t.test('R03 connection failures return controlled errors rather than unhandled rejections',async()=>{
       pool.connect=(...args)=>typeof args[0]==='function' ? originalConnect(...args) : Promise.reject(new Error('private DSN details'));
       assert.equal((await request('/api/auth/login',null,'POST',{username:'demo_admin',password:'irrelevant'})).status,500);
-      for(const route of ['/api/dashboard','/api/reports','/api/actions','/api/meta','/api/posts','/api/jadual/mingguan']){
+      for(const route of ['/api/dashboard','/api/reports','/api/actions','/api/meta','/api/posts','/api/jadual/mingguan','/api/notifications','/api/audit']){
         const response=await request(route,1);assert.equal(response.status,500);assert.ok(!JSON.stringify(response.data).includes('private DSN'));
       }
       pool.connect=originalConnect;

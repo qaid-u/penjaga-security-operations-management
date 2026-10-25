@@ -9,6 +9,7 @@ const {
 const { auth, requireRole, roles } = require('../middleware/auth');
 
 const router = express.Router();
+router.get('/status', auth, requireRole(roles.admin), require('../controllers/reportIntelligenceController').status);
 
 router.get('/analysis/:reportId', auth, requireRole(roles.admin), getReportAnalysis);
 router.get('/:reportId', auth, requireRole(roles.admin), getReportAnalysis);

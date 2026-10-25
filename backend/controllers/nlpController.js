@@ -12,7 +12,11 @@ const getReportAnalysis = async (req, res) => {
   try {
     client = await pool.connect();
     const result = await client.query(
-      'select * from tbl_hasil_nlp where id_laporan = $1',
+      `select n.*, l.tajuk_laporan, l.kandungan_laporan
+       from tbl_hasil_nlp n
+       join tbl_laporan_harian l on l.id_laporan = n.id_laporan
+       where n.id_laporan = $1
+       order by n.tarikh_analisis desc, n.id_nlp desc limit 1`,
       [req.params.reportId || req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ message: 'Tiada data NLP' });

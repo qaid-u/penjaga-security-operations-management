@@ -11,3 +11,14 @@ coverage
 backend/node_modules
 backend/server.err.log
 backend/server.out.log
+**/.env
+**/.env.*
+!**/.env.example
+**/uploads
+*.local
+.phase*-runtime.local
+.phase6-build.local
+artifacts
+docs
+test-results
+playwright-report

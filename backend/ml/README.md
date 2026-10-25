@@ -1,67 +1,15 @@
-# PENJAGA NLP Model
+# PENJAGA incident classification: verified runtime boundary
 
-This folder contains the trainable NLP classifier for daily security reports.
+`nlpService.js` reads active categories, priorities and keyword arrays from PostgreSQL. It normalizes text and performs substring matching. Matching categories receive priority base scores (Low 10, Medium 35, High 65, Critical 85) plus 10 per distinct matched keyword. The largest score is clamped to 0–100; thresholds >80, >60, >30 produce Critical, High, Medium respectively. Otherwise risk is Low. No match defaults to Rondaan Biasa.
 
-## Files
+Confidence is matched-keyword coverage within the selected category, not a calibrated probability. Substring matches may produce false positives; negation, context and multilingual performance are not validated. Active categories are required for report submission.
 
-- `data/nlp-training-samples.json`  
-  Realistic labelled dummy data that matches PENJAGA operations, posts, incidents and Malay security report wording.
+## Experimental training
 
-- `model/nlp-model.json`  
-  Generated model artifact. This file is created by the training script.
+`npm run train:nlp` runs `backend/scripts/train-nlp-model.js` and replaces `model/nlp-model.json` using synthetic samples from `data/nlp-training-samples.json` and deterministic expansions. The script trains multinomial Naive Bayes and reports a synthetic validation result. It is not evidence of runtime accuracy or performance on independent operational data.
 
-## Train
+## Integration gap
 
-From the project root:
+The runtime reads the JSON for each report but consumes only a `weights` object. The checked-in Naive Bayes artifact has `categories`, vocabulary and count/metric fields, but no `weights`. Its learned counts therefore do not affect current classifications. There is no low-confidence model fallback implementation. `NLP_MODEL_PATH` changes the file path, not this contract.
 
-```bash
-npm run train:nlp
-```
-
-Or from `backend`:
-
-```bash
-npm run train:nlp
-```
-
-The script trains a dependency-free multinomial Naive Bayes model and prints category/risk accuracy.
-It also expands the seed dataset with deterministic operation-style synthetic samples for each incident category, so the dummy validation set covers more wording variations.
-
-Current dummy validation target:
-
-```text
-Category accuracy: >= 99%
-Risk accuracy: >= 99%
-```
-
-This target is for controlled dummy/synthetic validation data. Real production accuracy should be measured again after adding reviewed reports from actual Pengawal/Ketua operations.
-
-## Use In Backend
-
-`backend/server.js` automatically loads:
-
-```text
-backend/ml/model/nlp-model.json
-```
-
-If the model is missing or confidence is low, PENJAGA falls back to the existing keyword rules.
-
-You can override the model path with:
-
-```env
-NLP_MODEL_PATH=C:\path\to\nlp-model.json
-```
-
-## Improve Over Time
-
-Add real reviewed reports into `data/nlp-training-samples.json` using this format:
-
-```json
-{
-  "text": "Pintu belakang pejabat tidak berkunci semasa rondaan malam.",
-  "category": "Keselamatan Fizikal",
-  "risk": "Medium"
-}
-```
-
-Retrain after adding examples.
+Future work: choose one model format, integrate inference explicitly, validate against an independently labelled and consented holdout set, assess per-category precision/recall and calibration, and retain human review. Never commit confidential reports to training files.

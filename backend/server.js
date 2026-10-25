@@ -241,5 +241,7 @@ app.use((err, req, res, _next) => {
 });
 
 const server = app.listen(port, () => console.log(`Penjaga API Server running on port ${port}`));
+const stopNlpWorker = require('./services/nlpJobs').startWorker(pool);
+server.on('close', stopNlpWorker);
 
 module.exports = server;

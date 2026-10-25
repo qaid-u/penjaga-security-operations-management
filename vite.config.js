@@ -9,7 +9,7 @@ function denyPrivatePaths() {
         let pathname;
         try { pathname = decodeURIComponent((req.url || '/').split('?')[0]).replaceAll('\\', '/'); }
         catch { res.statusCode = 400; res.end('Invalid URL'); return; }
-        if (/^\/+((backend|artifacts|\.phase5-runtime\.local)(\/|$)|\.env([./]|$)|docs\/psm-evaluation\/data(\/|$))/i.test(pathname)) {
+        if (/^\/+((backend|artifacts|\.phase\d+-(?:runtime|build)\.local)(\/|$)|\.env([./]|$)|docs\/psm-evaluation\/data(\/|$))/i.test(pathname)) {
           res.statusCode = 403;
           res.setHeader('Content-Type', 'text/plain; charset=utf-8');
           res.end('Access denied');
@@ -25,7 +25,7 @@ function denyPrivatePaths() {
 export default defineConfig({
   plugins: [denyPrivatePaths(), react()],
   server: {
-    fs: { deny: ['**/.env', '**/.env.*', '**/.git/**', '**/backend/**', '**/.phase5-runtime.local/**', '**/docs/psm-evaluation/data/**', '**/artifacts/**'] },
-    watch: { ignored: ['**/backend/**', '**/.phase5-runtime.local/**', '**/artifacts/**', '**/docs/psm-evaluation/**'] },
+    fs: { deny: ['**/.env', '**/.env.*', '**/.git/**', '**/backend/**', '**/.phase*-runtime.local/**', '**/.phase*-build.local/**', '**/docs/psm-evaluation/data/**', '**/artifacts/**'] },
+    watch: { ignored: ['**/backend/**', '**/.phase*-runtime.local/**', '**/.phase*-build.local/**', '**/artifacts/**', '**/docs/**'] },
   },
 })

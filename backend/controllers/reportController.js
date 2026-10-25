@@ -1,18 +1,23 @@
 const fs = require('fs/promises');
 const pool = require('../config/db');
 const roles = require('../config/roles');
-const { processNLP } = require('../ml/nlpService');
+const { enqueue, wakeWorker, schemaReady } = require('../services/nlpJobs');
 const { logAudit } = require('../utils/audit');
 
 const reportSelect = `
   select l.*, p.nama_penuh, pos.nama_pos,
          nlp.kategori_dikesan, case when nlp.tahap_risiko in ('Low','Medium','High','Critical') then nlp.tahap_risiko else 'Unknown' end as tahap_risiko, nlp.skor_risiko,
          nlp.kata_kunci_dikesan, nlp.ringkasan_automatik, nlp.tahap_keyakinan,
+         nlp.id_nlp, nlp.metadata as nlp_metadata,
+         coalesce(job.status,case when nlp.id_nlp is not null then 'completed' else 'not_requested' end) as analysis_status,
+         coalesce(nlp.metadata->'review'->>'status','unavailable') as nlp_review_status,
+         case when job.id_job is not null then jsonb_build_object('id_job',job.id_job,'status',job.status,'attempts',job.attempts,'last_error',job.last_error) end as analysis_job,
          exists (select 1 from tbl_tindakan_susulan a where a.id_laporan = l.id_laporan) as ada_tindakan_susulan
   from tbl_laporan_harian l
   join tbl_pengguna p on p.id_pengguna = l.id_pengguna
   left join tbl_pos_kawalan pos on pos.id_pos = l.id_pos
   left join lateral (select * from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) nlp on true
+  left join lateral (select * from tbl_job_nlp where id_laporan=l.id_laporan order by id_job desc limit 1) job on true
 `;
 
 const getReports = async (req, res) => {
@@ -77,7 +82,8 @@ const getReport = async (req, res) => {
       ),
       await client.query('select * from tbl_tindakan_susulan where id_laporan = $1 order by id_tindakan', [req.params.id]),
     ];
-    res.json({ report, reviews: reviews.rows, checklist: checklist.rows, actions: actions.rows });
+    const analysis = report.id_nlp ? (await client.query('select * from tbl_hasil_nlp where id_nlp=$1',[report.id_nlp])).rows[0] : null;
+    res.json({ report, reviews: reviews.rows, checklist: checklist.rows, actions: actions.rows, analysis, analysisJob:report.analysis_job });
   } catch (error) {
     console.error('Get report detail error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan butiran laporan' });
@@ -102,6 +108,13 @@ const createReport = async (req, res) => {
     return res.status(400).json({ message: 'Sila lengkapkan pos, syif, tarikh, masa, tajuk dan kandungan laporan' });
   }
 
+  const date = new Date(`${tarikh_laporan}T00:00:00Z`);
+  if (kandungan_laporan.length > 20000 || tajuk_laporan.length > 160 || !/^\d{4}-\d{2}-\d{2}$/.test(tarikh_laporan)
+    || Number.isNaN(date.valueOf()) || date.toISOString().slice(0,10)!==tarikh_laporan
+    || !/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(masa_laporan) || !['Pagi','Petang','Malam','Office Hour'].includes(syif)) {
+    return res.status(400).json({message:'Panjang teks, tarikh, masa atau syif laporan tidak sah'});
+  }
+
   let checklist;
   try {
     checklist = typeof checklistInput === 'string' ? JSON.parse(checklistInput) : checklistInput;
@@ -117,45 +130,17 @@ const createReport = async (req, res) => {
   let transactionStarted = false;
   try {
     client = await pool.connect();
-    const nlp = await processNLP(kandungan_laporan);
+    if (!await schemaReady(client)) return res.status(503).json({message:'Migrasi NLP diperlukan sebelum laporan baharu boleh diproses.'});
     await client.query('begin');
     transactionStarted = true;
     const reportResult = await client.query(
       `insert into tbl_laporan_harian
-         (id_pengguna, id_pos, id_kategori_insiden, tajuk_laporan, syif, tarikh_laporan,
-          masa_laporan, kandungan_laporan, status_laporan, tahap_risiko, lampiran_fail)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, 'Dihantar', $9, $10)
-       returning id_laporan`,
-      [
-        req.user.id_pengguna,
-        id_pos,
-        id_kategori_insiden || null,
-        tajuk_laporan.trim(),
-        syif,
-        tarikh_laporan,
-        masa_laporan,
-        kandungan_laporan.trim(),
-        nlp.riskLevel,
-        JSON.stringify(uploads.map((file) => `/uploads/${file.filename}`)),
-      ]
+         (id_pengguna,id_pos,id_kategori_insiden,tajuk_laporan,syif,tarikh_laporan,masa_laporan,kandungan_laporan,status_laporan,tahap_risiko,lampiran_fail)
+       values($1,$2,$3,$4,$5,$6,$7,$8,'Dihantar','Unknown',$9) returning *`,
+      [req.user.id_pengguna,id_pos,id_kategori_insiden||null,tajuk_laporan.trim(),syif,tarikh_laporan,masa_laporan,kandungan_laporan.trim(),JSON.stringify(uploads.map(file=>`/uploads/${file.filename}`))]
     );
-    const reportId = reportResult.rows[0].id_laporan;
-    await client.query(
-      `insert into tbl_hasil_nlp
-         (id_laporan, teks_diproses, kata_kunci_dikesan, kategori_dikesan, skor_risiko,
-          tahap_risiko, ringkasan_automatik, tahap_keyakinan)
-       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [
-        reportId,
-        nlp.cleanText,
-        nlp.matchedKeywords,
-        nlp.topCategory,
-        nlp.riskScore,
-        nlp.riskLevel,
-        `Kategori ${nlp.topCategory}; ${nlp.matchedKeywords.length} kata kunci sepadan.`,
-        nlp.confidence,
-      ]
-    );
+    const reportId=reportResult.rows[0].id_laporan;
+    const job=await enqueue(client,reportResult.rows[0],req.user.id_pengguna);
     for (const item of checklist) {
       await client.query(
         `insert into tbl_jawapan_checklist (id_laporan, id_checklist, jawapan, catatan)
@@ -165,37 +150,11 @@ const createReport = async (req, res) => {
     }
     await logAudit(client, req.user.id_pengguna, 'SUBMIT_REPORT', `Laporan #${reportId}`, 'Hantar laporan harian');
 
-    if (['High', 'Critical'].includes(nlp.riskLevel)) {
-      const chiefs = await client.query(
-        `select p.id_pengguna from tbl_pengguna p
-         join tbl_peranan r on r.id_peranan = p.id_peranan
-         where r.nama_peranan = $1 and p.status_akaun = 'Aktif'`,
-        [roles.chief]
-      );
-      for (const chief of chiefs.rows) {
-        await client.query(
-          `insert into tbl_notifikasi
-             (id_pengguna, id_laporan, tajuk_notifikasi, mesej_notifikasi, jenis_notifikasi, tahap_keutamaan)
-           values ($1, $2, $3, $4, $5, $6)`,
-          [chief.id_pengguna, reportId, `Insiden ${nlp.riskLevel}`, `Laporan #${reportId} memerlukan perhatian segera (${nlp.topCategory}).`, 'Risiko Tinggi', nlp.riskLevel]
-        );
-      }
-    }
     await client.query('commit');
     transactionStarted = false;
     const savedReport = await client.query(`${reportSelect} where l.id_laporan = $1`, [reportId]);
-    res.status(201).json({
-      message: 'Laporan dihantar',
-      id_laporan: reportId,
-      report: savedReport.rows[0],
-      nlp: {
-        kategori_dikesan: nlp.topCategory,
-        tahap_risiko: nlp.riskLevel,
-        skor_risiko: nlp.riskScore,
-        kata_kunci_dikesan: nlp.matchedKeywords,
-        tahap_keyakinan: nlp.confidence,
-      },
-    });
+    wakeWorker(pool);
+    res.status(201).json({message:'Laporan dihantar. Analisis berjalan di latar belakang.',id_laporan:reportId,report:savedReport.rows[0],nlp:null,analysis:null,analysisJob:job});
   } catch (error) {
     if (transactionStarted) if (client) await client.query('rollback');
     await Promise.all(uploads.map((file) => fs.unlink(file.path).catch((unlinkError) => {

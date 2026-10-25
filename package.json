@@ -19,7 +19,12 @@
     "evaluate:psm": "node scripts/analyze-evaluation.mjs",
     "train:nlp": "node backend/scripts/train-nlp-model.js",
     "seed:expo": "node backend/scripts/seed-expo-data.js",
-    "check": "npm run lint && node --check backend/server.js && node --check backend/scripts/smoke-test.js && node --check backend/scripts/train-nlp-model.js && npm run build"
+    "check": "npm run lint && node --check backend/server.js && node --check backend/scripts/smoke-test.js && node --check backend/scripts/train-nlp-model.js && npm run build",
+    "test:phase6": "playwright test --config playwright.phase6.config.mjs",
+    "demo:phase6:prepare": "node backend/scripts/prepare-phase6-demo.js",
+    "test:nlp": "node --test backend/tests/nlp-engine.test.js backend/tests/gemini-reviewer.test.js backend/tests/nlp-jobs.test.js tests/phase7/evaluation.test.mjs",
+    "evaluate:nlp": "node scripts/evaluate-nlp.mjs",
+    "test:phase7:browser": "playwright test --config playwright.phase7.config.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.6",

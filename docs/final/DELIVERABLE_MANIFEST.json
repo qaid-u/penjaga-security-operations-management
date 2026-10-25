@@ -1,0 +1,220 @@
+{
+  "scope": "Final preparation files; original Phase5 evidence remains separate; current NLP changes documented in docs/NLP_PHASE7.md",
+  "files": [
+    {
+      "path": "docs/final/DEPLOYMENT_GUIDE.md",
+      "bytes": 7719,
+      "sha256": "e80662b07e57ff12a87aad067aae4cde4e9249d691178bf6e0ece9f097bdf4f8"
+    },
+    {
+      "path": "docs/final/INSTALLATION_GUIDE.md",
+      "bytes": 4203,
+      "sha256": "754ffecca7bcac55566613b59e0f003efde111379a77c3180cb2fde518543130"
+    },
+    {
+      "path": "docs/final/PHASE6_COMPLETION_REPORT.md",
+      "bytes": 3206,
+      "sha256": "7ec3d79b44b28d48fb582885547a5fab567cf4094fafa330f75a586bdb9d8dbb"
+    },
+    {
+      "path": "docs/final/PROJECT_HANDOVER.md",
+      "bytes": 8513,
+      "sha256": "7408def99a0a48fe10566b62b67d9bc1f69f9b5cab5cc342e8292978c55b6b29"
+    },
+    {
+      "path": "docs/final/PROJECT_IMPLEMENTATION_AUDIT.md",
+      "bytes": 7718,
+      "sha256": "a3e54ec28f3d102f9dd3033e40776264ca63111751d200e3241b4eeaf57d2e1c"
+    },
+    {
+      "path": "docs/final/USER_MANUAL.md",
+      "bytes": 5688,
+      "sha256": "5b37ee47bd685e117b931882327235af66f0fa6585f0acdd96e7f8bb857c7a61"
+    },
+    {
+      "path": "docs/final/technical/3D_SYSTEM_ARCHITECTURE.md",
+      "bytes": 3846,
+      "sha256": "b5dfffae2b6cec24a6ca4e5b6046641384ea3b36ba1d1e4707291806da21857f"
+    },
+    {
+      "path": "docs/final/technical/API_REFERENCE.md",
+      "bytes": 12937,
+      "sha256": "6541980941d6ac416cb076ec7b050b6a5c6d82fdfd52818db8aac8bd5aff540c"
+    },
+    {
+      "path": "docs/final/technical/DATABASE_DESIGN.md",
+      "bytes": 19451,
+      "sha256": "e85515b671d572e72dea0a7ad71c67de3b1c41e4eb9009f3141b386c697519c9"
+    },
+    {
+      "path": "docs/final/technical/SYSTEM_ARCHITECTURE.md",
+      "bytes": 3614,
+      "sha256": "ce6817659cc9e68a126c39fed75dc83a51cdbec6712d7912488d6dceeb278b06"
+    },
+    {
+      "path": "docs/final/technical/diagrams/database-erd.mmd",
+      "bytes": 6847,
+      "sha256": "e871e53c3b0e0a65f277789cc1e2f96e3d5a7f44f7723326eaa013eada20ac31"
+    },
+    {
+      "path": "docs/final/technical/diagrams/system-architecture.mmd",
+      "bytes": 427,
+      "sha256": "2855555e9cd30f1bcbe6c0357cce088c9368d78c5b58b8616f016a67ca52de9b"
+    },
+    {
+      "path": "docs/psm/FINAL_PRESENTATION_OUTLINE.md",
+      "bytes": 3525,
+      "sha256": "e0b57b61fc23e8311f773eb766e59c5e21c00c130e71a3506d82d8a206b8d229"
+    },
+    {
+      "path": "docs/psm/FINAL_PSM_REPORT_DRAFT.md",
+      "bytes": 24213,
+      "sha256": "653b07b815d9250453045f81ff2e49491cf44da26d124e59c62348b76707881f"
+    },
+    {
+      "path": "docs/psm/FINAL_TESTING_REPORT.md",
+      "bytes": 7083,
+      "sha256": "42939cf332a0f85c856bc3f653f72b348afb762090b3edd7f0b5e61ece3878d7"
+    },
+    {
+      "path": "docs/psm/LIVE_DEMONSTRATION_SCRIPT.md",
+      "bytes": 5540,
+      "sha256": "942d046de5f99bd34979df00e48755deb84a7d24899b268c93423a992a48ad75"
+    },
+    {
+      "path": "docs/psm/PRESENTATION_SCRIPT.md",
+      "bytes": 13512,
+      "sha256": "ae56509f757ca17dee7230c47127b6077e412a6d1e2fa9799c98f21af1019827"
+    },
+    {
+      "path": "docs/psm/REQUIREMENTS_TRACEABILITY_MATRIX.md",
+      "bytes": 4934,
+      "sha256": "b16e9f767067146be7489a319324a5e8eacf1d7143d376419a134364559ca4b2"
+    },
+    {
+      "path": "docs/psm/VIVA_QUESTIONS_AND_ANSWERS.md",
+      "bytes": 7025,
+      "sha256": "42a61e1de37655247e9de510b94a33397f8b8ebca542d995df0c084c04a84762"
+    },
+    {
+      "path": "docs/psm/evidence/01-login.png",
+      "bytes": 620427,
+      "sha256": "a1d0face7549afb20e6ccd05433e33ea6b7672d2cb545791624d0f949a3ba2aa"
+    },
+    {
+      "path": "docs/psm/evidence/02-admin-dashboard.png",
+      "bytes": 214656,
+      "sha256": "93d1093bfcb6d8d6b00801935315362b232b1b5324420e35578d4db9a37d9dbb"
+    },
+    {
+      "path": "docs/psm/evidence/03-guard-dashboard.png",
+      "bytes": 84977,
+      "sha256": "fc87dabc9a1666aaf31d6a01f35fc06d2ccdbb2f5005c91dd05589f01ecbebf3"
+    },
+    {
+      "path": "docs/psm/evidence/04-schedule-management.png",
+      "bytes": 209335,
+      "sha256": "1bf494279a65280749f89ee5e8e5059b65e07c95e790469aaba9ba781abf2bd7"
+    },
+    {
+      "path": "docs/psm/evidence/05-attendance.png",
+      "bytes": 65551,
+      "sha256": "fa722975a9bcd65f71bc2b18b0bd738fa77559c0f07d4098eb1a64a5b018eab0"
+    },
+    {
+      "path": "docs/psm/evidence/06-report-submission.png",
+      "bytes": 178180,
+      "sha256": "7e59b04975989066adcc56af067bf43eff9ebae4516e6b52b282a465efaad6da"
+    },
+    {
+      "path": "docs/psm/evidence/07-nlp-categories.png",
+      "bytes": 150243,
+      "sha256": "356ae6f091dea50b46c3945a0e6a10d914196277f3c2ed1d01a52c127ccad422"
+    },
+    {
+      "path": "docs/psm/evidence/08-follow-up-actions.png",
+      "bytes": 264418,
+      "sha256": "d3ea1a3d3eae8d06c8ca5e4791360cbf26a76e161a03c0f03654ce4a5247be98"
+    },
+    {
+      "path": "docs/psm/evidence/09-user-management.png",
+      "bytes": 118883,
+      "sha256": "b25dd3ba2cdb121f7e433e6fd39ce7a0596558a1b3c0b847701add43162cd48d"
+    },
+    {
+      "path": "docs/psm/evidence/10-3d-overview.png",
+      "bytes": 339913,
+      "sha256": "bb5bf10ddbe64f03ac54693d43adec2f2322001e9f600391b6f47f67836847c5"
+    },
+    {
+      "path": "docs/psm/evidence/11-selected-hotspot.png",
+      "bytes": 661886,
+      "sha256": "93e38991449f1fb95e9d0af9bc41d38dc0a04f98e848501064b30d0ba4235701"
+    },
+    {
+      "path": "docs/psm/evidence/12-information-panel.png",
+      "bytes": 107463,
+      "sha256": "43aa30c7de16c7d1c93ad8fd5596465f5e6bbdc033411553004075af36b611dd"
+    },
+    {
+      "path": "docs/psm/evidence/13-incident-mode.png",
+      "bytes": 703242,
+      "sha256": "748e65217ffd3caac29b7766447a09cebac89a8d915178cb9631a0b14e4ecf83"
+    },
+    {
+      "path": "docs/psm/evidence/14-zone-navigation.png",
+      "bytes": 680731,
+      "sha256": "f370bfc013f082ad23cf6fa56dbd5209c10d16c55f911c834ad657e1690313cf"
+    },
+    {
+      "path": "docs/psm/evidence/15-incident-history.png",
+      "bytes": 29415,
+      "sha256": "02ea3c550ddb8c3f944bcb54cc4449d26cd7f9ffe8d0154c4026930628acd7ac"
+    },
+    {
+      "path": "docs/psm/evidence/16-stored-nlp-analysis.png",
+      "bytes": 226881,
+      "sha256": "e946be8e0e4cb04b99e13a6d1f03473fa3de3edf6477e62d6a372c72f776b6f7"
+    },
+    {
+      "path": "docs/psm/evidence/17-building-canvas.png",
+      "bytes": 263042,
+      "sha256": "4d9abf51f6d2f1fef784efaf67b0894393725e10f635a30ef21e6f6ccd42fbdb"
+    },
+    {
+      "path": "docs/psm/evidence/built-asset-verification.json",
+      "bytes": 207,
+      "sha256": "6944f5eda431747d2b8dca0e7933e50f55e01f1996fe357dffc4a1955cdbb489"
+    },
+    {
+      "path": "docs/psm/evidence/final-verification-summary.json",
+      "bytes": 1352,
+      "sha256": "97d155b59b16c41c3c760a62462435ab13a4c0d16b437e39071466fb7b464c5f"
+    },
+    {
+      "path": "docs/psm/evidence/phase6-workflow-results.json",
+      "bytes": 3448,
+      "sha256": "bb168eb40aab9461b28a25aab624a1d79ef9206dba4da74dfe553e7339af9802"
+    },
+    {
+      "path": "docs/psm/evidence/schema-verification.json",
+      "bytes": 27446,
+      "sha256": "4ca9fc48b3a59b64f038b49d84807cbf3e07004b9fadf22c436e2c6e879d047f"
+    },
+    {
+      "path": "docs/psm/evidence/SCREENSHOT_INDEX.md",
+      "bytes": 2688,
+      "sha256": "fbaaadf73b253734759d042c8a07ca40264f8243a0b19bb18a8ae3c188420f08"
+    },
+    {
+      "path": "docs/psm/presentation/PENJAGA_FINAL_PRESENTATION.pptx",
+      "bytes": 601552,
+      "sha256": "a6cc00ffa0f2e78e477472696f1bd42ca23602867fd29f706408aaaafcdbfc3d"
+    },
+    {
+      "path": "docs/psm/presentation/README.md",
+      "bytes": 930,
+      "sha256": "610ba301e16f430d3f94dc0bf0f6fbdeb0ec1c6a4dc08630fd77172e2bbc19ce"
+    }
+  ]
+}

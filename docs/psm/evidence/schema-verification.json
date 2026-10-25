@@ -1,0 +1,1074 @@
+{
+  "source": "Isolated Phase 6 database metadata only; no record export",
+  "applicationTables": 20,
+  "columns": [
+    {
+      "table_name": "tbl_audit_trail",
+      "column_name": "id_audit",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_audit_trail",
+      "column_name": "id_pengguna",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_audit_trail",
+      "column_name": "modul_sistem",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_audit_trail",
+      "column_name": "jenis_aktiviti",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_audit_trail",
+      "column_name": "penerangan_aktiviti",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_audit_trail",
+      "column_name": "rekod_terlibat",
+      "data_type": "character varying",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_audit_trail",
+      "column_name": "nilai_lama",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_audit_trail",
+      "column_name": "nilai_baharu",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_audit_trail",
+      "column_name": "alamat_ip",
+      "data_type": "character varying",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_audit_trail",
+      "column_name": "peranti_pengguna",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_audit_trail",
+      "column_name": "status_aktiviti",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_audit_trail",
+      "column_name": "tarikh_masa_aktiviti",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_checklist",
+      "column_name": "id_checklist",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_checklist",
+      "column_name": "nama_checklist",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_checklist",
+      "column_name": "penerangan_checklist",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_checklist",
+      "column_name": "kategori_checklist",
+      "data_type": "character varying",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_checklist",
+      "column_name": "status_aktif",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_checklist",
+      "column_name": "tarikh_dicipta",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_fail_jadual",
+      "column_name": "id_fail",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_fail_jadual",
+      "column_name": "id_jadual_mingguan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_fail_jadual",
+      "column_name": "nama_fail",
+      "data_type": "character varying",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_fail_jadual",
+      "column_name": "jenis_fail",
+      "data_type": "character varying",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_fail_jadual",
+      "column_name": "path_fail",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_fail_jadual",
+      "column_name": "dimuat_naik_oleh",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_fail_jadual",
+      "column_name": "tarikh_muat_naik",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_hasil_nlp",
+      "column_name": "id_nlp",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_hasil_nlp",
+      "column_name": "id_laporan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_hasil_nlp",
+      "column_name": "teks_diproses",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_hasil_nlp",
+      "column_name": "kata_kunci_dikesan",
+      "data_type": "ARRAY",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_hasil_nlp",
+      "column_name": "kategori_dikesan",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_hasil_nlp",
+      "column_name": "skor_sentimen",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_hasil_nlp",
+      "column_name": "skor_risiko",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_hasil_nlp",
+      "column_name": "tahap_risiko",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_hasil_nlp",
+      "column_name": "ringkasan_automatik",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_hasil_nlp",
+      "column_name": "tahap_keyakinan",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_hasil_nlp",
+      "column_name": "tarikh_analisis",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_bertugas",
+      "column_name": "id_jadual",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_bertugas",
+      "column_name": "id_jadual_mingguan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_bertugas",
+      "column_name": "id_pengguna",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_bertugas",
+      "column_name": "id_pos",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_bertugas",
+      "column_name": "tarikh_tugas",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_bertugas",
+      "column_name": "syif",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_bertugas",
+      "column_name": "masa_mula",
+      "data_type": "time without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_bertugas",
+      "column_name": "masa_tamat",
+      "data_type": "time without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_bertugas",
+      "column_name": "status_bertugas",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_bertugas",
+      "column_name": "catatan",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_jadual_bertugas",
+      "column_name": "dicipta_oleh",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_jadual_bertugas",
+      "column_name": "tarikh_dicipta",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_bertugas",
+      "column_name": "tarikh_kemaskini",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_mingguan",
+      "column_name": "id_jadual_mingguan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_mingguan",
+      "column_name": "tarikh_mula",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_mingguan",
+      "column_name": "tarikh_tamat",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_mingguan",
+      "column_name": "tajuk_jadual",
+      "data_type": "character varying",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_jadual_mingguan",
+      "column_name": "status_jadual",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_mingguan",
+      "column_name": "dicipta_oleh",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_jadual_mingguan",
+      "column_name": "disahkan_oleh",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_jadual_mingguan",
+      "column_name": "tarikh_dicipta",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jadual_mingguan",
+      "column_name": "tarikh_disahkan",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_jadual_mingguan",
+      "column_name": "catatan",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_jawapan_checklist",
+      "column_name": "id_jawapan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jawapan_checklist",
+      "column_name": "id_laporan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jawapan_checklist",
+      "column_name": "id_checklist",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jawapan_checklist",
+      "column_name": "jawapan",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_jawapan_checklist",
+      "column_name": "catatan",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_jawapan_checklist",
+      "column_name": "tarikh_jawapan",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_kategori_insiden",
+      "column_name": "id_kategori_insiden",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_kategori_insiden",
+      "column_name": "nama_kategori",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_kategori_insiden",
+      "column_name": "tahap_keutamaan",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_kategori_insiden",
+      "column_name": "penerangan_kategori",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_kategori_insiden",
+      "column_name": "kata_kunci_rujukan",
+      "data_type": "ARRAY",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_kategori_insiden",
+      "column_name": "status_kategori",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_kategori_insiden",
+      "column_name": "tarikh_dicipta",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_kehadiran_tugas",
+      "column_name": "id_kehadiran",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_kehadiran_tugas",
+      "column_name": "id_jadual",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_kehadiran_tugas",
+      "column_name": "id_pengguna",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_kehadiran_tugas",
+      "column_name": "masa_check_in",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_kehadiran_tugas",
+      "column_name": "masa_check_out",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_kehadiran_tugas",
+      "column_name": "status_kehadiran",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_kehadiran_tugas",
+      "column_name": "catatan",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_kehadiran_tugas",
+      "column_name": "tarikh_dicipta",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_keperluan_pos",
+      "column_name": "id_keperluan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_keperluan_pos",
+      "column_name": "id_pos",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_keperluan_pos",
+      "column_name": "syif",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_keperluan_pos",
+      "column_name": "bilangan_diperlukan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_keperluan_pos",
+      "column_name": "status_aktif",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_keperluan_pos",
+      "column_name": "tarikh_dicipta",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "id_laporan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "id_pengguna",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "id_pos",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "id_kategori_insiden",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "tajuk_laporan",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "syif",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "tarikh_laporan",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "masa_laporan",
+      "data_type": "time without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "kandungan_laporan",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "status_laporan",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "tahap_risiko",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "perlu_tindakan_susulan",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "lampiran_fail",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "tarikh_dicipta",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_laporan_harian",
+      "column_name": "tarikh_kemaskini",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_lokasi_3d",
+      "column_name": "id_lokasi",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_lokasi_3d",
+      "column_name": "hotspot_id",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_lokasi_3d",
+      "column_name": "nama_paparan",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_lokasi_3d",
+      "column_name": "kawasan",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_lokasi_3d",
+      "column_name": "label_aras",
+      "data_type": "character varying",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_lokasi_3d",
+      "column_name": "id_pos",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_lokasi_3d",
+      "column_name": "status_aktif",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_lokasi_3d",
+      "column_name": "tarikh_dicipta",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_lokasi_3d",
+      "column_name": "tarikh_kemaskini",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_notifikasi",
+      "column_name": "id_notifikasi",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_notifikasi",
+      "column_name": "id_pengguna",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_notifikasi",
+      "column_name": "id_laporan",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_notifikasi",
+      "column_name": "id_tindakan",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_notifikasi",
+      "column_name": "tajuk_notifikasi",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_notifikasi",
+      "column_name": "mesej_notifikasi",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_notifikasi",
+      "column_name": "jenis_notifikasi",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_notifikasi",
+      "column_name": "tahap_keutamaan",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_notifikasi",
+      "column_name": "status_bacaan",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_notifikasi",
+      "column_name": "tarikh_hantar",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_notifikasi",
+      "column_name": "tarikh_dibaca",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_pengesahan_laporan",
+      "column_name": "id_pengesahan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pengesahan_laporan",
+      "column_name": "id_laporan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pengesahan_laporan",
+      "column_name": "id_pengguna_pengesah",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pengesahan_laporan",
+      "column_name": "status_pengesahan",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pengesahan_laporan",
+      "column_name": "catatan_pengesahan",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_pengesahan_laporan",
+      "column_name": "tarikh_pengesahan",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pengguna",
+      "column_name": "id_pengguna",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pengguna",
+      "column_name": "id_peranan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pengguna",
+      "column_name": "nama_penuh",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pengguna",
+      "column_name": "no_kad_pengenalan",
+      "data_type": "character varying",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_pengguna",
+      "column_name": "no_telefon",
+      "data_type": "character varying",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_pengguna",
+      "column_name": "emel",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pengguna",
+      "column_name": "nama_pengguna",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pengguna",
+      "column_name": "kata_laluan",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pengguna",
+      "column_name": "status_akaun",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pengguna",
+      "column_name": "tarikh_dicipta",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pengguna",
+      "column_name": "tarikh_kemaskini",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_peranan",
+      "column_name": "id_peranan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_peranan",
+      "column_name": "nama_peranan",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_peranan",
+      "column_name": "keterangan_peranan",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_peranan",
+      "column_name": "tahap_capaian",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_peranan",
+      "column_name": "tarikh_dicipta",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pos_kawalan",
+      "column_name": "id_pos",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pos_kawalan",
+      "column_name": "nama_pos",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pos_kawalan",
+      "column_name": "nama_bangunan",
+      "data_type": "character varying",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_pos_kawalan",
+      "column_name": "lokasi",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_pos_kawalan",
+      "column_name": "waktu_operasi",
+      "data_type": "character varying",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_pos_kawalan",
+      "column_name": "status_pos",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_pos_kawalan",
+      "column_name": "tarikh_dicipta",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_progress_tindakan",
+      "column_name": "id_progress",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_progress_tindakan",
+      "column_name": "id_tindakan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_progress_tindakan",
+      "column_name": "id_pengguna",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_progress_tindakan",
+      "column_name": "catatan_progress",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_progress_tindakan",
+      "column_name": "jenis_progress",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_progress_tindakan",
+      "column_name": "perlu_respon_ketua",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_progress_tindakan",
+      "column_name": "lampiran_fail",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_progress_tindakan",
+      "column_name": "tarikh_progress",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_progress_tindakan",
+      "column_name": "dilihat_admin",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_status_bertugas",
+      "column_name": "id_status",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_status_bertugas",
+      "column_name": "id_pengguna",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_status_bertugas",
+      "column_name": "id_pos",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_status_bertugas",
+      "column_name": "tarikh",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_status_bertugas",
+      "column_name": "syif",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_status_bertugas",
+      "column_name": "status_bertugas",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_status_bertugas",
+      "column_name": "masa_mula",
+      "data_type": "time without time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_status_bertugas",
+      "column_name": "masa_tamat",
+      "data_type": "time without time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_status_bertugas",
+      "column_name": "tarikh_kemaskini",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_tindakan_susulan",
+      "column_name": "id_tindakan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_tindakan_susulan",
+      "column_name": "id_laporan",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_tindakan_susulan",
+      "column_name": "pegawai_bertanggungjawab",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_tindakan_susulan",
+      "column_name": "tindakan_diambil",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_tindakan_susulan",
+      "column_name": "status_tindakan",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_tindakan_susulan",
+      "column_name": "tahap_keutamaan",
+      "data_type": "character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_tindakan_susulan",
+      "column_name": "tarikh_mula",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "tbl_tindakan_susulan",
+      "column_name": "tarikh_selesai",
+      "data_type": "date",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_tindakan_susulan",
+      "column_name": "catatan_tindakan",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "tbl_tindakan_susulan",
+      "column_name": "tarikh_kemaskini",
+      "data_type": "timestamp without time zone",
+      "is_nullable": "NO"
+    }
+  ]
+}

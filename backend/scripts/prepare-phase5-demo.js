@@ -21,12 +21,14 @@ async function main() {
       if (!tables.rows.some((r)=>r.tablename==='phase5_demo_manifest')) throw new Error('Target database is not an identified Phase 5 demo; refusing to modify it.');
       const manifest = await client.query('select version from phase5_demo_manifest');
       if(manifest.rows[0]?.version !== 1)throw new Error('Unexpected demo version; no changes made.');
+      await client.query(await fs.readFile(path.join(__dirname,'../database/migrations/004_nlp_review.sql'),'utf8'));
       console.log('Existing Phase 5 synthetic demo retained. No reseeding performed.');return;
     }
     await client.query('begin');
     await client.query("set local timezone = 'Asia/Kuala_Lumpur'");
     await client.query(await fs.readFile(path.join(__dirname,'../database/schema.sql'),'utf8'));
     await client.query(await fs.readFile(path.join(__dirname,'../database/migrations/003_lokasi_3d.sql'),'utf8'));
+    await client.query(await fs.readFile(path.join(__dirname,'../database/migrations/004_nlp_review.sql'),'utf8'));
     const hash = await bcrypt.hash(process.env.PHASE5_DEMO_PASSWORD || 'Demo-Penjaga-2026!',10);
     await client.query("insert into tbl_peranan(id_peranan,nama_peranan,tahap_capaian) values (1,'Pentadbir Sistem',1),(2,'Ketua Pengawal',2),(3,'Pengawal Keselamatan',3)");
     for(const [id,role,name] of [[1,1,'admin'],[2,2,'chief'],[3,3,'guard_a'],[4,3,'guard_b']]) await client.query('insert into tbl_pengguna(id_pengguna,id_peranan,nama_penuh,emel,nama_pengguna,kata_laluan) values($1,$2,$3,$4,$5,$6)',[id,role,`Demo ${name}`,`${name}@example.invalid`,`demo_${name}`,hash]);

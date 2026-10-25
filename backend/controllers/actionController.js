@@ -104,9 +104,9 @@ const updateAction = async (req, res) => {
     client = await pool.connect();
     const result = await client.query(
       `update tbl_tindakan_susulan
-       set status_tindakan = $1,
+       set status_tindakan = $1::text,
            catatan_tindakan = coalesce($2, catatan_tindakan),
-           tarikh_selesai = case when $1 = 'Selesai' then current_date else null end,
+           tarikh_selesai = case when $1::text = 'Selesai' then current_date else null end,
            tarikh_kemaskini = now()
        where id_tindakan = $3 returning *`,
       [status_tindakan, catatan_tindakan?.trim() || null, req.params.id]

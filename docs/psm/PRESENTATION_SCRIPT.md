@@ -1,0 +1,67 @@
+# Presentation speaker script
+
+Practice target:12–15 minutes including slide transitions and about 60–90 seconds of interface/diagram pauses. This is not an official UTHM duration. Rehearse at roughly115–130 words/minute, shorten to the actual approved limit, and time the full run. All figures derive from Phase 5 evidence; no human outcomes are claimed.
+
+## Slide 1 — PENJAGA
+
+Good morning. This presentation introduces PENJAGA, a security operations management prototype with an interactive exterior building visualization. The working Malay project title appears in the report. Student, supervisor and academic-session details still need to be aligned with the approved submission information. I will explain the implemented workflows, the relationship between the building model and database records, and the evidence collected during verification. Throughout the presentation I distinguish a functioning software feature from an independently evaluated benefit. The current classifier uses keyword rules, and the building view is an approximate exterior. Neither should be presented as predictive intelligence or a live physical digital twin.
+
+## Slide 2 — One record flow, several operational roles
+
+PENJAGA brings related operational records into one application. A guard can see an assignment, record attendance and submit an observation. A chief guard reviews the submitted report, and an administrator manages an official follow-up action when required. The database connects these events through user, post, report and action identifiers. This creates the software basis for consistent access and traceable records. It does not, by itself, prove that a specific organization previously lost information or that response time has improved. Such organizational claims require documented stakeholder evidence. In this presentation, the motivation is therefore described as a design opportunity grounded in the modules that actually exist.
+
+## Slide 3 — The engineering problem is integration
+
+The technical problem addressed by this prototype is to connect several operational modules while keeping permissions and meanings consistent. A report shown through a building hotspot must still obey the same access rules as a report in a table. A scheduled guard must not be represented as a physically tracked person. A location without a database mapping must not acquire fabricated operational information. These concerns shaped the architecture and tests. The approved proposal and stakeholder problem statement were not available in the repository, so the final report marks them as pending inputs. Before submission, this engineering statement must be reconciled with the approved academic problem and its supporting evidence.
+
+## Slide 4 — Three provisional engineering objectives
+
+The first provisional objective is integration of role-authorized scheduling, attendance, reporting, review and follow-up. The second is a three-dimensional exterior interface that retrieves authorized records through selected visualization anchors. The third is verification of functionality and access boundaries, with reproducible deployment and demonstration materials. These objectives summarize the observed engineering work, rather than claiming to reproduce the approved PSM objectives. The traceability matrix links each requirement to source files, verification methods and evidence. The student must replace or align these entries with the signed proposal. This distinction is important because successful software tests do not automatically demonstrate every academic objective that may have been approved.
+
+## Slide 5 — Three roles, explicit boundaries
+
+The system supports three roles using the Malay names shown in the interface. Administrators manage users, posts, classification categories and official actions, and can change building mappings. Chief guards can review submitted reports and add progress to actions, but cannot change a mapping or independently set the official action status. Security guards access their own schedules, attendance and reports. Both administrators and chiefs can read the command centre. These permissions are enforced by Express routes and database identity checks, not just by hiding menu entries. The scope excludes GPS tracking, predictive risk, an automatic schedule optimizer and verified interior building reconstruction. Every demonstration record used today is fictional.
+
+## Slide 6 — Inspect → implement → verify → refine
+
+The project evidence supports an iterative development process. Existing routes and modules were inspected, the exterior asset was prepared, rendering was integrated, and authenticated operational data was connected to named anchors. Filters, history and camera interactions were then extended. Tests identified security, correctness and performance issues, leading to focused fixes and another verification pass. Phase six prepares documentation and handover from that evidence. I do not claim that a formal Scrum or waterfall process was followed, because the repository does not establish the required ceremonies or project records. The diagram therefore describes the observed engineering sequence and its feedback loop, rather than assigning an unsupported methodology label.
+
+## Slide 7 — The API is the authorization boundary
+
+This architecture separates interface state, authorized operations and durable records. React renders the screens and manages API state through TanStack Query. React Three Fiber adds the building scene. Express validates a bearer token and checks the current database account and role before protected operations. Controllers use parameterized PostgreSQL queries and transactions for important writes. Files are stored on disk but downloaded through authenticated reference checks. Report submission calls the keyword classifier and stores its result with the report. The three-dimensional view requests a selected location summary through the same API boundary. A public exterior model does not make operational records public; these are distinct delivery and authorization decisions.
+
+## Slide 8 — A report can be followed through its lifecycle
+
+The main workflow begins when a guard submits a daily report with a checklist and permitted evidence. The application normalizes its text, matches configured category keywords and stores a risk result. A High or Critical result creates a notification for active chief guards. The chief reviews the narrative and evidence before approving or rejecting the submitted report. An administrator can create one official follow-up for an approved report, update its status and request progress. A chief can add progress notes. The final synthetic API test exercised this lifecycle and checked ownership and role denials. These results establish connected software behavior, while the quality of actual incident decisions remains a separate human and data evaluation question.
+
+## Slide 9 — Blender source → GLB → browser scene
+
+The model pipeline retains editable Blender source and exports a GLB for web delivery. The source and its local backup were explicitly published to GitHub at the user’s request. The served exterior asset contains 192 meshes, 57,310 triangles and thirteen materials, with a file size of approximately 2.54 megabytes. Tests confirm geometry, material and named-anchor availability. The model was constructed from photographic references, so it represents recognizable exterior forms rather than surveyed dimensions or interior security plans. Public distribution approval applies to this exterior demonstration asset. It does not authorize publication of operational records or future restricted building references. Further architectural accuracy requires authorized references and validation.
+
+## Slide 10 — Select a place, inspect its linked records
+
+The command centre loads the exterior and offers camera orbit, zoom, pan and preset views. Selecting an anchor focuses the camera and opens an information panel. Zone controls highlight configured exterior regions. Marker modes and filters change the interpretation of stored operational summaries. The panel distinguishes a location that is not linked, a linked location excluded by filters, and a temporary API failure. This avoids treating absent information as a safe or empty building region. The screenshot is from the actual application using synthetic records. During a live demonstration I can select the entrance, show the associated fictional post, and explain that attendance timestamps are recorded events rather than proof of physical location.
+
+## Slide 11 — A nullable mapping joins space to operations
+
+Each allowlisted anchor corresponds to a database location record with an optional security-post identifier. An administrator can create or remove that link, and the change is audited. A selected summary resolves the post and reads overlapping assignments, recorded attendance, reports and actions from PostgreSQL. Snapshot queries keep related information consistent within the request. If multiple anchors refer to one post, overview totals count that post once. The latest NLP result supplies category and severity from the same analysis row; an unanalysed report remains Unknown. History is paginated and detail lists are bounded. This design links stored data to visual navigation without claiming a synchronized physical model or inventing unverified building locations.
+
+## Slide 12 — Verification passed; performance remains conditional
+
+The final rerun passed thirty-three backend checks, eighteen isolated three-dimensional browser checks, five real login and API workflows, ten model checks and three evaluation-analysis checks. Two additional Phase six tests cover the synthetic operational lifecycle and screenshot capture. These counts are automated test cases, not participants or a coverage percentage. Phase five measured desktop orbit at 13.79 frames per second and emulated mobile at 19.49 using headless Edge and SwiftShader. Both remain below a provisional thirty-frame target. Measured model-ready times were approximately 3.47 and 1.89 seconds. These results apply to that local software-renderer setup. Human usability, physical-phone performance and production hosting are still unverified.
+
+## Slide 13 — Working integration does not prove user benefit
+
+The evidence demonstrates integrated functionality and selected access protections, but it cannot establish improved user performance. There are no collected participant task times or satisfaction results. The classifier requires particular care: the training script produces a Naive Bayes artifact, while runtime code expects a weights field that the artifact does not contain. Current decisions therefore come from keyword rules. I will not present the saved synthetic training accuracy as operational accuracy. The final audit also found a password-change form with no API endpoint and an attendance restriction for assignments dated today, affecting overnight checkout. These issues are documented release priorities. Explicit limitations make the prototype’s contribution easier to assess and reproduce.
+
+## Slide 14 — The contribution is an inspectable integrated prototype
+
+PENJAGA combines operational modules with an interactive exterior interface and a shared authorized data model. The engineering contribution is the integration: selecting a visual region can retrieve the same stored post, duty, incident and action information used by other modules. Tests and synthetic evidence make that behavior inspectable. The provisional objectives are substantially demonstrated within the disclosed local scope, but they must still be aligned with the approved proposal. I cannot conclude that the interface improved response time or that the classifier achieved a particular real-world accuracy. Those require new evidence. The report and handover preserve this boundary between completed software work and future academic or operational validation.
+
+## Slide 15 — Finish validation before expanding claims
+
+Future work should begin with the known functional gaps, particularly password changes, after-midnight attendance and consistent legacy input validation. The next NLP step is to choose one explicit model format, implement inference and evaluate independently labelled reports with appropriate permission. Architectural fidelity should be improved only using authorized references. Performance should be profiled on representative graphics hardware and physical phones. A consented usability study can compare equivalent table and three-dimensional tasks without assuming a positive result. Production deployment additionally requires approved hosting, TLS, privately managed accounts and a demonstrated recovery procedure. These are planned improvements and release activities; they are not capabilities already validated by the current prototype.
+
+## Slide 16 — Questions
+
+Thank you. I welcome questions about the authorization boundary, database mapping, classification rules, testing conditions and remaining limitations. The repository includes the implementation audit, API and database documentation, actual synthetic screenshots, testing evidence and a reproducible demonstration script. If a question concerns an outcome not yet measured, I will identify it as pending rather than extrapolating from the prototype. I can also open the relevant source or test evidence to explain a specific design choice.

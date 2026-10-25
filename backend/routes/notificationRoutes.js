@@ -5,22 +5,24 @@ const { auth } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/', auth, async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       'select * from tbl_notifikasi where id_pengguna = $1 order by tarikh_hantar desc limit 50',
       [req.user.id_pengguna]
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Get notifications error:', error);
+    console.error('Get notifications error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan notifikasi' });
-  } finally { client.release(); }
+  } finally { client?.release(); }
 });
 
 router.patch('/:id/read', auth, async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const result = await client.query(
       `update tbl_notifikasi
        set status_bacaan = 'Dibaca', tarikh_dibaca = now()
@@ -31,9 +33,9 @@ router.patch('/:id/read', auth, async (req, res) => {
     if (!result.rowCount) return res.status(404).json({ message: 'Notifikasi tidak ditemui' });
     res.json({ message: 'Notifikasi dibaca' });
   } catch (error) {
-    console.error('Mark notification read error:', error);
+    console.error('Mark notification read error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal mengemas kini notifikasi' });
-  } finally { client.release(); }
+  } finally { client?.release(); }
 });
 
 module.exports = router;

@@ -1,3 +1,4 @@
+process.env.NLP_WORKER_ENABLED='false';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
@@ -26,6 +27,7 @@ test('PostgreSQL integration and actual JWT/role middleware in a rolled-back sch
     await client.query(await fs.readFile(path.join(__dirname, '../database/schema.sql'), 'utf8'));
     const migration = await fs.readFile(path.join(__dirname, '../database/migrations/003_lokasi_3d.sql'), 'utf8');
     await client.query(migration);
+    await client.query(await fs.readFile(path.join(__dirname, '../database/migrations/004_nlp_review.sql'), 'utf8'));
     await client.query(`
       insert into tbl_peranan(id_peranan,nama_peranan,tahap_capaian) values (1,'Pentadbir Sistem',1),(2,'Ketua Pengawal',2),(3,'Pengawal Keselamatan',3);
       insert into tbl_pengguna(id_pengguna,id_peranan,nama_penuh,emel,nama_pengguna,kata_laluan) values
