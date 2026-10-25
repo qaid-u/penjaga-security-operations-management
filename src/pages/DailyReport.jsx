@@ -13,6 +13,8 @@ export function DailyReport() {
   const [analysis, setAnalysis] = useState(null);
   const [analysisJob, setAnalysisJob] = useState(null);
   const [submitted, setSubmitted] = useState(null);
+  const [nlpContext, setNlpContext] = useState(null);
+  const receiveClarifications = useCallback((context, source) => setNlpContext({ ...context, sourceText: source.text, postId: String(source.postId || '') }), []);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedReport = searchParams.get('report');
   const selectedReportId = /^[1-9]\d*$/.test(requestedReport || '') ? Number(requestedReport) : null;
@@ -65,6 +67,7 @@ export function DailyReport() {
       setAnalysis(data.analysis || data.nlp || null);
       setAnalysisJob(data.analysisJob || null);
       setSubmitted(data.report);
+      setNlpContext(null);
       setForm({ syif: 'Pagi', tarikh_laporan: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()), masa_laporan: new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date()), checklist: [] });
       clearEvidenceFiles();
       setFileKey((prev) => prev + 1);
@@ -171,6 +174,9 @@ export function DailyReport() {
       else if (key !== 'lampiran_fail' && value !== undefined && value !== null) body.append(key, value);
     });
     (form.lampiran_fail || []).forEach((file) => body.append('lampiran_fail', file));
+    if (nlpContext?.sourceText === form.kandungan_laporan && nlpContext.postId === String(form.id_pos || '')) {
+      body.append('nlp_context', JSON.stringify({ draftHash: nlpContext.draftHash, clarifications: nlpContext.clarifications }));
+    }
     
     submitMutation.mutate(body);
   };
@@ -183,14 +189,14 @@ export function DailyReport() {
         <form onSubmit={submit} className="space-y-4">
           <p className="nlp-step-label"><span>1</span> Tugasan dan pos</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Pos kawalan"><Select required value={form.id_pos || ''} onChange={(e) => setForm({ ...form, id_pos: e.target.value })}><option value="">Pilih pos</option>{meta.posts.map((p) => <option key={p.id_pos} value={p.id_pos}>{p.nama_pos}</option>)}</Select></Field>
+            <Field label="Pos kawalan"><Select required value={form.id_pos || ''} onChange={(e) => { setNlpContext(null); setForm({ ...form, id_pos: e.target.value }); }}><option value="">Pilih pos</option>{meta.posts.map((p) => <option key={p.id_pos} value={p.id_pos}>{p.nama_pos}</option>)}</Select></Field>
             <Field label="Syif"><Select value={form.syif} onChange={(e) => setForm({ ...form, syif: e.target.value })}><option>Pagi</option><option>Petang</option><option>Malam</option></Select></Field>
             <Field label="Tarikh"><Input type="date" required value={form.tarikh_laporan} onChange={(e) => setForm({ ...form, tarikh_laporan: e.target.value })} /></Field>
             <Field label="Masa"><Input type="time" required value={form.masa_laporan} onChange={(e) => setForm({ ...form, masa_laporan: e.target.value })} /></Field>
           </div>
           <p className="nlp-step-label"><span>2</span> Ceritakan apa yang berlaku</p>
-          <Field label="Kandungan laporan"><Textarea required maxLength={20000} placeholder="Nyatakan apa yang berlaku, lokasi dan tindakan yang telah diambil." rows={7} value={form.kandungan_laporan || ''} onChange={(e) => setForm({ ...form, kandungan_laporan: e.target.value })} /></Field>
-          <NlpAssistant text={form.kandungan_laporan || ''} postId={form.id_pos} reportTime={form.masa_laporan} title={form.tajuk_laporan || ''} onApplyTitle={(suggestion) => setForm((current) => ({ ...current, tajuk_laporan: suggestion.slice(0, 160) }))} />
+          <Field label="Kandungan laporan"><Textarea required maxLength={20000} placeholder="Nyatakan apa yang berlaku, lokasi dan tindakan yang telah diambil." rows={7} value={form.kandungan_laporan || ''} onChange={(e) => { setNlpContext(null); setForm({ ...form, kandungan_laporan: e.target.value }); }} /></Field>
+          <NlpAssistant text={form.kandungan_laporan || ''} postId={form.id_pos} title={form.tajuk_laporan || ''} onApplyTitle={(suggestion) => setForm((current) => ({ ...current, tajuk_laporan: suggestion.slice(0, 160) }))} onClarificationsChange={receiveClarifications} />
           <Field label="Tajuk laporan"><Input maxLength={160} required value={form.tajuk_laporan || ''} onChange={(e) => setForm({ ...form, tajuk_laporan: e.target.value })} /></Field>
           <details className="nlp-disclosure"><summary>Nyatakan kategori sendiri (pilihan)</summary><p className="nlp-helper-hint mb-2">Sistem akan menganalisis kandungan secara automatik. Pilih kategori jika anda sudah mengenal pasti jenis laporan.</p><Field label="Kategori insiden pilihan"><Select value={form.id_kategori_insiden || ''} onChange={(e) => setForm({ ...form, id_kategori_insiden: e.target.value })}><option value="">Analisis secara automatik</option>{meta.categories.map((c) => <option key={c.id_kategori_insiden} value={c.id_kategori_insiden}>{c.nama_kategori}</option>)}</Select></Field></details>
           <div className="space-y-2">

@@ -3,6 +3,8 @@ const pool = require('../config/db');
 const roles = require('../config/roles');
 const { enqueue, wakeWorker, schemaReady } = require('../services/nlpJobs');
 const { logAudit } = require('../utils/audit');
+const { processNLP } = require('../ml/nlpService');
+const { parseClarificationInput } = require('../ml/clarificationInput');
 
 const reportSelect = `
   select l.*, p.nama_penuh, pos.nama_pos,
@@ -133,11 +135,13 @@ const createReport = async (req, res) => {
     if (!await schemaReady(client)) return res.status(503).json({message:'Migrasi NLP diperlukan sebelum laporan baharu boleh diproses.'});
     await client.query('begin');
     transactionStarted = true;
+    const nlpContext=parseClarificationInput(req.body.nlp_context);
+    if(nlpContext.clarifications?.length)await processNLP(kandungan_laporan,{db:client,selectedPostId:Number(id_pos),sourceHash:nlpContext.draftHash,clarifications:nlpContext.clarifications});
     const reportResult = await client.query(
       `insert into tbl_laporan_harian
-         (id_pengguna,id_pos,id_kategori_insiden,tajuk_laporan,syif,tarikh_laporan,masa_laporan,kandungan_laporan,status_laporan,tahap_risiko,lampiran_fail)
-       values($1,$2,$3,$4,$5,$6,$7,$8,'Dihantar','Unknown',$9) returning *`,
-      [req.user.id_pengguna,id_pos,id_kategori_insiden||null,tajuk_laporan.trim(),syif,tarikh_laporan,masa_laporan,kandungan_laporan.trim(),JSON.stringify(uploads.map(file=>`/uploads/${file.filename}`))]
+         (id_pengguna,id_pos,id_kategori_insiden,tajuk_laporan,syif,tarikh_laporan,masa_laporan,kandungan_laporan,status_laporan,tahap_risiko,lampiran_fail,nlp_context)
+       values($1,$2,$3,$4,$5,$6,$7,$8,'Dihantar','Unknown',$9,$10) returning *`,
+      [req.user.id_pengguna,id_pos,id_kategori_insiden||null,tajuk_laporan.trim(),syif,tarikh_laporan,masa_laporan,kandungan_laporan,JSON.stringify(uploads.map(file=>`/uploads/${file.filename}`)),nlpContext]
     );
     const reportId=reportResult.rows[0].id_laporan;
     const job=await enqueue(client,reportResult.rows[0],req.user.id_pengguna);
@@ -160,8 +164,8 @@ const createReport = async (req, res) => {
     await Promise.all(uploads.map((file) => fs.unlink(file.path).catch((unlinkError) => {
       console.error(`Failed to remove uncommitted upload ${file.filename}:`, unlinkError);
     })));
-    console.error('Create report error:', error.code || error.name);
-    res.status(500).json({ message: 'Gagal menyimpan laporan' });
+    if(!error.status||error.status>=500)console.error('Create report error:', error.code || error.name);
+    res.status(error.status===400?400:500).json({ message:error.status===400?error.message:'Gagal menyimpan laporan' });
   } finally {
     client?.release();
   }

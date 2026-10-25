@@ -6,7 +6,7 @@ async function main(){
   const client=await pool.connect();
   try{
     if(process.argv.includes('--inspect')){
-      const result=await client.query("select to_regclass('public.tbl_job_nlp') is not null as jobs,exists(select 1 from information_schema.columns where table_schema='public' and table_name='tbl_hasil_nlp' and column_name='metadata') as metadata");
+      const result=await client.query("select to_regclass('public.tbl_job_nlp') is not null as jobs,exists(select 1 from information_schema.columns where table_schema='public' and table_name='tbl_hasil_nlp' and column_name='metadata') as metadata,exists(select 1 from information_schema.columns where table_schema='public' and table_name='tbl_laporan_harian' and column_name='nlp_context') as event_clarifications");
       console.log('NLP schema:',result.rows[0]);return;
     }
     await client.query('begin');

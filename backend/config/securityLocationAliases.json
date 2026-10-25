@@ -1,0 +1,17 @@
+{
+  "POST_DJM_MAIN_LOBBY": ["lobi utama", "main lobby"],
+  "POST_DJM_CCTV_CONTROL": ["bilik kawalan cctv", "bilik cctv", "cctv control room"],
+  "POST_DJM_SS_LEVEL_3": ["tingkat 3 pejabat ss", "pejabat ss tingkat 3", "level 3 ss office"],
+  "POST_DJM_MB_LEVEL_4_FRONT": ["hadapan pejabat mb", "depan pejabat mb", "front mb office"],
+  "POST_DJM_MB_LEVEL_4_REAR": ["belakang pejabat mb", "rear mb office"],
+  "POST_DJM_SS_LG_LIFT": ["lif lg", "lg lift", "lif lg ss", "lif lg pejabat ss", "lif lg pejabat setiausaha kerajaan"],
+  "POST_DJM_MB_LG_LIFT": ["lif lg", "lg lift", "lif lg mb", "lif lg pejabat mb", "lif lg pejabat menteri besar"],
+  "POST_BDARA": ["bdara"],
+  "POST_BDMSP": ["bdmsp"],
+  "POST_BDMIM": ["bdmim"],
+  "POST_BSI_CLERK": ["pejabat jurutulis"],
+  "POST_BSI_DUN": ["dewan undangan negeri", "dun"],
+  "POST_RUMAH_SS": ["rumah ss"],
+  "POST_RUMAH_VIP": ["rumah vip"],
+  "POST_UTC": ["kaunter utc", "utc johor"]
+}

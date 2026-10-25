@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2, Clock3, ExternalLink, FileSearch, RefreshCw,
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import { Badge, Button } from './ui';
+import { NlpEventList } from './NlpEventList';
 import './nlp.css';
 
 const eventLabels = { reported: 'Kejadian dilaporkan', suspected: 'Kejadian disyaki', negated: 'Kejadian dinafikan dalam teks', drill: 'Latihan / simulasi', unclear: 'Konteks belum jelas' };
@@ -85,6 +86,8 @@ export function NlpReviewPanel({ report = {}, analysis: initialAnalysis, job: in
     {job?.status === 'failed' && <div className="nlp-processing nlp-processing-warning" role="status"><AlertCircle size={18} aria-hidden="true" /><div><strong>Analisis belum selesai</strong><p>Laporan asal kekal disimpan. Cuba muat semula atau maklumkan pentadbir.</p></div></div>}
     {analysis ? <>
       {summary && <p className="nlp-summary">{summary}</p>}
+      <NlpEventList events={metadata.dialogue?.events || metadata.events || analysis.dialogue?.events || analysis.events} dialogue={metadata.dialogue || analysis.dialogue} sourceText={sourceText} reportId={reportId} />
+      {(metadata.eventsTruncated || analysis.eventsTruncated) && <p className="nlp-helper-hint" role="status">Sebahagian kejadian sahaja dianalisis. Semak keseluruhan laporan asal.</p>}
       <dl className="nlp-analysis-facts">
         <div><dt>Cadangan jenis laporan</dt><dd>{category || 'Belum dikenal pasti'}</dd></div>
         <div><dt>Konteks laporan</dt><dd>{eventLabels[event] || 'Belum dinyatakan'}</dd></div>

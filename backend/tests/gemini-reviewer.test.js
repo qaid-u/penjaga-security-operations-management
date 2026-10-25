@@ -5,6 +5,16 @@ const text='Tiada kebakaran dikesan pada 11:20 di Sayap Kiri.';
 const categories=[{name:'Kebakaran',priority:'Critical'},{name:'Rondaan Biasa',priority:'Low'}];
 const input={text,categories,locations:[{id_lokasi:3,nama_paparan:'Sayap Kiri'}],analysis:{topCategory:'Kebakaran',eventStatus:'reported',riskLevel:'Critical',riskScore:95,summary:text,extraction:{}}};
 const env={GEMINI_API_KEY:'private-fixture-key',GEMINI_REVIEW_MODEL:'gemini-3.5-flash-lite',NLP_REVIEW_MAX_PER_HOUR:'1000'};
+test('event review distinguishes source assertion from separately supplied user clarification',async()=>{
+  let sent;
+  const event={id:'event-1',category:'Kebakaran',status:'reported',originalStatus:'negated',source:{text:'Tiada kebakaran',start:0,end:15},times:[],actions:[],location:{state:'unresolved',confirmed:null}};
+  const result=await reviewAnalysis({...input,analysis:{...input.analysis,events:[event],dialogue:{answers:[{questionId:'q-1',field:'status',value:'reported',source:'clarification'}]}}},{env,fetchImpl:async(_url,options)=>{sent=JSON.parse(options.body);return response({status:'consistent',reason:'Tiada percanggahan dikesan.',proposedCategory:null,findings:[]});}});
+  const payload=JSON.parse(sent.contents[0].parts[0].text);
+  assert.equal(payload.analysis.events[0].sourceStatus,'negated');
+  assert.equal(payload.analysis.clarificationAnswers[0].source,'clarification');
+  assert.match(sent.systemInstruction.parts[0].text,/separate user statements/);
+  assert.equal(result.status,'consistent');assert.equal(result.approved,undefined);
+});
 const good={status:'needs_review',reason:'Teks menafikan kejadian.',proposedCategory:'Rondaan Biasa',findings:[{code:'negation',message:'Semak kategori dan keutamaan; kejadian dinafikan.',quote:'Tiada kebakaran'}]};
 const response=(value,status=200)=>({ok:status===200,status,text:async()=>JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(value)}]}}]})});
 test('unconfigured/disabled AI never claims a successful review or sends a request',async()=>{

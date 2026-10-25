@@ -1,0 +1,40 @@
+[
+  {
+    "target": "local_app",
+    "checkedAt": "2026-10-25T17:46:35.263Z",
+    "before": {
+      "reports": 102,
+      "posts": 17,
+      "mappings": 22,
+      "sha256": "29cb4157a53858a1579021043b6ed1b5cdc2c6602d5a31a8454445e67a7905fc"
+    },
+    "after": {
+      "reports": 102,
+      "posts": 17,
+      "mappings": 22,
+      "sha256": "29cb4157a53858a1579021043b6ed1b5cdc2c6602d5a31a8454445e67a7905fc"
+    },
+    "preserved": true,
+    "clarificationStorage": true,
+    "historicalBackfill": false
+  },
+  {
+    "target": "local_demo",
+    "checkedAt": "2026-10-25T17:46:35.852Z",
+    "before": {
+      "reports": 2,
+      "posts": 15,
+      "mappings": 22,
+      "sha256": "5a39379448489e351ca5952df3da47e30cb6d9d0afafcf93e9afa279f79f97e5"
+    },
+    "after": {
+      "reports": 2,
+      "posts": 15,
+      "mappings": 22,
+      "sha256": "5a39379448489e351ca5952df3da47e30cb6d9d0afafcf93e9afa279f79f97e5"
+    },
+    "preserved": true,
+    "clarificationStorage": true,
+    "historicalBackfill": false
+  }
+]

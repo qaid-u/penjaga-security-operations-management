@@ -2,14 +2,16 @@ const crypto=require('node:crypto');
 const {processNLP,context}=require('../ml/nlpService');
 const {reviewAnalysis,configuration,VERSION:REVIEW_VERSION}=require('../ml/geminiReviewer');
 const {logAudit}=require('../utils/audit');
-const PIPELINE_VERSION='penjaga-nlp-v2';
+const PIPELINE_VERSION='penjaga-nlp-events-v3';
 const hash=text=>crypto.createHash('sha256').update(text).digest('hex');
+const inputHash=report=>hash(JSON.stringify({text:report.kandungan_laporan,post:report.id_pos||null,clarifications:report.nlp_context||{}}));
+const jobInputHash=(report,job)=>String(job.pipeline_version||'').startsWith('penjaga-nlp-events-v3')?inputHash(report):hash(report.kandungan_laporan);
 const workers=new WeakMap();
 const unavailable=reason=>({status:'unavailable',provider:'gemini',model:configuration().model,promptVersion:REVIEW_VERSION,findings:[],reason});
-async function schemaReady(db){return Boolean((await db.query("select to_regclass('tbl_job_nlp') is not null as ready")).rows[0]?.ready);}
+async function schemaReady(db){return Boolean((await db.query("select to_regclass('tbl_job_nlp') is not null and exists(select 1 from pg_attribute where attrelid=to_regclass('tbl_laporan_harian') and attname='nlp_context' and not attisdropped) as ready")).rows[0]?.ready);}
 async function enqueue(db,report,userId,{retry=false,force=false}={}){
   await db.query('select pg_advisory_xact_lock(7417,$1::int)',[report.id_laporan]);
-  const active=await db.query("select id_job,id_laporan,status,attempts,created_at,completed_at from tbl_job_nlp where id_laporan=$1 and input_hash=$2 and status in ('pending','processing') order by id_job desc limit 1",[report.id_laporan,hash(report.kandungan_laporan)]);
+  const active=await db.query("select id_job,id_laporan,status,attempts,created_at,completed_at from tbl_job_nlp where id_laporan=$1 and input_hash=$2 and status in ('pending','processing') order by id_job desc limit 1",[report.id_laporan,inputHash(report)]);
   if(active.rowCount)return active.rows[0];
   const pipeline=force?`${PIPELINE_VERSION}:${crypto.randomUUID()}`:PIPELINE_VERSION;
   const result=await db.query(`insert into tbl_job_nlp(id_laporan,input_hash,pipeline_version,requested_by)
@@ -18,7 +20,7 @@ async function enqueue(db,report,userId,{retry=false,force=false}={}){
         attempts=case when $5::boolean and tbl_job_nlp.status='failed' then 0 else tbl_job_nlp.attempts end,
         available_at=case when $5::boolean and tbl_job_nlp.status='failed' then now() else tbl_job_nlp.available_at end
     returning id_job,id_laporan,status,attempts,created_at,completed_at`,
-  [report.id_laporan,hash(report.kandungan_laporan),pipeline,userId,retry]);
+  [report.id_laporan,inputHash(report),pipeline,userId,retry]);
   return result.rows[0];
 }
 async function alertOnce(client,report,analysis){
@@ -34,8 +36,8 @@ async function alertOnce(client,report,analysis){
     where r.nama_peranan='Ketua Pengawal' and p.status_akaun='Aktif'`,
   [report.id_laporan,`Insiden ${alert.riskLevel}`,`Laporan #${report.id_laporan} memerlukan semakan. Amaran konservatif dikekalkan walaupun analisis atau semakan AI berbeza.`,alert.riskLevel]);
 }
-async function saveAnalysis(client,report,result,review,{jobId=null,inputHash=hash(report.kandungan_laporan)}={}){
-  const metadata={schemaVersion:2,pipelineVersion:PIPELINE_VERSION,inputHash,model:result.model,eventStatus:result.eventStatus,title:result.title,summary:result.summary,evidence:result.evidence||[],extraction:result.extraction||{},quality:result.quality||{},sourceChecks:result.sourceChecks||{},alternatives:result.alternatives||[],baseline:result.baseline||null,review,alertPolicy:'conservative-keyword-or-analysis; reviewer cannot suppress alerts'};
+async function saveAnalysis(client,report,result,review,{jobId=null,inputHash:sourceHash=inputHash(report)}={}){
+  const metadata={schemaVersion:3,pipelineVersion:PIPELINE_VERSION,inputHash:sourceHash,model:result.model,eventStatus:result.eventStatus,title:result.title,summary:result.summary,evidence:result.evidence||[],events:result.events||[],eventsTruncated:Boolean(result.eventsTruncated),eventCount:result.eventCount,eventLimit:result.eventLimit,dialogue:result.dialogue||{},extraction:result.extraction||{},quality:result.quality||{},sourceChecks:result.sourceChecks||{},alternatives:result.alternatives||[],baseline:result.baseline||null,review,alertPolicy:'conservative-keyword-or-analysis; reviewer cannot suppress alerts'};
   const score=Number.isFinite(result.riskScore)?Math.max(0,Math.min(100,Math.round(result.riskScore))):0;
   const confidence=Number.isFinite(result.confidence)?Math.max(0,Math.min(1,result.confidence)):0;
   const risk=['Low','Medium','High','Critical','Unknown'].includes(result.riskLevel)?result.riskLevel:'Unknown';
@@ -54,17 +56,18 @@ async function runOne(pool,{reviewer=reviewAnalysis}={}){
   if(!job)return false;
   try{
     const report=(await pool.query('select * from tbl_laporan_harian where id_laporan=$1',[job.id_laporan])).rows[0];
-    if(!report||hash(report.kandungan_laporan)!==job.input_hash)throw Object.assign(new Error('STALE_INPUT'),{code:'STALE_INPUT'});
+    if(!report||jobInputHash(report,job)!==job.input_hash)throw Object.assign(new Error('STALE_INPUT'),{code:'STALE_INPUT'});
+    const analysisInputHash=inputHash(report);
     const refs=await context(pool);
-    const result=await processNLP(report.kandungan_laporan,{context:refs});
+    const result=await processNLP(report.kandungan_laporan,{context:refs,selectedPostId:report.id_pos,sourceHash:report.nlp_context?.draftHash,clarifications:report.nlp_context?.clarifications});
     const review=await reviewer({text:report.kandungan_laporan,analysis:result,...refs});
     const client=await pool.connect();
     try{
       await client.query('begin');
       const locked=(await client.query('select * from tbl_job_nlp where id_job=$1 for update',[job.id_job])).rows[0];
-      const current=(await client.query('select kandungan_laporan from tbl_laporan_harian where id_laporan=$1 for update',[job.id_laporan])).rows[0];
-      if(locked?.status!=='processing'||locked.lease_token!==lease||!current||hash(current.kandungan_laporan)!==job.input_hash)throw Object.assign(new Error('STALE_INPUT'),{code:'STALE_INPUT'});
-      await saveAnalysis(client,report,result,review,{jobId:job.id_job,inputHash:job.input_hash});
+      const current=(await client.query('select * from tbl_laporan_harian where id_laporan=$1 for update',[job.id_laporan])).rows[0];
+      if(locked?.status!=='processing'||locked.lease_token!==lease||!current||inputHash(current)!==analysisInputHash)throw Object.assign(new Error('STALE_INPUT'),{code:'STALE_INPUT'});
+      await saveAnalysis(client,report,result,review,{jobId:job.id_job,inputHash:analysisInputHash});
       await logAudit(client,job.requested_by,'ANALYSE_REPORT',`Laporan #${job.id_laporan}`,'Analisis tempatan dan semakan AI direkodkan');
       await client.query('commit');
     }catch(error){await client.query('rollback');throw error;}finally{client.release();}
@@ -91,4 +94,4 @@ function startWorker(pool){
   const stop=()=>{stopped=true;clearInterval(timer);workers.delete(pool);};workers.set(pool,{tick,stop});return stop;
 }
 function wakeWorker(pool){const worker=workers.get(pool);if(worker)setImmediate(worker.tick);}
-module.exports={enqueue,saveAnalysis,runOne,startWorker,wakeWorker,schemaReady,hash,PIPELINE_VERSION,unavailable};
+module.exports={enqueue,saveAnalysis,runOne,startWorker,wakeWorker,schemaReady,hash,inputHash,PIPELINE_VERSION,unavailable};

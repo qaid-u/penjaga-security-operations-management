@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-10-25T17:57:21.300Z",
+  "target": "identified_local_demo",
+  "authenticatedGuardHTTP": true,
+  "events": 2,
+  "deniedAndReportedSeparate": true,
+  "ambiguousLiftCandidates": 2,
+  "unknownRetained": true,
+  "repeatQuestionSuppressed": true,
+  "reportRowsUnchanged": true,
+  "providerCalls": 0
+}

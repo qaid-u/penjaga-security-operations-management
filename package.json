@@ -22,9 +22,12 @@
     "check": "npm run lint && node --check backend/server.js && node --check backend/scripts/smoke-test.js && node --check backend/scripts/train-nlp-model.js && npm run build",
     "test:phase6": "playwright test --config playwright.phase6.config.mjs",
     "demo:phase6:prepare": "node backend/scripts/prepare-phase6-demo.js",
-    "test:nlp": "node --test backend/tests/nlp-engine.test.js backend/tests/gemini-reviewer.test.js backend/tests/nlp-jobs.test.js tests/phase7/evaluation.test.mjs",
+    "test:nlp": "node --test backend/tests/nlp-engine.test.js backend/tests/event-dialogue.test.js backend/tests/clarification-input.test.js backend/tests/gemini-reviewer.test.js backend/tests/nlp-jobs.test.js tests/phase7/evaluation.test.mjs",
     "evaluate:nlp": "node scripts/evaluate-nlp.mjs",
-    "test:phase7:browser": "playwright test --config playwright.phase7.config.mjs"
+    "test:phase7:browser": "playwright test --config playwright.phase7.config.mjs",
+    "test:events": "node --test backend/tests/event-dialogue.test.js backend/tests/clarification-input.test.js scripts/event-dialogue-evaluation.test.mjs",
+    "evaluate:events": "node scripts/evaluate-event-dialogue.mjs --output docs/testing/evidence/phase8-event-evaluation.json",
+    "test:phase8:browser": "playwright test --config playwright.phase8.config.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.6",

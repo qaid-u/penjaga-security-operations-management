@@ -1,5 +1,7 @@
 # Phase 7 — Automatic report assistance and NLP review
 
+The draft assistant and event representation are extended by [Phase 8](NLP_PHASE8.md). The fixed-question workflow and development scores below document the Phase 7 baseline, not the new event/dialogue evaluation.
+
 This upgrade adds assistance to existing reporting and review workflows. Guards write and submit reports; chiefs inspect source-linked findings. Model and category maintenance stays in the administrator area. A review finding is an assessment of the analysis against the report text, not verification of a physical event.
 
 ## What runs automatically

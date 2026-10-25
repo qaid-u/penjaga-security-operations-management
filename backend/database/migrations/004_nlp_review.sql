@@ -1,5 +1,7 @@
 -- Additive: no historical report or analysis is rewritten and no external calls are made.
 alter table tbl_hasil_nlp add column if not exists metadata jsonb not null default '{}'::jsonb;
+-- Original narrative remains untouched; optional user clarification is stored separately.
+alter table tbl_laporan_harian add column if not exists nlp_context jsonb not null default '{}'::jsonb;
 
 create table if not exists tbl_job_nlp (
   id_job bigserial primary key,

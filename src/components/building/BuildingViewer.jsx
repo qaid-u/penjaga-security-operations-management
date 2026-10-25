@@ -50,15 +50,15 @@ function supportsWebGL() {
   } catch { return false; }
 }
 
-function LoadedViewer({ onRetry, supported, building }) {
+function LoadedViewer({ onRetry, supported, building, initialPost }) {
   const { data, progress, error } = useBuildingAsset(building.modelUrl, building);
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(initialPost || null);
   const { user } = useAuth();
   const [period, updatePeriod] = useState(() => { const date = klDay(); return { date, from: date, to: date }; });
   const [mode, updateMode] = useState('coverage');
   const [filters, setFilters] = useState(emptyFilters);
   const [page, setPage] = useState(1);
-  const [sheet, setSheet] = useState(false);
+  const [sheet, setSheet] = useState(Boolean(initialPost));
   const panel = useRef(null);
   const trigger = useRef(null);
   const setPeriod = (value) => { updatePeriod(value); setPage(1); };
@@ -68,7 +68,7 @@ function LoadedViewer({ onRetry, supported, building }) {
   const locationIndicator = (id) => indicator(operations.overview.data?.locations.find((item) => item.hotspot_id === id), mode, operations.overview.isError || operations.overview.isPending);
   const [showHotspots, setShowHotspots] = useState(true);
   const [lost, setLost] = useState(false);
-  const [command, setCommand] = useState({ reset: 0, zoom: null, preset: 'overview' });
+  const [command, setCommand] = useState({ reset: 0, zoom: null, preset: initialPost ? 'selected' : 'overview' });
   const viewData = data || { hotspots: building.hotspots, zones: [] };
   const modelReady = supported && !lost && !error && Boolean(data);
   const stage = useRef(null);
@@ -134,9 +134,10 @@ function LoadedViewer({ onRetry, supported, building }) {
   </div>;
 }
 
-export function BuildingViewer({ building = getBuilding() }) {
+export function BuildingViewer({ building = getBuilding(), initialPost = null }) {
   const [attempt, setAttempt] = useState(0);
   const [supported, setSupported] = useState(supportsWebGL);
   const retry = () => { setSupported(supportsWebGL()); setAttempt((value) => value + 1); };
-  return <ViewerBoundary key={`${building.id}-${attempt}`} onRetry={retry}><LoadedViewer building={building} onRetry={retry} supported={supported} /></ViewerBoundary>;
+  const approvedPost=building.hotspots.some(post=>post.id===initialPost)?initialPost:null;
+  return <ViewerBoundary key={`${building.id}-${attempt}`} onRetry={retry}><LoadedViewer building={building} initialPost={approvedPost} onRetry={retry} supported={supported} /></ViewerBoundary>;
 }

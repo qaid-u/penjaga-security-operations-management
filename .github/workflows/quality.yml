@@ -37,7 +37,9 @@ jobs:
       - run: npm run check
       - run: npm run test:building && npm run test:evaluation
       - run: npm run test:backend
+      - run: npm run test:events
       - run: npm run test:building:browser
+      - run: npm run test:phase8:browser
       - run: npm run test:phase5:browser
       - run: npm run demo:phase6:prepare
       - run: npm run test:phase6

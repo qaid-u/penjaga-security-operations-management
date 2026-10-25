@@ -35,7 +35,7 @@ async function setup(page, { noWebGL = false } = {}) {
       building: building.id, date: url.searchParams.get('date') || '2026-10-25',
       from: url.searchParams.get('from') || '2026-10-25', to: url.searchParams.get('to') || '2026-10-25',
     };
-    calls.push({ path: url.pathname, building: building.id, method: request.method() });
+    calls.push({ path: url.pathname, building: building.id, requestedBuilding: url.searchParams.get('building'), method: request.method() });
     if (url.pathname.endsWith('/filters')) return route.fulfill({ json: {
       posts: rows.map((row) => ({ id_pos: row.id_pos, nama_pos: row.nama_paparan, nama_bangunan: building.name, status_pos: 'Aktif' })),
       categories: [], today: '2026-10-25', timezone: 'Asia/Kuala_Lumpur', building: building.id,
@@ -55,6 +55,117 @@ async function setup(page, { noWebGL = false } = {}) {
   });
   return calls;
 }
+
+test('deep link selects the requested official post and its own operational summary', async ({ page }) => {
+  const calls = await setup(page);
+  const building = getBuilding('DJM');
+  const requested = building.hotspots.find((post) => post.id === 'POST_DJM_MB_LG_LIFT');
+  await page.goto(`/3d-command-centre?building=DJM&post=${requested.id}`);
+  await expect(page.locator('.building-stage-stamp')).toHaveAttribute('data-state', 'ready');
+  await expect(listButton(page, requested)).toHaveAttribute('aria-pressed', 'true');
+  await expect(marker(page, requested)).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('Panel lokasi').getByRole('heading', { name: requested.name, exact: true })).toBeVisible();
+  await expect(page.getByLabel('Panel lokasi')).toContainText('Rekod operasi DJM');
+  await expect(page.getByLabel('Pratetap kamera')).toHaveValue('selected');
+  await expect(page.locator('.building-camera-strip')).toContainText(`Pos dipilih: ${requested.name}`);
+  const requestedLocationId = 100 + building.hotspots.findIndex((post) => post.id === requested.id);
+  const summaries = calls.filter((call) => call.path.endsWith('/summary'));
+  expect(summaries).toHaveLength(1);
+  expect(summaries[0].path).toBe(`/api/3d/locations/${requestedLocationId}/summary`);
+  expect(calls.every((call) => call.requestedBuilding === 'DJM' && call.method === 'GET')).toBe(true);
+});
+
+test('deep link ignores a post belonging to another building without fetching that building', async ({ page }) => {
+  const calls = await setup(page);
+  const foreignPost = getBuilding('BDARA').hotspots[0];
+  await page.goto(`/3d-command-centre?building=DJM&post=${foreignPost.id}`);
+  await expect(page.locator('.building-stage-stamp')).toHaveAttribute('data-state', 'ready');
+  await expect(page.getByRole('combobox', { name: 'Pilih bangunan', exact: true })).toHaveValue('DJM');
+  await expect(page.getByLabel('Panel lokasi').getByRole('heading', { name: 'Pilih lokasi bangunan', exact: true })).toBeVisible();
+  await expect(page.getByLabel('Pos keselamatan', { exact: true }).locator('button[aria-pressed="true"]')).toHaveCount(0);
+  await expect(page.locator('.building-hotspot[aria-pressed="true"]')).toHaveCount(0);
+  await expect(page.getByLabel('Pratetap kamera')).toHaveValue('overview');
+  await expect(page.locator('.building-camera-strip')).toContainText('Pos dipilih: Tiada');
+  await expect.poll(() => calls.filter((call) => call.path.endsWith('/overview') || call.path.endsWith('/filters')).length).toBe(2);
+  expect(calls.some((call) => call.path.endsWith('/summary'))).toBe(false);
+  expect(calls.every((call) => call.requestedBuilding === 'DJM' && call.method === 'GET')).toBe(true);
+});
+
+function reportEventFixture() {
+  const building = getBuilding('DJM');
+  const post = building.hotspots.find((item) => item.id === 'POST_DJM_MB_LG_LIFT');
+  const narrative = 'Rondaan lobi selesai. CCTV rosak di lif LG Menteri Besar pada 11:20.';
+  const text = 'CCTV rosak di lif LG Menteri Besar pada 11:20.';
+  const source = { text, start: narrative.indexOf(text), end: narrative.length };
+  return {
+    report: { id_laporan: 881, id_pos: 1000, kandungan_laporan: narrative },
+    analysis: { metadata: { events: [{ id: 'event-1', category: 'Kerosakan Aset', status: 'reported', source, location: { state: 'confirmed', conflict: false, confirmed: { id_lokasi: 106, id_pos: 1006, buildingId: building.id, hotspot_id: post.id, name: post.name } } }] } },
+  };
+}
+
+async function interceptReportContext(page, { fixture = reportEventFixture(), status = 200 } = {}) {
+  const requests = [];
+  await page.route('**/api/reports/**', async (route) => {
+    requests.push({ path: new URL(route.request().url()).pathname, method: route.request().method() });
+    return route.fulfill({ status, json: status === 200 ? fixture : { message: 'Laporan tidak ditemui' } });
+  });
+  return requests;
+}
+
+const eventContextUrl = '/3d-command-centre?building=DJM&post=POST_DJM_MB_LG_LIFT&report=881&event=event-1';
+
+test('report event deep link shows its exact grounded source without changing the assigned-post counts', async ({ page }) => {
+  const calls = await setup(page);
+  const requests = await interceptReportContext(page);
+  await page.goto(eventContextUrl);
+  const card = page.getByRole('complementary', { name: 'Sumber kejadian dipilih' });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('Laporan #881 · Kerosakan Aset · Dilaporkan');
+  await expect(card.locator('blockquote')).toHaveText('“CCTV rosak di lif LG Menteri Besar pada 11:20.”');
+  await expect(card).toContainText('Pos: Pos Lif LG Pejabat Menteri Besar Johor');
+  await expect(card).toContainText('Penanda 3D kekal anggaran; kiraan operasi mengikut pos laporan asal.');
+  await expect(page.getByLabel('Panel lokasi')).toContainText('Rekod operasi DJM');
+  await expect(page.getByLabel('Panel lokasi')).toContainText('Tiada laporan dalam julat ini.');
+  await expect(page.getByLabel('Panel lokasi')).toContainText('Kedudukan 3D belum disahkan.');
+  expect(requests).toEqual([{ path: '/api/reports/881', method: 'GET' }]);
+  expect(calls.some((call) => call.path === '/api/3d/locations/106/summary')).toBe(true);
+  expect(calls.every((call) => call.requestedBuilding === 'DJM' && call.method === 'GET')).toBe(true);
+});
+
+for (const tampering of ['conflicting location', 'forged quote', 'negative source offset']) test(`report event deep link rejects ${tampering} while preserving post access`, async ({ page }) => {
+  await setup(page);
+  const fixture = reportEventFixture();
+  const event = fixture.analysis.metadata.events[0];
+  if (tampering === 'conflicting location') event.location.conflict = true;
+  else if (tampering === 'forged quote') event.source.text = 'Petikan yang tidak pernah dilaporkan.';
+  else event.source.start = -event.source.text.length;
+  await interceptReportContext(page, { fixture });
+  await page.goto(eventContextUrl);
+  await expect(page.getByRole('status').filter({ hasText: 'Kejadian ini belum dipautkan dengan jelas kepada pos yang dipilih.' })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Sumber kejadian dipilih' })).toHaveCount(0);
+  await expect(page.getByLabel('Panel lokasi')).toContainText('Rekod operasi DJM');
+  await expect(page.getByLabel('Panel lokasi').getByRole('heading', { name: 'Pos Lif LG Pejabat Menteri Besar Johor', exact: true })).toBeVisible();
+});
+
+test('report event deep link keeps the post usable when the source report is inaccessible', async ({ page }) => {
+  await setup(page);
+  const requests = await interceptReportContext(page, { status: 404 });
+  await page.goto(eventContextUrl);
+  await expect(page.getByRole('status').filter({ hasText: 'Petikan laporan tidak tersedia atau akses tidak dibenarkan. Rekod pos masih boleh dilihat.' })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Sumber kejadian dipilih' })).toHaveCount(0);
+  await expect(page.getByLabel('Panel lokasi')).toContainText('Rekod operasi DJM');
+  expect(requests).toEqual([{ path: '/api/reports/881', method: 'GET' }]);
+});
+
+test('report event deep link with an invalid report ID makes no report request', async ({ page }) => {
+  await setup(page);
+  const requests = await interceptReportContext(page);
+  await page.goto(eventContextUrl.replace('report=881', 'report=881invalid'));
+  await expect(page.getByRole('status').filter({ hasText: 'Pautan kejadian tidak lengkap.' })).toBeVisible();
+  await expect(page.getByLabel('Panel lokasi')).toContainText('Rekod operasi DJM');
+  await expect(page.getByRole('complementary', { name: 'Sumber kejadian dipilih' })).toHaveCount(0);
+  expect(requests).toEqual([]);
+});
 
 async function modelWithoutReferences() {
   // Serve a changed asset in memory. Geometry and official post records stay intact.

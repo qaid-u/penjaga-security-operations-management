@@ -23,8 +23,9 @@ const handle=fn=>async(req,res)=>{try{await fn(req,res);}catch(error){if(!error.
 const assist=handle(async(req,res)=>{
   limit(req,'assist',40,60000);
   if(typeof req.body.text!=='string'||req.body.text.trim().length<5||req.body.text.length>20000)throw Object.assign(new Error('Tulis antara 5 dan 20000 aksara untuk menyemak draf'),{status:400});
-  if(req.body.id_pos!==undefined)id(req.body.id_pos);
-  const result=await processNLP(req.body.text);
+  const selectedPostId=req.body.id_pos===undefined?undefined:id(req.body.id_pos);
+  if(selectedPostId&&!((await pool.query("select 1 from tbl_pos_kawalan where id_pos=$1 and status_pos='Aktif'",[selectedPostId])).rowCount))throw Object.assign(new Error('Pos tidak tersedia'),{status:400});
+  const result=await processNLP(req.body.text,{selectedPostId,sourceHash:req.body.sourceHash,clarifications:req.body.clarifications});
   res.set('Cache-Control','no-store').json(result);
 });
 const analysis=handle(async(req,res)=>{

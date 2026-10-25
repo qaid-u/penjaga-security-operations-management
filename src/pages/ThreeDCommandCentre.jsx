@@ -3,11 +3,13 @@ import { useEffect, useRef } from 'react';
 import { Box, MapPin, ArrowUpRight } from 'lucide-react';
 import { BuildingViewer } from '../components/building/BuildingViewer';
 import { modeledBuildings, getBuilding } from '../components/building/buildingModels';
+import { ReportEventContext } from '../components/building/ReportEventContext';
 import '../components/building/building.css';
 
 export default function ThreeDCommandCentre() {
   const [params, setParams] = useSearchParams();
   const building = getBuilding(params.get('building') || 'DJM');
+  const initialPost = building.hotspots.some(post => post.id === params.get('post')) ? params.get('post') : null;
   const gallery = useRef(null);
   useEffect(() => { gallery.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block:'nearest', inline:'nearest' }); }, [building.id]);
   const choose = (id) => setParams({ building: id });
@@ -22,6 +24,7 @@ export default function ThreeDCommandCentre() {
       </button>)}
     </div>
     <div className="building-context-line"><span><MapPin size={13} aria-hidden="true" /> {building.region}</span><span>8 bangunan · 6 model eksterior</span>{building.sharedWith && <span>Model dikongsi · rekod bangunan berasingan</span>}<span className="building-context-note">Eksterior anggaran · Kedudukan dalaman pos belum disahkan</span></div>
-    <BuildingViewer key={building.id} building={building} />
+    <ReportEventContext report={params.get('report')} event={params.get('event')} building={building} post={initialPost} />
+    <BuildingViewer key={`${building.id}:${initialPost || ''}`} building={building} initialPost={initialPost} />
   </div>;
 }
