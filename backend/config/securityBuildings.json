@@ -1,0 +1,56 @@
+{
+  "defaultBuilding": "DJM",
+  "buildings": [
+    {
+      "id": "DJM", "name": "Bangunan Dato’ Jaafar Muhammad", "site": "Kota Iskandar",
+      "aliases": ["Bangunan Dato’ Jaafar Muhammad", "Bangunan Dato’ Jaafar Muhammad, Kota Iskandar"],
+      "posts": [
+        { "id": "POST_DJM_MAIN_LOBBY", "name": "Pos Lobi Utama", "floor": null, "section": "Lobi utama" },
+        { "id": "POST_DJM_CCTV_CONTROL", "name": "Pos Bilik Kawalan CCTV", "floor": null, "section": "Bilik kawalan CCTV" },
+        { "id": "POST_DJM_SS_LEVEL_3", "name": "Pos Tingkat 3 Pejabat Setiausaha Kerajaan Johor", "floor": "Tingkat 3", "section": "Pejabat Setiausaha Kerajaan Johor" },
+        { "id": "POST_DJM_MB_LEVEL_4_FRONT", "name": "Pos Tingkat 4 Hadapan Pejabat Menteri Besar Johor", "floor": "Tingkat 4", "section": "Hadapan Pejabat Menteri Besar Johor" },
+        { "id": "POST_DJM_MB_LEVEL_4_REAR", "name": "Pos Tingkat 4 Belakang Pejabat Menteri Besar Johor", "floor": "Tingkat 4", "section": "Belakang Pejabat Menteri Besar Johor" },
+        { "id": "POST_DJM_SS_LG_LIFT", "name": "Pos Lif LG Pejabat Setiausaha Kerajaan Johor", "floor": "LG", "section": "Lif Pejabat Setiausaha Kerajaan Johor" },
+        { "id": "POST_DJM_MB_LG_LIFT", "name": "Pos Lif LG Pejabat Menteri Besar Johor", "floor": "LG", "section": "Lif Pejabat Menteri Besar Johor" }
+      ]
+    },
+    {
+      "id": "BDARA", "name": "Bangunan Dato’ Abdul Rahman Andak", "site": "Kota Iskandar",
+      "aliases": ["Bangunan Dato’ Abdul Rahman Andak", "Bangunan Dato’ Abdul Rahman Andak, Kota Iskandar", "BDARA"],
+      "posts": [{ "id": "POST_BDARA", "name": "Pos BDARA", "floor": null, "section": "Bangunan Dato’ Abdul Rahman Andak" }]
+    },
+    {
+      "id": "BDMSP", "name": "Bangunan Dato’ Mohamad Salleh Perang", "site": "Kota Iskandar",
+      "aliases": ["Bangunan Dato’ Mohamad Salleh Perang", "Bangunan Dato’ Mohamad Salleh Perang, Kota Iskandar", "Bangunan Dato’ Mohamed Salleh Perang", "Bangunan Dato’ Mohamed Salleh Perang, Kota Iskandar", "BDMSP"],
+      "posts": [{ "id": "POST_BDMSP", "name": "Pos BDMSP", "floor": null, "section": "Bangunan Dato’ Mohamad Salleh Perang" }]
+    },
+    {
+      "id": "BDMIM", "name": "Bangunan Dato’ Muhamad Ibrahim Munsyi", "site": "Kota Iskandar",
+      "aliases": ["Bangunan Dato’ Muhamad Ibrahim Munsyi", "Bangunan Dato’ Muhamad Ibrahim Munsyi, Kota Iskandar", "BDMIM"],
+      "posts": [{ "id": "POST_BDMIM", "name": "Pos BDMIM", "floor": null, "section": "Bangunan Dato’ Muhamad Ibrahim Munsyi" }]
+    },
+    {
+      "id": "BSI_KOTA_ISKANDAR", "name": "Bangunan Sultan Ismail", "site": "Kota Iskandar",
+      "aliases": ["Bangunan Sultan Ismail", "Bangunan Sultan Ismail (BSI)", "Bangunan Sultan Ismail, Kota Iskandar", "Bangunan Sultan Ismail (BSI), Kota Iskandar", "BSI Kota Iskandar"],
+      "posts": [
+        { "id": "POST_BSI_CLERK", "name": "Pos Pejabat Jurutulis", "floor": null, "section": "Pejabat Jurutulis" },
+        { "id": "POST_BSI_DUN", "name": "Pos Dewan Undangan Negeri (DUN)", "floor": null, "section": "Dewan Undangan Negeri" }
+      ]
+    },
+    {
+      "id": "RUMAH_SS", "name": "Kediaman Rasmi Setiausaha Kerajaan Johor", "site": "Johor",
+      "aliases": ["Kediaman Rasmi Setiausaha Kerajaan Johor", "Rumah SS"],
+      "posts": [{ "id": "POST_RUMAH_SS", "name": "Pos Rumah SS", "floor": null, "section": "Kediaman rasmi" }]
+    },
+    {
+      "id": "RUMAH_VIP", "name": "Rumah VIP Setiausaha Kerajaan Johor", "site": "Johor",
+      "aliases": ["Rumah VIP Setiausaha Kerajaan Johor", "Rumah VIP"],
+      "posts": [{ "id": "POST_RUMAH_VIP", "name": "Pos Rumah VIP", "floor": null, "section": "Rumah VIP" }]
+    },
+    {
+      "id": "UTC_JOHOR", "name": "Kaunter UTC Pejabat Setiausaha Kerajaan Johor", "site": "Johor Bahru",
+      "aliases": ["Kaunter UTC Pejabat Setiausaha Kerajaan Johor", "UTC Johor", "UTC"],
+      "posts": [{ "id": "POST_UTC", "name": "Pos UTC", "floor": null, "section": "Kaunter UTC" }]
+    }
+  ]
+}

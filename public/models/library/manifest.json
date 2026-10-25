@@ -1,0 +1,50 @@
+[
+  {
+    "model_id": "DJM",
+    "source": "artifacts/suk/Bangunan_SUK_Exterior.glb",
+    "public_file": "public/models/Bangunan_SUK.glb",
+    "bytes": 8808384,
+    "sha256": "58711f96ef5c752df6d365ff5dca30efb90e6dccbe985dbffbf2dcf76bfb06c2",
+    "preview": "public/models/library/previews/djm.webp"
+  },
+  {
+    "model_id": "BDARA",
+    "source": "artifacts/bdara/Bangunan_Dato_Abdul_Rahman_Andak.glb",
+    "public_file": "public/models/library/bdara.glb",
+    "bytes": 10497372,
+    "sha256": "7ee878a11fd02f52b1a728e3a1508db4022c278e6b74840cf87a190653f0ae26",
+    "preview": "public/models/library/previews/bdara.webp"
+  },
+  {
+    "model_id": "BDMSP",
+    "source": "artifacts/bdmsp/Bangunan_Dato_Mohamad_Salleh_Perang.glb",
+    "public_file": "public/models/library/bdmsp.glb",
+    "bytes": 5742048,
+    "sha256": "67a4cff9768b5604c1280d8c8c1afe24afcc11c5aa97b43bc7fa55310eeb6234",
+    "preview": "public/models/library/previews/bdmsp.webp"
+  },
+  {
+    "model_id": "BSI_KOTA_ISKANDAR",
+    "source": "artifacts/bsi/Bangunan_Sultan_Ismail_Kota_Iskandar.glb",
+    "public_file": "public/models/library/bsi-kota-iskandar.glb",
+    "bytes": 16283000,
+    "sha256": "b82e49c59b7fbf9000ad7a61e4571ef516d64a621917f2b6ac08f1010b6e3925",
+    "preview": "public/models/library/previews/bsi-kota-iskandar.webp"
+  },
+  {
+    "model_id": "RUMAH_SS_VIP",
+    "source": "artifacts/rumah_ss_vip/Rumah_SS_VIP_Shared_Exterior.glb",
+    "public_file": "public/models/library/rumah-ss-vip.glb",
+    "bytes": 5517040,
+    "sha256": "0e122c1e6a978f3dfeeaee8739e5609daad1a44e9a37c6c7c25c1c7f42e2bb87",
+    "preview": "public/models/library/previews/rumah-ss-vip.webp"
+  },
+  {
+    "model_id": "UTC_JOHOR",
+    "source": "artifacts/utc/UTC_Johor_Exterior.glb",
+    "public_file": "public/models/library/utc-johor.glb",
+    "bytes": 2895524,
+    "sha256": "fd72e90147d75884012a56ad0bceb0a1df7ae97896242682de14aa2bc44bdfb9",
+    "preview": "public/models/library/previews/utc-johor.webp"
+  }
+]

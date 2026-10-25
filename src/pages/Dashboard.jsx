@@ -4,6 +4,7 @@ import { FileCheck, CalendarDays, ClipboardCheck, Bell, Brain, Activity } from '
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import api from '../api/axios';
 import { ShiftBriefing } from '../components/ShiftBriefing';
+import { ModelShowcase } from '../components/building/ModelShowcase';
 import { ROLE, riskColors } from '../utils/helpers';
 import { PageHeader, Card, ActionTile, StatCard, Badge, Button, FilterPanel, Input, Select, LoadingState, EmptyState, AlertMessage } from '../components/ui';
 
@@ -22,7 +23,7 @@ export function Dashboard({ auth }) {
   const load = useCallback(() => api.get('/dashboard', { params: filters }).then((res) => { setData(res.data); setError(''); }).catch(() => setError('Dashboard belum dapat dimuatkan. Semak sambungan dan cuba sekali lagi.')), [filters]);
   useEffect(() => { api.get('/meta').then((res) => setMeta(res.data)).catch(() => setError('Pilihan pos belum dapat dimuatkan. Cuba muat semula halaman.')); }, []);
   useEffect(() => { load(); }, [load]);
-  if (!data) return error ? <Card title="Dashboard"><AlertMessage>{error}</AlertMessage><Button type="button" variant="ghost" className="mt-3" onClick={load}>Cuba lagi</Button></Card> : <LoadingState message="Memuatkan pusat kawalan operasi..." />;
+  if (!data) return <div className="space-y-5"><ModelShowcase />{error ? <Card title="Dashboard"><AlertMessage>{error}</AlertMessage><Button type="button" variant="ghost" className="mt-3" onClick={load}>Cuba lagi</Button></Card> : <LoadingState message="Memuatkan pusat kawalan operasi..." />}</div>;
   const isChief = auth.user?.nama_peranan === ROLE.chief;
   const isAdmin = auth.user?.nama_peranan === ROLE.admin;
 
@@ -44,6 +45,8 @@ export function Dashboard({ auth }) {
     return (
       <div className="desktop-ops space-y-5">
         <PageHeader title="Dashboard Ketua Pengawal" description="Fokus kepada laporan yang perlu disemak, tugasan jadual dan komunikasi tindakan susulan." action={<Button variant="ghost" onClick={() => navigate('/semakan')}><FileCheck size={16} /> Semakan Laporan</Button>} />
+
+        <ModelShowcase />
 
         {error && <AlertMessage>{error}</AlertMessage>}
         <LiveTickerBanner priority={data.priority} />
@@ -86,6 +89,8 @@ export function Dashboard({ auth }) {
   return (
     <div className="desktop-ops space-y-5">
       <PageHeader title="Dashboard Analitik Admin" description="Pantau trend laporan, taburan risiko, tindakan susulan dan prestasi NLP operasi." action={<Button variant="ghost" onClick={() => navigate('/nlp')}><Brain size={16} /> Ringkasan & semakan NLP</Button>} />
+
+      <ModelShowcase />
 
       {error && <AlertMessage>{error}</AlertMessage>}
       <LiveTickerBanner priority={data.priority} />

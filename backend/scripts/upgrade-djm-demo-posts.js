@@ -8,5 +8,6 @@ async function upgradeDemoPosts(client) {
       where nama_pos=$3 and nama_bangunan='Bangunan demonstrasi'`, [official.name,catalogue.building,legacyName]);
   }
   await client.query(await fs.readFile(path.join(__dirname,'../database/migrations/005_djm_security_posts.sql'),'utf8'));
+  await client.query(await fs.readFile(path.join(__dirname,'../database/migrations/006_security_buildings.sql'),'utf8'));
 }
 module.exports = { upgradeDemoPosts };

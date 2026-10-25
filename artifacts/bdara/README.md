@@ -26,6 +26,6 @@ The export contains 182 mesh objects, 206,786 triangles, 28 materials and 191 no
 
 ## Scope and verification
 
-The model contains no interiors, room/agency allocations, security devices or security-post coordinates. Hidden roof connections, floor heights, canopy placement, ornament, parking and site extents are interpreted. The existing DJM Blender file and app asset are retained separately. This BDARA export is a local artifact, prepared for possible later integration.
+The model contains no interiors, room/agency allocations, security devices or security-post coordinates. Hidden roof connections, floor heights, canopy placement, ornament, parking and site extents are interpreted. Its reviewed GLB is deployed as `public/models/library/bdara.glb` and selected as BDARA in the application. The existing DJM source remains separate.
 
 Checks cover one standalone BDARA scene, the four wing masses and roof groups, finite mesh coordinates/bounds, valid GLB length/version, isolation from SUK/operational node identities, shared materials and successful GLTFLoader parsing. Elevated, front, side and plan views are visually inspected.

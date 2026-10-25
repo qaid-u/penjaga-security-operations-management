@@ -28,4 +28,4 @@ Blender uses Z up and approximate metres. The site plinth is 248 by 256 m and th
 
 The export has 283 mesh objects, 317,140 triangles, 37 materials and 292 nodes, and is 16,283,000 bytes. Verification covers finite geometry, exact manifest counts, isolated BSI identity, the four wings, both skylights, entrance and paving, GLB header/length, coordinate conversion and successful GLTFLoader parsing. All five rendered views were visually inspected. These counts are not a device frame-rate benchmark.
 
-Earlier building files and the application's current asset remain separate. This model is a local artifact prepared for later integration. BDMIM's user-confirmed use of the Salleh Perang geometry is recorded separately in `../bdmim/model_reference.json`.
+This reviewed model is deployed as `public/models/library/bsi-kota-iskandar.glb` and selected as Sultan Ismail in the application. Its two official posts belong to BSI Kota Iskandar; Sultan Ibrahim Johor Bahru remains a separate, unmodeled building. BDMIM's use of the Salleh Perang geometry is recorded in `../bdmim/model_reference.json`.

@@ -26,4 +26,4 @@ The mall front faces -Y, the UTC street faces -X and Z is up. The plinth is appr
 
 The GLB has 170 mesh objects, 58,930 triangles, 38 materials and 180 nodes, and is 2,895,524 bytes. Checks cover GLB header/length, exact manifest counts, finite geometry, transformed bounds, isolated identity, key masses, seven facade/roof groups, signage, canopy and adjoining street elevations. All six renders were visually inspected. These counts are not a device frame-rate benchmark.
 
-This is a standalone local asset prepared for later integration. The application's current DJM public model and database mappings remain separate.
+The application deploys this reviewed model as `public/models/library/utc-johor.glb` and selects its separate UTC Johor identity with Pos UTC. Its interior position remains unconfirmed.

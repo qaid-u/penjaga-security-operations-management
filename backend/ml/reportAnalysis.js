@@ -1,8 +1,8 @@
 const { cleanText, predict } = require('./textModel');
 
 const policyVersion = 'context-evidence-v2';
-const { catalogue, legacyHotspots } = require('../services/securityPostCatalogue');
-const approvedHotspots = new Set([...legacyHotspots, ...catalogue.posts.map(post => post.id)]);
+const { buildingCatalogue, legacyHotspots } = require('../services/securityPostCatalogue');
+const approvedHotspots = new Set([...legacyHotspots, ...buildingCatalogue.buildings.flatMap(building => building.posts.map(post => post.id))]);
 const priorityScore = { Low: 10, Medium: 35, High: 65, Critical: 85 };
 const scoreFor = priority => Object.hasOwn(priorityScore, priority) ? priorityScore[priority] : 10;
 const canonicalName = name => cleanText(String(name || '').replace(/^DEMO\s+/iu, ''));

@@ -1,38 +1,49 @@
 import { Box3, Vector3 } from 'three';
 import { buildingHotspots, exteriorLandmarks } from './buildingHotspots.js';
 import { inspectZones } from './buildingZones.js';
+import { getBuilding } from './buildingModels.js';
 
-export function inspectBuilding(scene) {
+export function inspectBuilding(scene, building = getBuilding()) {
   scene.updateMatrixWorld(true);
   const bounds = new Box3().setFromObject(scene);
   const size = bounds.getSize(new Vector3());
   if (bounds.isEmpty() || !size.toArray().every(Number.isFinite) || size.length() === 0) throw new Error('Model tidak mempunyai geometri yang sah.');
-  const landmarks = exteriorLandmarks.map((location) => {
+  const landmarks = (building.id === 'DJM' ? exteriorLandmarks : []).map((location) => {
     const anchor = scene.getObjectByName(location.id);
     return { ...location, position: anchor?.getWorldPosition(new Vector3()).toArray() ?? null };
   });
   // Floor labels are known; no surveyed indoor coordinates or floor meshes exist.
-  const hotspots = buildingHotspots.map((post) => ({ ...post, position: null }));
+  const hotspots = (building.hotspots || buildingHotspots).map((post) => ({ ...post, position: null }));
   let hasGround = false;
   scene.traverse((object) => {
     if (!object.isMesh) return;
     object.castShadow = true;
     object.receiveShadow = true;
-    if (object.name === 'SUK_Ground') hasGround = true;
+    if (/(?:_Ground$|_SiteBase$|_SitePlinth$)/u.test(object.name)) hasGround = true;
   });
   const zones = inspectZones(scene, landmarks);
   const occluders = [];
-  scene.traverse((o) => { if (o.isMesh && /^SUK_(Main_Body|Central_AxialGallery|Rear_EntryPavilion|(Left|Right)_(Wing|Tower|RearWing|InnerPavilion|CourtyardGallery|RearCornerTower))$/.test(o.name)) occluders.push({ current: o }); });
-  return { scene, bounds, size, hotspots, landmarks, hasGround, zones, occluders };
+  scene.traverse((o) => { if (o.isMesh && (o.userData.component === 'Structure' || /^SUK_(Main_Body|Central_AxialGallery|Rear_EntryPavilion|(Left|Right)_(Wing|Tower|RearWing|InnerPavilion|CourtyardGallery|RearCornerTower))$/.test(o.name))) occluders.push({ current: o }); });
+  return { scene, bounds, size, hotspots, landmarks, hasGround, zones, occluders, buildingId: building.id, viewDirection: building.viewDirection };
 }
 
-export function overviewPose(bounds, aspect = 1) {
+export function overviewPose(bounds, aspect = 1, direction = [.75, .65, 1]) {
   const target = bounds.getCenter(new Vector3());
-  const radius = bounds.getSize(new Vector3()).length() / 2;
+  // The estate's visual weight is near the ground, below the box's empty upper corners.
+  target.y = bounds.min.y + (bounds.max.y - bounds.min.y) * .22;
   const vFov = 40 * Math.PI / 180;
-  const halfAngle = Math.min(vFov / 2, Math.atan(Math.tan(vFov / 2) * aspect));
-  const distance = radius / Math.sin(halfAngle) * 1.08;
-  return { target, position: target.clone().add(new Vector3(.75, .65, 1).normalize().multiplyScalar(distance)) };
+  const vertical = Math.tan(vFov / 2);
+  const horizontal = vertical * aspect;
+  const eye = new Vector3(...direction).normalize();
+  const right = new Vector3(0,1,0).cross(eye).normalize();
+  const up = eye.clone().cross(right).normalize();
+  let distance = 1;
+  for (const x of [bounds.min.x,bounds.max.x]) for (const y of [bounds.min.y,bounds.max.y]) for (const z of [bounds.min.z,bounds.max.z]) {
+    const corner = new Vector3(x,y,z).sub(target);
+    distance = Math.max(distance, corner.dot(eye) + Math.abs(corner.dot(right))/horizontal*1.12,
+      corner.dot(eye) + Math.abs(corner.dot(up))/vertical*1.12);
+  }
+  return { target, position: target.clone().add(eye.multiplyScalar(distance)) };
 }
 
 export function focusPose(position, bounds, aspect = 1) {
@@ -45,11 +56,9 @@ export function focusPose(position, bounds, aspect = 1) {
   return { target, position: camera };
 }
 
-export function presetPose(bounds, aspect, preset) {
-  const pose = overviewPose(bounds, aspect);
+export function presetPose(bounds, aspect, preset, overviewDirection) {
   const direction = { front: [0,.2,1], left: [-1,.4,.3], right: [1,.4,.3], top: [0,1,.01] }[preset];
-  if (direction) pose.position.copy(pose.target).add(new Vector3(...direction).normalize().multiplyScalar(overviewPose(bounds, aspect).position.distanceTo(pose.target)));
-  return pose;
+  return overviewPose(bounds, aspect, direction || overviewDirection);
 }
 
 export function disposeModel(scene) {

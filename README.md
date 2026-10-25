@@ -37,9 +37,9 @@ psql -d penjaga_db -f backend/database/seed.sql
 node backend/scripts/migrate-3d.js
 ```
 
-The 3D page uses the seven official security posts for Bangunan Dato’ Jaafar Muhammad. Floor labels are shown where supplied; indoor coordinates remain unconfirmed. See [official post configuration](docs/testing/DJM_OFFICIAL_POSTS.md). Restart the backend after updating an existing installation.
+The dashboard features a visual building showcase. The 3D command centre offers eight building identities using six exterior models, with 15 official security posts and building-scoped operational records. Floor labels are shown only where supplied; indoor coordinates remain unconfirmed. Run the migration above and restart the backend after updating an existing installation. See [building integration](docs/testing/BUILDING_LIBRARY_INTEGRATION.md) and the [official DJM post configuration](docs/testing/DJM_OFFICIAL_POSTS.md).
 
-Editable Blender sources, GLB exports and preview images for the additional buildings are listed in the [exterior model catalogue](artifacts/README.md). BDMIM shares the BDMSP geometry, and Rumah SS/Rumah VIP share one residence asset. These standalone models, including UTC Johor, are prepared for later application integration; the current public viewer asset remains DJM. See the [model release checks](docs/testing/MODEL_LIBRARY_RELEASE.md).
+Editable Blender sources, deployed GLB exports and preview images are listed in the [exterior model catalogue](artifacts/README.md). BDMIM shares BDMSP geometry, and Rumah SS/Rumah VIP share one residence asset while retaining separate post records. Only the selected GLB is downloaded; the six optimized preview images total approximately 158 KB. DJM is the initial selection. Model files in `public/models/` are publicly downloadable; access to operational data still requires an administrator or chief-guard account.
 
 Optional backend environment file: `backend/.env`
 

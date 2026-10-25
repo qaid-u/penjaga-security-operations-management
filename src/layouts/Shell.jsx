@@ -3,6 +3,7 @@ import { NavLink, Navigate, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, CalendarDays, FileText, FileCheck, ClipboardCheck, Brain, History, Users, MapPin, Bell, KeyRound, Shield, X, Menu, LogOut, Box } from 'lucide-react';
 import { ROLE } from '../utils/helpers';
 import { Badge, Button, Card } from '../components/ui';
+import '../components/building/model-showcase.css';
 
 export function Shell({ auth, children }) {
   const [open, setOpen] = useState(false);
@@ -43,9 +44,10 @@ export function Shell({ auth, children }) {
         <nav className="space-y-1 p-3">
           {nav.map((item) => {
             const Icon = item.icon;
+            const spatial = item.to === '/3d-command-centre';
             return (
-              <NavLink key={item.to} to={item.to} onClick={() => setOpen(false)} className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${isActive ? 'app-nav-active' : 'app-nav'}`}>
-                <Icon size={18} /> {item.label}
+              <NavLink key={item.to} to={item.to} onClick={() => setOpen(false)} className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${spatial ? 'app-spatial-nav' : ''} ${isActive ? 'app-nav-active' : 'app-nav'}`}>
+                <Icon size={18} aria-hidden="true" /> <span>{item.label}</span>{spatial && <span className="app-spatial-nav__tag" aria-hidden="true">3D</span>}
               </NavLink>
             );
           })}

@@ -29,6 +29,26 @@ test('official DJM post names are recognized as records without inferring spatia
   assert.deepEqual(extractLocations('Rondaan di tingkat 4.',official),[]);
 });
 
+test('all modeled buildings recognize only stated post names and keep shared-model records distinct', () => {
+  const { buildingCatalogue } = require('../services/securityPostCatalogue');
+  const official = buildingCatalogue.buildings.flatMap(building=>building.posts.map((post,index)=>({
+    id_lokasi:200+buildingCatalogue.buildings.indexOf(building)*10+index,hotspot_id:post.id,
+    nama_paparan:post.name,id_pos:200+buildingCatalogue.buildings.indexOf(building)*10+index,
+  })));
+  for (const location of official) {
+    const text=`Pemeriksaan selesai di ${location.nama_paparan}.`;
+    const found=extractLocations(text,official);
+    assert.equal(found.length,1);assert.equal(found[0].hotspot_id,location.hotspot_id);
+    assert.equal(found[0].text,location.nama_paparan);assert.equal(text.slice(found[0].start,found[0].end),location.nama_paparan);
+    assert.equal(found[0].position,undefined);assert.equal(found[0].floor,undefined);
+  }
+  for (const text of ['Rondaan di BSI.','Pemeriksaan Bangunan Sultan Ismail.','Rondaan di rumah.','Kaunter di tingkat 2.']) assert.deepEqual(extractLocations(text,official),[]);
+  for (const [name,id] of [['Pos BDMSP','POST_BDMSP'],['Pos BDMIM','POST_BDMIM'],['Pos Rumah SS','POST_RUMAH_SS'],['Pos Rumah VIP','POST_RUMAH_VIP']]) {
+    assert.deepEqual(extractLocations(`Rondaan ${name}.`,official).map(item=>item.hotspot_id),[id]);
+  }
+  assert.deepEqual(extractLocations('Pos BSI Johor Bahru diperiksa.',official),[]);
+});
+
 test('saved model and runtime share a validated count format and preprocessing version', () => {
   assert.equal(validateModel(model), true);
   assert.equal(model.weights, undefined);

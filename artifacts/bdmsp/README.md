@@ -28,4 +28,4 @@ Blender front is -Y, Z is up and units are approximate metres. The working plint
 
 The export has 167 mesh objects, 109,216 triangles, 35 materials and 176 nodes, and is 5,742,048 bytes. The checks cover a single standalone BDMSP scene, both wings, seven separately named roof-screen groups, the entrance and paved approaches, finite geometry, valid GLB length/version and successful GLTFLoader parsing. Elevated, entrance, front, side and plan renders are visually inspected. Geometry/transfer counts are not a device frame-rate benchmark.
 
-The earlier DJM and BDARA Blender files and the application's current DJM asset remain separate. This new model is a local artifact prepared for later integration.
+This reviewed GLB is deployed as `public/models/library/bdmsp.glb` for both BDMSP and BDMIM, as requested. Those application choices retain separate official posts and operational records. The earlier DJM and BDARA sources remain separate.

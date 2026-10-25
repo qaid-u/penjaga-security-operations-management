@@ -42,7 +42,7 @@ test('official post filters retain exterior camera controls and do not mark unco
   for(const [id,name] of [['POST_DJM_SS_LEVEL_3','Pos Tingkat 3 Pejabat Setiausaha Kerajaan Johor'],['POST_DJM_MB_LEVEL_4_FRONT','Pos Tingkat 4 Hadapan Pejabat Menteri Besar Johor'],['POST_DJM_MAIN_LOBBY','Pos Lobi Utama']]) {
     await page.getByLabel('Pos keselamatan bangunan').selectOption(id);await expect(page.getByText(`Pos dipilih: ${name}`,{exact:true})).toBeVisible();await expect(page.locator('.building-hotspot')).toHaveCount(0);
     await expect(page.getByLabel('Pratetap kamera')).toHaveValue('overview');
-    if(id==='POST_DJM_SS_LEVEL_3')await page.getByRole('region',{name:'Model interaktif Bangunan SUK'}).screenshot({path:'artifacts/suk/djm-posts-zone.png'});
+    if(id==='POST_DJM_SS_LEVEL_3')await page.getByRole('region',{name:'Model interaktif Bangunan Dato’ Jaafar Muhammad'}).screenshot({path:'artifacts/suk/djm-posts-zone.png'});
   }
   await page.getByRole('button',{name:'Tetap semula',exact:true}).click();
   const before=await page.locator('canvas').screenshot();
@@ -111,10 +111,10 @@ test('tablet and mobile keyboard controls, sheet close and reduced motion work',
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 
-test('touch-enabled mobile can select a zone and use camera controls',async({browser})=>{
+test('touch-enabled mobile can select a zone and use camera controls',async({browser,baseURL})=>{
   const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
   try {
-    const page=await context.newPage();await setup(page,'Ketua Pengawal');await page.goto('http://127.0.0.1:4175/3d-command-centre');
+    const page=await context.newPage();await setup(page,'Ketua Pengawal');await page.goto(`${baseURL}/3d-command-centre`);
     await expect(page.locator('canvas')).toBeVisible();
     await page.getByRole('button',{name:/01.*Pos Lobi Utama/}).tap();
     await expect(page.getByLabel('Panel lokasi').getByText('Pos Ujian API',{exact:true})).toBeVisible();

@@ -1,7 +1,8 @@
 const { logAudit } = require('../utils/audit');
-const { catalogue, matchesOfficialPost, buildingScopeSql } = require('./securityPostCatalogue');
+const { catalogue, buildingCatalogue, selectedBuilding, matchesOfficialPost, buildingScopeSql } = require('./securityPostCatalogue');
 
 const HOTSPOTS = catalogue.posts.map(post => post.id);
+const ALL_HOTSPOTS = buildingCatalogue.buildings.flatMap(building => building.posts.map(post => post.id));
 const presentLocation = location => ({ ...location, position: null, position_status: 'unconfirmed' });
 function fail(status, message) { const error = new Error(message); error.status = status; throw error; }
 function positiveId(value) {
@@ -14,8 +15,9 @@ function validDate(value) {
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }
 function period(query = {}) {
-  const allowed = ['date','from','to','zone','mapping','post','risk','category','report_status','action_status','page','limit'];
+  const allowed = ['building','date','from','to','zone','mapping','post','risk','category','report_status','action_status','page','limit'];
   if (Object.keys(query).some((key) => !allowed.includes(key))) fail(400, 'Parameter pertanyaan tidak disokong');
+  const building = selectedBuilding(query.building);
   const date = query.date ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const from = query.from ?? date; const to = query.to ?? date;
   if (![date, from, to].every(validDate) || from > to || (Date.parse(to) - Date.parse(from)) / 86400000 > 365) fail(400, 'Tarikh tidak sah. Julat laporan maksimum 366 hari.');
@@ -26,8 +28,8 @@ function period(query = {}) {
   };
   const category = query.category ?? '';
   if (typeof category !== 'string' || category.length > 100 || [...category].some((c) => c.charCodeAt(0) < 32)) fail(400, 'Kategori tidak sah');
-  return { date, from, to, timezone: 'Asia/Kuala_Lumpur',
-    zone: choice('zone', ['', ...HOTSPOTS]), mapping: choice('mapping', ['all','linked','unlinked'], 'linked'),
+  return { building: building.id, date, from, to, timezone: 'Asia/Kuala_Lumpur',
+    zone: choice('zone', ['', ...building.posts.map(post => post.id)]), mapping: choice('mapping', ['all','linked','unlinked'], 'linked'),
     post: query.post == null || query.post === '' ? null : positiveId(query.post),
     risk: choice('risk', ['', 'Low','Medium','High','Critical','Unknown','HighCritical']), category,
     report_status: choice('report_status', ['', 'Dihantar','Diluluskan','Ditolak']),
@@ -65,14 +67,20 @@ const reportCte = `classified as (
  and ($8::text='' or exists(select 1 from tbl_tindakan_susulan a where a.id_laporan=c.id_laporan and a.status_tindakan=$8)))`;
 
 function createService(pool) {
-  async function locations(client = pool) {
-    return (await client.query('select * from tbl_lokasi_3d where status_aktif and hotspot_id=any($1::text[]) order by id_lokasi', [HOTSPOTS])).rows.map(presentLocation);
+  async function locations(building = 'DJM', client = pool) {
+    // Retain the original locations(client) helper contract for existing callers.
+    if (building && typeof building.query === 'function') { client = building; building = 'DJM'; }
+    const definition = selectedBuilding(building);
+    return (await client.query(`select l.*, case when ${buildingScopeSql('p', definition.id)} then l.id_pos else null end as id_pos
+      from tbl_lokasi_3d l left join tbl_pos_kawalan p on p.id_pos=l.id_pos
+      where l.status_aktif and l.building_id=$1 and l.hotspot_id=any($2::text[]) order by l.id_lokasi`, [definition.id, definition.posts.map(post => post.id)])).rows.map(presentLocation);
   }
   async function scopedPosts(client, p) {
-    return (await client.query(`select p.id_pos from tbl_pos_kawalan p where ${buildingScopeSql('p')} and
+    const building = selectedBuilding(p.building).id;
+    return (await client.query(`select p.id_pos from tbl_pos_kawalan p where ${buildingScopeSql('p', building)} and
       ($1::int is null or p.id_pos=$1) and
-      ($2::text='' or exists(select 1 from tbl_lokasi_3d l where l.id_pos=p.id_pos and l.status_aktif and l.hotspot_id=$2)) and
-      ($3::text='all' or ($3='linked')=exists(select 1 from tbl_lokasi_3d l where l.id_pos=p.id_pos and l.status_aktif))
+      ($2::text='' or exists(select 1 from tbl_lokasi_3d l where l.id_pos=p.id_pos and l.building_id='${building}' and l.status_aktif and l.hotspot_id=$2)) and
+      ($3::text='all' or ($3='linked')=exists(select 1 from tbl_lokasi_3d l where l.id_pos=p.id_pos and l.building_id='${building}' and l.status_aktif))
       order by p.id_pos`, [p.post, p.zone || '', p.mapping || 'linked'])).rows.map((r) => r.id_pos);
   }
   async function aggregates(client, ids, p) {
@@ -113,7 +121,7 @@ function createService(pool) {
   }
   async function overview(p) {
     return snapshot(async (client) => {
-      const rows = await locations(client);
+      const rows = await locations(p.building, client);
       const ids = await scopedPosts(client, p);
       const linkedIds = new Set(rows.filter((l) => l.status_aktif && ids.includes(l.id_pos)).map((l) => l.id_pos));
       const posts = await aggregates(client, ids, p);
@@ -123,13 +131,14 @@ function createService(pool) {
   }
   async function summary(id, p) {
     return snapshot(async (client) => {
-      const row = (await client.query('select * from tbl_lokasi_3d where id_lokasi=$1', [id])).rows[0];
-      if (!row || !HOTSPOTS.includes(row.hotspot_id)) fail(404, 'Pos bangunan tidak ditemui');
+      const definition = selectedBuilding(p.building);
+      const row = (await client.query('select * from tbl_lokasi_3d where id_lokasi=$1 and building_id=$2', [id, definition.id])).rows[0];
+      if (!row || !definition.posts.some(post => post.id === row.hotspot_id)) fail(404, 'Pos bangunan tidak ditemui');
       const location = presentLocation(row);
       const base = { location, period: p, refreshed_at: new Date().toISOString() };
       if (!location.status_aktif || !location.id_pos) return { ...base, linked: false, reason: !location.status_aktif ? 'Lokasi dinyahaktifkan' : 'Belum dipautkan kepada pos kawalan', post: null };
-      const post = (await client.query('select id_pos,nama_pos,nama_bangunan,lokasi,waktu_operasi,status_pos from tbl_pos_kawalan where id_pos=$1', [location.id_pos])).rows[0];
-      if (!post) return { ...base, linked: false, reason: 'Pautan pos tidak lagi tersedia', post: null };
+      const post = (await client.query(`select id_pos,nama_pos,nama_bangunan,lokasi,waktu_operasi,status_pos from tbl_pos_kawalan p where id_pos=$1 and ${buildingScopeSql('p', definition.id)}`, [location.id_pos])).rows[0];
+      if (!post) return { ...base, location: { ...location, id_pos: null }, linked: false, reason: 'Pautan pos tidak lagi tersedia untuk bangunan ini', post: null };
       const ids = await scopedPosts(client, p);
       if (!ids.includes(post.id_pos) || (p.zone && p.zone !== location.hotspot_id)) return { ...base, linked: true, in_scope: false, post };
       const params = reportParams([post.id_pos], p);
@@ -155,6 +164,7 @@ function createService(pool) {
     });
   }
   async function incidents(p, query = {}) {
+    const definition = selectedBuilding(p.building);
     const page = query.page === undefined ? 1 : positiveId(query.page);
     const limit = query.limit === undefined ? 20 : positiveId(query.limit);
     if (limit > 50 || page > 10000) fail(400, 'Halaman atau had tidak sah');
@@ -165,7 +175,7 @@ function createService(pool) {
       const total = (await client.query(`${cte} select count(*)::int as total from reports`, params)).rows[0].total;
       const items = (await client.query(`${cte}
         select r.id_laporan,r.id_pos,r.tajuk_laporan,r.tarikh_laporan::text,r.masa_laporan::text,r.status_laporan,r.tahap_risiko,r.kategori_dikesan,p.nama_pos,
-        coalesce((select jsonb_agg(jsonb_build_object('id_lokasi',l.id_lokasi,'hotspot_id',l.hotspot_id,'nama_paparan',l.nama_paparan) order by l.id_lokasi) from tbl_lokasi_3d l where l.id_pos=r.id_pos and l.status_aktif),'[]'::jsonb) as locations,
+        coalesce((select jsonb_agg(jsonb_build_object('id_lokasi',l.id_lokasi,'hotspot_id',l.hotspot_id,'nama_paparan',l.nama_paparan) order by l.id_lokasi) from tbl_lokasi_3d l where l.id_pos=r.id_pos and l.building_id='${definition.id}' and l.status_aktif),'[]'::jsonb) as locations,
         (select count(*)::int from tbl_tindakan_susulan a where a.id_laporan=r.id_laporan and a.status_tindakan<>'Selesai' and ($8::text='' or a.status_tindakan=$8)) as open_actions,
         (select count(*)::int from tbl_tindakan_susulan a where a.id_laporan=r.id_laporan and a.status_tindakan='Selesai' and ($8::text='' or a.status_tindakan=$8)) as completed_actions,
         coalesce((select jsonb_agg(distinct a.status_tindakan) from tbl_tindakan_susulan a where a.id_laporan=r.id_laporan and ($8::text='' or a.status_tindakan=$8)),'[]'::jsonb) as action_statuses
@@ -174,33 +184,36 @@ function createService(pool) {
       return { items, total, page, limit, period: p, refreshed_at: new Date().toISOString() };
     });
   }
-  async function filters() {
+  async function filters(building = 'DJM') {
+    const definition = selectedBuilding(building);
     return snapshot(async (client) => ({
-      posts: (await client.query(`select id_pos,nama_pos,nama_bangunan,status_pos from tbl_pos_kawalan p where ${buildingScopeSql('p')} order by nama_pos,id_pos`)).rows,
-      categories: (await client.query(`select distinct coalesce(n.kategori_dikesan,'Unknown') as category from tbl_laporan_harian l join tbl_pos_kawalan p using(id_pos) left join lateral (select kategori_dikesan from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) n on true where ${buildingScopeSql('p')} order by category`)).rows.map((r) => r.category),
+      building: definition.id,
+      posts: (await client.query(`select id_pos,nama_pos,nama_bangunan,status_pos from tbl_pos_kawalan p where ${buildingScopeSql('p', definition.id)} order by nama_pos,id_pos`)).rows,
+      categories: (await client.query(`select distinct coalesce(n.kategori_dikesan,'Unknown') as category from tbl_laporan_harian l join tbl_pos_kawalan p using(id_pos) left join lateral (select kategori_dikesan from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) n on true where ${buildingScopeSql('p', definition.id)} order by category`)).rows.map((r) => r.category),
       today: period().date, timezone: 'Asia/Kuala_Lumpur'
     }));
   }
-  async function map(id, body, userId) {
+  async function map(id, body, userId, building = 'DJM') {
+    const definition = selectedBuilding(building);
     if (!body || !Object.hasOwn(body, 'id_pos') || Object.keys(body).some((key) => key !== 'id_pos')) fail(400, 'Hantar id_pos sahaja; null untuk nyahpaut');
     const postId = body.id_pos === null ? null : positiveId(body.id_pos);
     const client = await pool.connect();
     try {
       await client.query('begin');
-      const old = (await client.query('select * from tbl_lokasi_3d where id_lokasi=$1 for update', [id])).rows[0];
+      const old = (await client.query('select * from tbl_lokasi_3d where id_lokasi=$1 and building_id=$2 for update', [id, definition.id])).rows[0];
       if (!old) fail(404, 'Lokasi 3D tidak ditemui');
-      if (!HOTSPOTS.includes(old.hotspot_id) || !old.status_aktif) fail(400, 'Pos bangunan tidak aktif atau tidak dibenarkan');
+      if (!definition.posts.some(post => post.id === old.hotspot_id) || !old.status_aktif) fail(400, 'Pos bangunan tidak aktif atau tidak dibenarkan');
       if (postId !== null) {
         const post = (await client.query("select id_pos,nama_pos,nama_bangunan from tbl_pos_kawalan where id_pos=$1 and status_pos='Aktif' for share", [postId])).rows[0];
         if (!post) fail(400, 'Pos aktif tidak ditemui');
-        if (!matchesOfficialPost(post, catalogue.posts.find(item => item.id === old.hotspot_id))) fail(400, 'Pilih rekod pos rasmi yang sepadan dalam Bangunan Dato’ Jaafar Muhammad');
+        if (!matchesOfficialPost(post, definition.posts.find(item => item.id === old.hotspot_id), definition.id)) fail(400, `Pilih rekod pos rasmi yang sepadan dalam ${definition.name}`);
       }
       const updated = (await client.query('update tbl_lokasi_3d set id_pos=$1,tarikh_kemaskini=now() where id_lokasi=$2 returning *', [postId,id])).rows[0];
-      await logAudit(client, userId, 'UPDATE_3D_MAPPING', `Lokasi3D #${id}`, 'Kemaskini pautan hotspot kepada pos', 'Berjaya', JSON.stringify({ hotspot_id: old.hotspot_id, id_pos_lama: old.id_pos, id_pos_baharu: postId }));
-      await client.query('commit'); return updated;
+      await logAudit(client, userId, 'UPDATE_3D_MAPPING', `Lokasi3D #${id}`, 'Kemaskini pautan rekod pos rasmi', 'Berjaya', JSON.stringify({ building_id: definition.id, hotspot_id: old.hotspot_id, id_pos_lama: old.id_pos, id_pos_baharu: postId }));
+      await client.query('commit'); return presentLocation(updated);
     } catch (error) { await client.query('rollback'); throw error; }
     finally { client.release(); }
   }
   return { locations, overview, summary, incidents, filters, map };
 }
-module.exports = { createService, period, positiveId, validDate, HOTSPOTS };
+module.exports = { createService, period, positiveId, validDate, HOTSPOTS, ALL_HOTSPOTS };

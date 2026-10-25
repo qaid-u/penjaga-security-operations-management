@@ -12,7 +12,7 @@ These Blender studies use the supplied photographs and aerial views. Dimensions,
 | Kediaman Rasmi Setiausaha Kerajaan Johor / Rumah VIP Setiausaha Kerajaan Johor | [Shared Blender source](rumah_ss_vip/Rumah_SS_VIP_Shared_Exterior.blend) | [Shared GLB](rumah_ss_vip/Rumah_SS_VIP_Shared_Exterior.glb) | [Residence guide](rumah_ss_vip/README.md), [two-identity record](rumah_ss_vip/shared_model_reference.json) |
 | Kaunter UTC Pejabat Setiausaha Kerajaan Johor — Pos UTC | [UTC_Johor_Exterior.blend](utc/UTC_Johor_Exterior.blend) | [UTC_Johor_Exterior.glb](utc/UTC_Johor_Exterior.glb) | [UTC guide](utc/README.md) |
 
-The application's current public model remains [public/models/Bangunan_SUK.glb](../public/models/Bangunan_SUK.glb), representing DJM. The other assets are standalone studies pending application integration. Sharing geometry preserves separate building and post identities; it does not merge operational records.
+All six unique models are integrated into the dashboard showcase and 3D command centre as eight building choices. DJM initially uses [public/models/Bangunan_SUK.glb](../public/models/Bangunan_SUK.glb); the other five GLBs and six small WebP previews are deployed in [public/models/library/](../public/models/library/). Sharing geometry preserves separate building and post identities; it does not merge operational records. See the [integration guide](../docs/testing/BUILDING_LIBRARY_INTEGRATION.md).
 
 Security-post positions remain unconfirmed. Exterior landmarks, decorative props and historical `HOTSPOT_*` anchors do not establish indoor post locations, room layouts or verified routes. See the [official DJM post configuration](../docs/testing/DJM_OFFICIAL_POSTS.md) for its seven named posts and unconfirmed positions.
 

@@ -22,7 +22,7 @@ export function CameraController({ data, selected, command }) {
     instance.setBoundary(new Box3(data.bounds.min.clone().sub(new Vector3(radius, 0, radius)), data.bounds.max.clone().add(new Vector3(radius, radius * 3, radius))));
     const hotspot = data.hotspots.find((item) => item.id === positionedSelection);
     const aspect = size.width / size.height;
-    const pose = hotspot && (!command.preset || command.preset === 'selected') ? focusPose(hotspot.position, data.bounds, aspect) : presetPose(data.bounds, aspect, command.preset);
+    const pose = hotspot && (!command.preset || command.preset === 'selected') ? focusPose(hotspot.position, data.bounds, aspect) : presetPose(data.bounds, aspect, command.preset, data.viewDirection);
     instance.setLookAt(...pose.position.toArray(), ...pose.target.toArray(), initialized.current && !reduceMotion);
     invalidate(); // An immediate reduced-motion command must wake the demand-driven canvas.
     initialized.current = true;

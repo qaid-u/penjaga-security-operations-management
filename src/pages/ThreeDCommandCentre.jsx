@@ -1,11 +1,27 @@
-import { Badge, PageHeader } from '../components/ui';
+import { useSearchParams } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { Box, MapPin, ArrowUpRight } from 'lucide-react';
 import { BuildingViewer } from '../components/building/BuildingViewer';
+import { modeledBuildings, getBuilding } from '../components/building/buildingModels';
 import '../components/building/building.css';
 
 export default function ThreeDCommandCentre() {
-  return <div className="space-y-5">
-    <PageHeader title="Pusat Kawalan Keselamatan 3D" description="Bangunan Dato’ Jaafar Muhammad, Kota Iskandar · 7 pos keselamatan rasmi" action={<Badge>Analitik operasi</Badge>} />
-    <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Model eksterior anggaran. Data operasi bersumberkan rekod pangkalan data yang dipautkan oleh pentadbir; bukan pemantauan GPS, lokasi fizikal pengawal atau ramalan insiden.</p>
-    <BuildingViewer />
+  const [params, setParams] = useSearchParams();
+  const building = getBuilding(params.get('building') || 'DJM');
+  const gallery = useRef(null);
+  useEffect(() => { gallery.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block:'nearest', inline:'nearest' }); }, [building.id]);
+  const choose = (id) => setParams({ building: id });
+  return <div className="building-library">
+    <header className="building-library-header">
+      <div><p className="building-eyebrow"><Box size={14} aria-hidden="true" /> PENJAGA / PORTFOLIO BANGUNAN</p><h1>Pusat Kawalan Keselamatan 3D</h1><p>Terokai eksterior, pilih pos dan semak rekod operasi setiap bangunan.</p></div>
+      <label className="building-select"><span>Pilih bangunan</span><select aria-label="Pilih bangunan" value={building.id} onChange={(event) => choose(event.target.value)}>{modeledBuildings.map((item) => <option key={item.id} value={item.id}>{item.shortName}</option>)}</select></label>
+    </header>
+    <div ref={gallery} className="building-gallery" role="group" aria-label="Pilihan bangunan 3D">
+      {modeledBuildings.map((item, index) => <button type="button" key={item.id} onClick={() => choose(item.id)} aria-label={`Lihat ${item.name}`} aria-pressed={item.id === building.id} className={`building-gallery-card ${item.id === building.id ? 'is-active' : ''}`} style={{ '--building-accent': item.accent }}>
+        <span className="building-gallery-number">{String(index+1).padStart(2,'0')}</span><img src={item.previewUrl} alt="" decoding="async" loading="lazy" /><span className="building-gallery-label">{item.shortName}<small>{item.postCount} pos · {item.region}</small></span><ArrowUpRight className="building-gallery-arrow" size={15} aria-hidden="true" />
+      </button>)}
+    </div>
+    <div className="building-context-line"><span><MapPin size={13} aria-hidden="true" /> {building.region}</span><span>8 bangunan · 6 model eksterior</span>{building.sharedWith && <span>Model dikongsi · rekod bangunan berasingan</span>}<span className="building-context-note">Eksterior anggaran · Kedudukan dalaman pos belum disahkan</span></div>
+    <BuildingViewer key={building.id} building={building} />
   </div>;
 }

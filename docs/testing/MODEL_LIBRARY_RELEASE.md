@@ -1,5 +1,7 @@
 # Exterior model library release checks — 25 October 2026
 
+This records the source-model release before application integration. For the current integrated dashboard, viewer and building-scoped operations, see [BUILDING_LIBRARY_INTEGRATION.md](BUILDING_LIBRARY_INTEGRATION.md).
+
 The [model catalogue](../../artifacts/README.md) links the current editable Blender files, GLB exports, previews, procedural sources and manifests. The release includes the refined DJM model and its official-post configuration, BDARA, BDMSP, BDMIM's reference to BDMSP, BSI Kota Iskandar, the shared Rumah SS/Rumah VIP asset and the new UTC Johor exterior.
 
 UTC is a photograph-derived exterior of the connected tower, UTC wing and Galleria corner complex. Its saved model contains 170 mesh objects, 58,930 triangles and 38 materials. The GLB is 2,895,524 bytes and has no external texture dependency. Pos UTC is identity metadata; the counter position is unconfirmed. Dimensions and concealed geometry are approximate.

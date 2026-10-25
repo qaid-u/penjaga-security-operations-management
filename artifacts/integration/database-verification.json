@@ -1,0 +1,52 @@
+{
+  "status": "passed",
+  "preserved": {
+    "posts": 17,
+    "reports": 102,
+    "duties": 8
+  },
+  "modeled_buildings": 8,
+  "official_posts": 15,
+  "buildings": [
+    {
+      "building": "DJM",
+      "official_posts": 7,
+      "linked": 7
+    },
+    {
+      "building": "BDARA",
+      "official_posts": 1,
+      "linked": 1
+    },
+    {
+      "building": "BDMSP",
+      "official_posts": 1,
+      "linked": 1
+    },
+    {
+      "building": "BDMIM",
+      "official_posts": 1,
+      "linked": 1
+    },
+    {
+      "building": "BSI_KOTA_ISKANDAR",
+      "official_posts": 2,
+      "linked": 2
+    },
+    {
+      "building": "RUMAH_SS",
+      "official_posts": 1,
+      "linked": 1
+    },
+    {
+      "building": "RUMAH_VIP",
+      "official_posts": 1,
+      "linked": 1
+    },
+    {
+      "building": "UTC_JOHOR",
+      "official_posts": 1,
+      "linked": 1
+    }
+  ]
+}

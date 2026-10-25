@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { Group, Vector3, Raycaster } from 'three';
+import { Group, Vector3, Raycaster, PerspectiveCamera } from 'three';
 import { inspectBuilding, focusPose, overviewPose, presetPose, disposeModel } from '../src/components/building/modelGeometry.js';
 import { klDay, dateRange } from '../src/components/building/operationalFilters.js';
 import { indicator } from '../src/components/building/operationalIndicators.js';
@@ -91,7 +91,12 @@ test('Phase 4 camera presets fit bounds and stay outside the exterior for deskto
     const pose = presetPose(data.bounds,aspect,preset);
     assert.ok(!data.bounds.containsPoint(pose.position));
     assert.ok(pose.position.toArray().every(Number.isFinite));
-    assert.ok(pose.position.distanceTo(pose.target) >= data.size.length());
+    const camera = new PerspectiveCamera(40,aspect,.5,3000);
+    camera.position.copy(pose.position);camera.lookAt(pose.target);camera.updateMatrixWorld();
+    for (const x of [data.bounds.min.x,data.bounds.max.x]) for (const y of [data.bounds.min.y,data.bounds.max.y]) for (const z of [data.bounds.min.z,data.bounds.max.z]) {
+      const projected = new Vector3(x,y,z).project(camera);
+      assert.ok(Math.abs(projected.x)<1 && Math.abs(projected.y)<1 && projected.z>0 && projected.z<1, `${preset} clipped a bounding corner`);
+    }
   }
   assert.ok(focusPose(data.landmarks[0].position,data.bounds,.5).position.distanceTo(new Vector3(...data.landmarks[0].position)) > focusPose(data.landmarks[0].position,data.bounds,1).position.distanceTo(new Vector3(...data.landmarks[0].position)));
 });
