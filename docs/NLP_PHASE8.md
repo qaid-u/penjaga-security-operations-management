@@ -24,7 +24,7 @@ Post identity does not verify a model coordinate. All current markers retain the
 
 Gemini review remains optional and bounded, with exact original-source quotation validation and no tools or write authority. The event-aware prompt includes at most 24 event summaries and discloses truncation; original assertion status is distinguished from separate user clarification. Provider errors still mean unavailable review. Automated tests mock the provider; this phase does not claim live Gemini accuracy or an independently validated probability.
 
-The existing worker still waits for bounded provider review before completing persistence and conservative notifications. Separating provider review from initial local processing remains a deployment limitation described in Phase 7.
+Local analysis and conservative notifications now commit before optional provider review. Review uses an independent worker with persisted pending/processing metadata, expiring leases and source-identity checks. Provider latency does not block local processing; failed review remains explicitly unavailable. This supersedes the provider-latency limitation in the earlier Phase 7 snapshot.
 
 ## Installation and testing
 

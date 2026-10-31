@@ -70,9 +70,9 @@ export function weekLabel(value) {
   return `${monthName} Minggu ${weekOfMonth}`;
 }
 
-export async function downloadCsv(path, filename) {
+export async function downloadCsv(path, filename, params = {}) {
   try {
-    const { data } = await api.get(path, { responseType: 'blob' });
+    const { data } = await api.get(path, { responseType: 'blob', params });
     const url = URL.createObjectURL(data);
     const link = document.createElement('a');
     link.href = url;

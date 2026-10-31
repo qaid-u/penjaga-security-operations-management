@@ -1,21 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Upload, X } from 'lucide-react';
 import api from '../api/axios';
 import { ROLE, notifyError, notifySuccess, shiftTimes, shiftTimeLabel, statusTone } from '../utils/helpers';
-import { PageHeader, Card, AlertMessage, Button, StatCard, Field, Select, Input, Badge, Textarea, EmptyState } from '../components/ui';
+import { PageHeader, Card, AlertMessage, Button, Field, Select, Input, Badge, Textarea, EmptyState, LoadingState, ConfirmModal } from '../components/ui';
 
 export function SchedulePage({ auth }) {
   const canManage = [ROLE.admin, ROLE.chief].includes(auth.user?.nama_peranan);
   const isAdmin = auth.user?.nama_peranan === ROLE.admin;
-  const today = new Date().toISOString().slice(0, 10);
-  const [meta, setMeta] = useState({ posts: [], guards: [] });
-  const [selectedWeekId, setSelectedWeekId] = useState('');
-  const [selectedWeek, setSelectedWeek] = useState(null);
-  const [coverage, setCoverage] = useState(null);
-  const [requirements, setRequirements] = useState([]);
-  const [mySchedule, setMySchedule] = useState([]);
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const [scheduleView, setScheduleView] = useState('assignments');
+  const [weekSelection, setSelectedWeekId] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [requirementForm, setRequirementForm] = useState({ id_pos: '', syif: 'Pagi', bilangan_diperlukan: 1, status_aktif: true });
-  const [quickDate, setQuickDate] = useState(today);
+  const [dateSelection, setQuickDate] = useState('');
   const [assignmentFilters, setAssignmentFilters] = useState({ post: '', shift: '', status: 'need' });
   const [assignmentForm, setAssignmentForm] = useState(null);
   const [conflict, setConflict] = useState(null);
@@ -23,35 +21,32 @@ export function SchedulePage({ auth }) {
   const [pdfFile, setPdfFile] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const loadMeta = useCallback(() => api.get('/meta').then((res) => setMeta(res.data)), []);
-  const loadWeeks = useCallback(() => api.get('/jadual/mingguan').then((res) => {
-    setSelectedWeekId((current) => current || String(res.data[0]?.id_jadual_mingguan || ''));
-  }), []);
-  const loadWeekData = useCallback(async () => {
-    if (!selectedWeekId) return;
-    const [week, summary] = await Promise.all([
-      api.get(`/jadual/mingguan/${selectedWeekId}`),
-      api.get(`/jadual/mingguan/${selectedWeekId}/coverage-summary`),
-    ]);
-    setSelectedWeek(week.data);
-    setCoverage(summary.data);
-  }, [selectedWeekId]);
-  const loadMySchedule = useCallback(() => api.get('/jadual/my-schedule').then((res) => setMySchedule(res.data)), []);
-  const loadRequirements = useCallback(() => api.get('/jadual/keperluan-pos').then((res) => setRequirements(res.data)), []);
-
-  useEffect(() => { loadMeta(); }, [loadMeta]);
-  useEffect(() => { if (canManage) loadRequirements(); }, [canManage, loadRequirements]);
-  useEffect(() => { canManage ? loadWeeks() : loadMySchedule(); }, [canManage, loadWeeks, loadMySchedule]);
-  useEffect(() => {
-    if (!canManage || !selectedWeekId) return;
-    Promise.all([
-      api.get(`/jadual/mingguan/${selectedWeekId}`),
-      api.get(`/jadual/mingguan/${selectedWeekId}/coverage-summary`),
-    ]).then(([week, summary]) => {
-      setSelectedWeek(week.data);
-      setCoverage(summary.data);
-    });
-  }, [canManage, selectedWeekId]);
+  const metaQuery = useQuery({ queryKey: ['meta'], queryFn: async ({ signal }) => (await api.get('/meta', { signal })).data, enabled: canManage });
+  const weeksQuery = useQuery({ queryKey: ['schedule-weeks'], queryFn: async ({ signal }) => (await api.get('/jadual/mingguan', { signal })).data, enabled: canManage });
+  const weeks = weeksQuery.data || [];
+  const currentWeek = weeks.find(week => week.tarikh_mula?.slice(0,10) <= today && week.tarikh_tamat?.slice(0,10) >= today) || weeks[0];
+  const selectedWeekId = weekSelection || String(currentWeek?.id_jadual_mingguan || '');
+  const weekQuery = useQuery({ queryKey: ['schedule-week', selectedWeekId], queryFn: async ({ signal }) => (await api.get('/jadual/mingguan/' + selectedWeekId, { signal })).data, enabled: canManage && Boolean(selectedWeekId) });
+  const selectedWeek = weekQuery.data || weeks.find(week => String(week.id_jadual_mingguan) === selectedWeekId);
+  const start = selectedWeek?.tarikh_mula?.slice(0,10), end = selectedWeek?.tarikh_tamat?.slice(0,10);
+  const preferredDate = dateSelection || today;
+  const quickDate = start && end ? (preferredDate >= start && preferredDate <= end ? preferredDate : start) : today;
+  const coverageQuery = useQuery({ queryKey: ['schedule-coverage', selectedWeekId, quickDate], queryFn: async ({ signal }) => (await api.get('/jadual/mingguan/' + selectedWeekId + '/coverage-summary', { signal, params: { date: quickDate } })).data, enabled: canManage && Boolean(start && end) });
+  const requirementsQuery = useQuery({ queryKey: ['schedule-requirements'], queryFn: async ({ signal }) => (await api.get('/jadual/keperluan-pos', { signal })).data, enabled: canManage });
+  const myScheduleQuery = useQuery({ queryKey: ['my-schedule'], queryFn: async ({ signal }) => (await api.get('/jadual/my-schedule', { signal })).data, enabled: !canManage });
+  const meta = metaQuery.data || { posts: [], guards: [] };
+  const coverage = coverageQuery.isError ? null : coverageQuery.data;
+  const requirements = requirementsQuery.data || [];
+  const mySchedule = myScheduleQuery.data || [];
+  const queries = canManage ? [metaQuery, weeksQuery, requirementsQuery, ...(selectedWeekId ? [weekQuery, coverageQuery] : [])] : [myScheduleQuery];
+  const hasError = queries.some(query => query.isError);
+  const retry = () => Promise.all(queries.filter(query => query.isError).map(query => query.refetch()));
+  const loadWeeks = () => weeksQuery.refetch();
+  const loadWeekData = () => Promise.all([weekQuery.refetch(), coverageQuery.refetch()]);
+  const loadRequirements = () => requirementsQuery.refetch();
+  const loadMySchedule = () => myScheduleQuery.refetch();
+  const loading = queries.some(query => query.isLoading);
+  const errorNotice = hasError && <AlertMessage>Data jadual belum dapat dimuatkan. <button type="button" className="underline" onClick={retry}>Cuba lagi</button></AlertMessage>;
 
   const assignmentRows = useMemo(() => {
     const rows = coverage?.coverageByPost || [];
@@ -110,10 +105,11 @@ export function SchedulePage({ auth }) {
 
   const saveAssignment = async (event) => {
     event.preventDefault();
-    const result = await checkConflict();
-    if (result && !result.ok) return notifyError({ message: result.critical.join('. ') }, 'Konflik jadual dikesan');
+    if (saving) return;
     setSaving(true);
     try {
+      const result = await checkConflict();
+      if (result && !result.ok) return notifyError({ message: result.critical.join('. ') }, 'Konflik jadual dikesan');
       if (assignmentForm.id_jadual) await api.put(`/jadual/assignments/${assignmentForm.id_jadual}`, assignmentForm);
       else await api.post(`/jadual/mingguan/${selectedWeekId}/assignments`, assignmentForm);
       notifySuccess('Tugasan jadual disimpan');
@@ -127,13 +123,16 @@ export function SchedulePage({ auth }) {
   };
 
   const deleteAssignment = async (id) => {
+    if (saving) return;
+    setSaving(true);
     try {
       await api.delete(`/jadual/assignments/${id}`);
+      setDeleteTarget(null);
       notifySuccess('Tugasan jadual dipadam');
       await loadWeekData();
     } catch (error) {
       notifyError(error, 'Tugasan jadual gagal dipadam');
-    }
+    } finally { setSaving(false); }
   };
 
   const saveRequirement = async (event) => {
@@ -204,10 +203,11 @@ export function SchedulePage({ auth }) {
       <div className="space-y-5">
         <PageHeader title="Jadual Bertugas Saya" description="Lihat tugasan pos, syif, masa dan status kehadiran anda." />
         <Card title="Tugasan Saya">
-          {mySchedule.length ? mySchedule.map((item) => {
+          {errorNotice}
+          {loading ? <LoadingState message="Memuatkan tugasan..." /> : hasError ? null : mySchedule.length ? mySchedule.map((item) => {
             const dutyDate = item.tarikh_tugas?.slice(0, 10);
-            const canCheckIn = dutyDate === today && !item.masa_check_in;
-            const canCheckOut = dutyDate === today && item.masa_check_in && !item.masa_check_out;
+            const canCheckIn = item.can_check_in;
+            const canCheckOut = item.can_check_out;
             return (
               <div key={item.id_jadual} className="app-row mb-3 rounded-md border p-4 text-sm">
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -234,16 +234,25 @@ export function SchedulePage({ auth }) {
 
   return (
     <div className="desktop-ops space-y-5">
-      <PageHeader title="Pengurusan Jadual Bertugas Berasaskan Templat Mingguan" description="Rancang jadual mingguan mengikut tarikh, syif, pos dan pengawal tanpa algoritma automatik." />
-      <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <PageHeader title="Jadual bertugas" description="Semak liputan pos dan tugaskan pengawal mengikut minggu." />
+      {errorNotice}
+      {loading && <LoadingState message="Memuatkan jadual..." />}
+      {!weeksQuery.isPending && !weeksQuery.isError && !weeks.length && <EmptyState title="Tiada minggu jadual" description="Minggu jadual belum disediakan dalam sistem." />}
+      <div className="max-w-md"><Field label="Minggu jadual"><Select value={selectedWeekId} onChange={event => {
+        const week = weeks.find(item => String(item.id_jadual_mingguan) === event.target.value);
+        setSelectedWeekId(event.target.value);
+        if (week?.tarikh_mula) setQuickDate(week.tarikh_mula.slice(0, 10));
+      }}><option value="" disabled>Pilih minggu</option>{weeks.map(week => <option key={week.id_jadual_mingguan} value={week.id_jadual_mingguan}>{week.tarikh_mula?.slice(0, 10)} hingga {week.tarikh_tamat?.slice(0, 10)} · {week.status_jadual}</option>)}</Select></Field></div>
+      <div className="workspace-tabs" aria-label="Paparan jadual"><button aria-pressed={scheduleView === 'assignments'} onClick={() => setScheduleView('assignments')}>Tugasan & liputan</button><button aria-pressed={scheduleView === 'settings'} onClick={() => setScheduleView('settings')}>Tetapan & import</button></div>
+      <div className="space-y-5">
         <div className="space-y-5">
-          {selectedWeek && <Card title="Status Jadual Semasa">
-            <div className="space-y-2 text-sm">
+          {selectedWeek && <Card>
+            <div className="flex flex-wrap items-center gap-4 text-sm"><strong>Status jadual</strong>
               <Badge tone={statusTone(selectedWeek.status_jadual)}>{selectedWeek.status_jadual}</Badge>
               <p>{selectedWeek.tarikh_mula?.slice(0, 10)} hingga {selectedWeek.tarikh_tamat?.slice(0, 10)}</p>
               {selectedWeek.catatan && <p>{selectedWeek.catatan}</p>}
               <div className="flex flex-wrap gap-2">
-                {isAdmin && <Button variant="ghost" onClick={() => updateWeekStatus('confirm')}>Sahkan</Button>}
+                {isAdmin && scheduleView === 'settings' && <Button variant="ghost" onClick={() => updateWeekStatus('confirm')}>Sahkan</Button>}
                 {isAdmin && <Button variant="ghost" onClick={() => updateWeekStatus('lock')}>Kunci</Button>}
                 {isAdmin && <Button variant="ghost" onClick={() => updateWeekStatus('unlock')}>Buka Kunci</Button>}
               </div>
@@ -251,7 +260,7 @@ export function SchedulePage({ auth }) {
             </div>
           </Card>}
 
-          <Card title="Tetapan Keperluan Pos">
+          {scheduleView === 'settings' && <div className="grid gap-5 xl:grid-cols-2"><Card title="Tetapan Keperluan Pos">
             <form onSubmit={saveRequirement} className="space-y-3">
               <Field label="Pos kawalan"><Select required value={requirementForm.id_pos} onChange={(e) => setRequirementForm({ ...requirementForm, id_pos: e.target.value })}><option value="">Pilih pos</option>{meta.posts.map((post) => <option key={post.id_pos} value={post.id_pos}>{post.nama_pos}</option>)}</Select></Field>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -274,27 +283,19 @@ export function SchedulePage({ auth }) {
               <Button variant="ghost" disabled={saving}><Upload size={16} /> Muat naik PDF</Button>
             </form>
           </Card>}
+          </div>}
         </div>
 
-        <div className="space-y-5">
-          {coverage && <Card title="Ringkasan Liputan">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-              <StatCard label="Keperluan" value={coverage.totalRequired} />
-              <StatCard label="Ditugaskan" value={coverage.totalAssigned} />
-              <StatCard label="Kekurangan" value={coverage.shortage} />
-              <StatCard label="Sedang Hadir" value={coverage.activeDutyCount} />
-              <StatCard label="Tidak Hadir" value={coverage.absentGuardCount} />
-            </div>
+        {scheduleView === 'assignments' && <div className="space-y-5">
+          {coverage && <Card title="Ringkasan Liputan"><p className="mb-4 workspace-note">Tarikh: {quickDate} · Keperluan dan kehadiran untuk hari dipilih.</p>
+            <dl className="workspace-coverage-stats">{[['Keperluan',coverage.totalRequired],['Ditugaskan',coverage.totalAssigned],['Kekurangan',coverage.shortage],['Sedang hadir',coverage.activeDutyCount],['Tidak hadir',coverage.absentGuardCount]].map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
             {coverage.uncoveredPosts?.length > 0 && <AlertMessage>{coverage.uncoveredPosts.length} kombinasi pos/syif belum mempunyai pengawal.</AlertMessage>}
           </Card>}
 
           {coverage && <Card title="Keperluan Pos & Tugasan Pengawal">
-            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              <p className="font-semibold">Cara guna ringkas</p>
-              <p>1. Pilih tarikh tugasan. 2. Semak pos yang bertanda Perlu tambah. 3. Klik Tugaskan pengawal dan pilih nama pengawal.</p>
-            </div>
-            <div className="mb-4 grid gap-3 rounded-lg border bg-white p-3 md:grid-cols-[180px_1fr_160px_170px]">
-              <Field label="Tarikh tugasan"><Input type="date" value={quickDate} onChange={(e) => setQuickDate(e.target.value)} /></Field>
+            <p className="mb-4 workspace-note">Pilih tarikh, kemudian tugaskan pengawal pada pos yang bertanda “Perlu tambah”.</p>
+            <div className="mb-4 grid gap-3 rounded-lg border bg-white p-3 sm:grid-cols-2 xl:grid-cols-[180px_minmax(0,1fr)_180px_170px]">
+              <Field label="Tarikh tugasan"><Input type="date" min={start} max={end} value={quickDate} onChange={(e) => setQuickDate(e.target.value)} /></Field>
               <Field label="Cari ikut pos"><Select value={assignmentFilters.post} onChange={(e) => setAssignmentFilters({ ...assignmentFilters, post: e.target.value })}><option value="">Semua pos</option>{meta.posts.map((post) => <option key={post.id_pos} value={post.id_pos}>{post.nama_pos}</option>)}</Select></Field>
               <Field label="Syif dan masa"><Select value={assignmentFilters.shift} onChange={(e) => setAssignmentFilters({ ...assignmentFilters, shift: e.target.value })}><option value="">Semua syif</option><option value="Pagi">Pagi ({shiftTimeLabel('Pagi')})</option><option value="Petang">Petang ({shiftTimeLabel('Petang')})</option><option value="Malam">Malam ({shiftTimeLabel('Malam')})</option><option value="Office Hour">Office Hour ({shiftTimeLabel('Office Hour')})</option></Select></Field>
               <Field label="Paparan"><Select value={assignmentFilters.status} onChange={(e) => setAssignmentFilters({ ...assignmentFilters, status: e.target.value })}><option value="need">Perlu tambah</option><option value="complete">Cukup lengkap</option><option value="all">Semua</option></Select></Field>
@@ -317,16 +318,11 @@ export function SchedulePage({ auth }) {
                       </div>
                       <Badge tone={isCovered ? 'Low' : 'Medium'}>{isCovered ? 'Cukup' : 'Perlu tambah'}</Badge>
                     </div>
-                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-md bg-white p-2"><p className="text-lg font-bold text-primary-token">{row.required}</p><p className="text-xs text-secondary-token">Perlu</p></div>
-                      <div className="rounded-md bg-white p-2"><p className="text-lg font-bold text-primary-token">{row.assigned}</p><p className="text-xs text-secondary-token">Ada</p></div>
-                      <div className="rounded-md bg-white p-2"><p className={`text-lg font-bold ${shortage ? 'text-amber-700' : 'text-green-700'}`}>{shortage}</p><p className="text-xs text-secondary-token">Kurang</p></div>
-                    </div>
-                    {shortage > 0 && <AlertMessage>Tambah {shortage} pengawal untuk lengkapkan pos ini.</AlertMessage>}
-                    {row.assigned_guards?.length > 0 ? (
+                    <p className="mt-4"><strong>{row.assigned} / {row.required}</strong> pengawal ditugaskan{shortage > 0 && <span className="text-amber-800"> · Perlu {shortage} lagi</span>}</p>
+                    {row.assignments?.length > 0 ? (
                       <div className="mt-3 space-y-2">
                         <p className="label-caps">Pengawal ditugaskan</p>
-                        {row.assigned_guards.map((guard) => (
+                        {row.assignments.map((guard) => (
                           <div key={guard.id_jadual} className="rounded-md border bg-white p-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div>
@@ -337,7 +333,7 @@ export function SchedulePage({ auth }) {
                             </div>
                             <div className="mt-2 flex flex-wrap gap-2">
                               <Button variant="ghost" onClick={() => openAssignment({ ...guard, id_pos: row.id_pos, syif: row.syif })} disabled={lockedForChief}>Edit</Button>
-                              <Button variant="danger" onClick={() => deleteAssignment(guard.id_jadual)} disabled={lockedForChief}>Padam</Button>
+                              <Button variant="danger" onClick={() => setDeleteTarget(guard)} disabled={lockedForChief}>Padam</Button>
                             </div>
                           </div>
                         ))}
@@ -349,9 +345,10 @@ export function SchedulePage({ auth }) {
               }) : <EmptyState title="Tiada pos untuk paparan ini" description="Cuba pilih Semua atau tukar penapis pos/syif." />}
             </div>
           </Card>}
-        </div>
+        </div>}
       </div>
 
+      <ConfirmModal open={Boolean(deleteTarget)} title="Padam tugasan?" message={deleteTarget ? 'Padam tugasan ' + deleteTarget.nama_penuh + ' pada ' + deleteTarget.tarikh_tugas?.slice(0,10) + '?' : ''} confirmLabel="Padam tugasan" danger pending={saving} onCancel={() => setDeleteTarget(null)} onConfirm={() => deleteAssignment(deleteTarget.id_jadual)} />
       {assignmentForm && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(0,0,0,0.55)] p-0 sm:items-center sm:p-4">
           <div className="app-elevated motion-sheet max-h-[92vh] w-full overflow-y-auto rounded-t-lg border p-4 shadow-xl sm:max-w-2xl sm:rounded-lg">
@@ -359,9 +356,9 @@ export function SchedulePage({ auth }) {
               <div><h2>{assignmentForm.id_jadual ? 'Edit Tugasan' : 'Tambah Tugasan'}</h2><p className="text-sm">Semak konflik sebelum simpan tugasan.</p></div>
               <Button variant="ghost" onClick={() => setAssignmentForm(null)}><X size={16} /> Tutup</Button>
             </div>
-            <form onSubmit={saveAssignment} className="space-y-3">
+            <form onSubmit={saveAssignment} onChangeCapture={() => setConflict(null)} className="space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Tarikh"><Input type="date" required value={assignmentForm.tarikh_tugas} onChange={(e) => setAssignmentForm({ ...assignmentForm, tarikh_tugas: e.target.value })} /></Field>
+                <Field label="Tarikh"><Input type="date" required min={start} max={end} value={assignmentForm.tarikh_tugas} onChange={(e) => setAssignmentForm({ ...assignmentForm, tarikh_tugas: e.target.value })} /></Field>
                 <Field label="Syif"><Select value={assignmentForm.syif} onChange={(e) => {
                   const times = shiftTimes[e.target.value] || shiftTimes.Pagi;
                   setAssignmentForm({ ...assignmentForm, syif: e.target.value, masa_mula: times.start, masa_tamat: times.end });
@@ -375,7 +372,7 @@ export function SchedulePage({ auth }) {
               {conflict?.critical?.length > 0 && <AlertMessage>{conflict.critical.join('. ')}</AlertMessage>}
               {conflict?.ok && <AlertMessage type="success">Tiada konflik kritikal dikesan.</AlertMessage>}
               <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="ghost" onClick={() => checkConflict()}>Semak konflik</Button>
+                <Button type="button" variant="ghost" disabled={saving} onClick={() => checkConflict().catch(error => notifyError(error, 'Semakan konflik gagal'))}>Semak konflik</Button>
                 <Button disabled={saving || conflict?.critical?.length}>{saving ? 'Menyimpan...' : 'Simpan tugasan'}</Button>
               </div>
             </form>

@@ -1,10 +1,8 @@
 import { Button, Field, Select } from '../ui';
-import { useState } from 'react';
 import { apiMessage } from './operationalIndicators';
 import { klDay, dateRange } from './operationalFilters';
 
 export function AdvancedFilters({ data, filters, change, mode, operations, period, setPeriod, onZone, reset }) {
-  const [initialOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches);
   const incident = mode === 'incidents' || mode === 'followup';
   const refs = operations.references;
   const field = (key, label, options) => <Field label={label}><Select value={filters[key]} onChange={(e) => change(key, e.target.value)}>{options.map(([value,label]) => <option value={value} key={value}>{label}</option>)}</Select></Field>;
@@ -14,7 +12,7 @@ export function AdvancedFilters({ data, filters, change, mode, operations, perio
       <p className="text-xs">Model eksterior sahaja. Aras pos mengikut senarai rasmi; kedudukan dalaman belum disahkan. Penanda berlabel anggaran ialah proksi visual, bukan lokasi tepat.</p>
     </div>
     <p className="mt-2 text-xs" aria-live="polite">Penapis aktif: {filters.mapping === 'all' ? 'semua pos' : filters.mapping === 'linked' ? 'pos dipautkan' : 'pos tanpa pautan'}{filters.post && ` · pos #${filters.post}`}{incident && [filters.risk,filters.category,filters.report_status,filters.action_status].filter(Boolean).map((v) => ` · ${v}`).join('')}</p>
-    <details open={initialOpen} className="mt-3">
+    <details className="mt-3">
     <summary className="cursor-pointer font-semibold">Penapis lanjutan & julat pantas</summary>
     <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {field('mapping','Pemetaan pos',[['all','Semua pos (termasuk tanpa pautan)'],['linked','Pos dipautkan'],['unlinked','Pos tanpa pautan 3D']])}

@@ -153,23 +153,19 @@ test('mobile 3D stage fits the viewport and keeps the chosen building identity',
   await page.screenshot({ path: 'artifacts/integration/library-bdara-mobile.png', fullPage: true });
 });
 
-test('dashboard model showcase opens its selected building without preloading GLBs', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 1100 });
+test('compact dashboard link opens 3D without preloading models and gallery is optional', async ({ page }) => {
   const { models } = await setup(page);
-  await page.route('**/api/dashboard*', (route) => route.fulfill({ json: { cards: {}, priority: {}, latest: [], byCategory: [], byRisk: [], trend: [], keywords: [] } }));
-  await page.route('**/api/meta', (route) => route.fulfill({ json: { posts: [] } }));
-  await page.route('**/api/reports/briefing*', (route) => route.fulfill({ json: { items: [] } }));
+  await page.route('**/api/dashboard*', route => route.fulfill({ json: { cards: {}, priority: {}, latest: [] } }));
   await page.goto('/dashboard');
-  const showcase = page.getByRole('region', { name: 'Terokai portfolio bangunan 3D' });
-  await expect(showcase).toBeVisible();
-  await showcase.getByRole('button', { name: `Pratonton ${getBuilding('UTC_JOHOR').name}`, exact: true }).click();
-  await expect(showcase.getByRole('img', { name: `Model eksterior ${getBuilding('UTC_JOHOR').name}` })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Terokai pos dalam 3D' })).toBeVisible();
   expect(models).toEqual([]);
-  await page.screenshot({ path: 'artifacts/integration/dashboard-model-showcase.png', fullPage: false });
-  await showcase.screenshot({ path: 'artifacts/integration/dashboard-model-showcase-card.png' });
-  await showcase.getByRole('button', { name: 'Buka pusat kawalan 3D', exact: false }).click();
-  await expect(page).toHaveURL(/\/3d-command-centre\?building=UTC_JOHOR$/u);
+  await page.locator('.workspace-map-link').click();
+  await expect(page).toHaveURL(/\/3d-command-centre$/u);
   await expect(page.locator('canvas')).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Pilihan bangunan 3D' })).toBeHidden();
+  await page.getByText('Galeri bangunan', { exact: false }).click();
+  await page.getByRole('button', { name: 'Lihat ' + getBuilding('UTC_JOHOR').name, exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Pilih bangunan', exact: true })).toHaveValue('UTC_JOHOR');
   await expect(postButton(page, getBuilding('UTC_JOHOR').hotspots[0])).toBeVisible();
 });
 

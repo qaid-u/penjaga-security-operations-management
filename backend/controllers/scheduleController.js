@@ -3,6 +3,7 @@ const path = require('path');
 const pool = require('../config/db');
 const { logAudit } = require('../utils/audit');
 const { roles } = require('../middleware/auth');
+const { todaySql, eligibleSql, checkInSql } = require('../utils/attendance');
 
 const validShifts = ['Pagi', 'Petang', 'Malam', 'Office Hour'];
 
@@ -36,7 +37,7 @@ const getWeeks = async (req, res) => {
   let client;
   try {
     client = await pool.connect();
-    const result = await client.query('select * from tbl_jadual_mingguan order by tarikh_mula desc');
+    const result = await client.query('select *, tarikh_mula::text as tarikh_mula, tarikh_tamat::text as tarikh_tamat from tbl_jadual_mingguan order by tbl_jadual_mingguan.tarikh_mula desc');
     res.json(result.rows);
   } catch (error) {
     console.error('Get schedule weeks error:', error.code || error.name);
@@ -65,6 +66,8 @@ const getWeek = async (req, res) => {
 };
 
 const getCoverage = async (req, res) => {
+  const date = req.query.date;
+  if (date !== undefined && !validDate(date)) return res.status(400).json({ message: 'Tarikh liputan tidak sah' });
   let client;
   try {
     client = await pool.connect();
@@ -74,6 +77,7 @@ const getCoverage = async (req, res) => {
     );
     const week = weekResult.rows[0];
     if (!week) return res.status(404).json({ message: 'Jadual mingguan tidak ditemui' });
+    if (date && (date < week.tarikh_mula || date > week.tarikh_tamat)) return res.status(400).json({ message: 'Tarikh liputan mesti berada dalam minggu dipilih' });
 
     const [requirements, assignments] = [
       await client.query(
@@ -84,13 +88,13 @@ const getCoverage = async (req, res) => {
          order by p.nama_pos, k.syif`
       ),
       await client.query(
-        `select s.*, p.nama_penuh, p.nama_pengguna, pos.nama_pos
+        `select s.*, s.tarikh_tugas::text as tarikh_tugas, p.nama_penuh, p.nama_pengguna, pos.nama_pos
          from tbl_jadual_bertugas s
          join tbl_pengguna p on p.id_pengguna = s.id_pengguna
          join tbl_pos_kawalan pos on pos.id_pos = s.id_pos
-         where s.id_jadual_mingguan = $1
+         where s.id_jadual_mingguan = $1 and ($2::date is null or s.tarikh_tugas = $2::date)
          order by s.tarikh_tugas, s.syif, pos.nama_pos, p.nama_penuh`,
-        [req.params.id]
+        [req.params.id, date || null]
       ),
     ];
 
@@ -98,7 +102,7 @@ const getCoverage = async (req, res) => {
       const matchingAssignments = assignments.rows.filter(
         (assignment) => assignment.id_pos === requirement.id_pos && assignment.syif === requirement.syif
       );
-      const days = Math.max(
+      const days = date ? 1 : Math.max(
         0,
         Math.floor((new Date(`${week.tarikh_tamat}T00:00:00Z`) - new Date(`${week.tarikh_mula}T00:00:00Z`)) / 86400000) + 1
       );
@@ -120,7 +124,7 @@ const getCoverage = async (req, res) => {
       coverageByPost,
       totalRequired,
       totalAssigned,
-      shortage: Math.max(0, totalRequired - totalAssigned),
+      shortage: coverageByPost.reduce((sum, item) => sum + item.shortage, 0),
       activeDutyCount: assignments.rows.filter((item) => item.status_bertugas === 'Hadir').length,
       absentGuardCount: assignments.rows.filter((item) => item.status_bertugas === 'Tidak Hadir').length,
       uncoveredPosts: coverageByPost.filter((item) => item.shortage > 0),
@@ -138,13 +142,15 @@ const getMySchedule = async (req, res) => {
   try {
     client = await pool.connect();
     const result = await client.query(
-      `select s.*, pos.nama_pos, pos.nama_bangunan, pos.lokasi,
+      `select s.*, s.tarikh_tugas::text as tarikh_tugas, pos.nama_pos, pos.nama_bangunan, pos.lokasi,
+              (${checkInSql('s')} and a.masa_check_in is null) as can_check_in,
+              (${eligibleSql('s')} and a.masa_check_in is not null and a.masa_check_out is null) as can_check_out,
               coalesce(a.status_kehadiran, 'Belum Hadir') as status_kehadiran,
               a.masa_check_in, a.masa_check_out
        from tbl_jadual_bertugas s
        join tbl_pos_kawalan pos on pos.id_pos = s.id_pos
        left join tbl_kehadiran_tugas a on a.id_jadual = s.id_jadual
-       where s.id_pengguna = $1 and s.tarikh_tugas >= current_date
+       where s.id_pengguna = $1 and (s.tarikh_tugas >= ${todaySql} or ${eligibleSql('s')})
        order by s.tarikh_tugas, s.masa_mula`,
       [req.user.id_pengguna]
     );
@@ -394,19 +400,19 @@ const checkAttendance = async (req, res, action) => {
     const assignment = await client.query(
       `select id_jadual, id_pengguna
        from tbl_jadual_bertugas
-       where id_jadual = $1 and id_pengguna = $2 and tarikh_tugas = current_date
+       where id_jadual = $1 and id_pengguna = $2 and ${action === 'check-in' ? checkInSql() : eligibleSql()}
        for update`,
       [req.params.id, req.user.id_pengguna]
     );
     if (!assignment.rowCount) {
       if (client) await client.query('rollback');
-      return res.status(404).json({ message: 'Tugasan hari ini tidak ditemui untuk akaun anda' });
+      return res.status(404).json({ message: 'Tugasan yang layak untuk kehadiran tidak ditemui untuk akaun anda' });
     }
     const assignmentId = assignment.rows[0].id_jadual;
     if (action === 'check-in') {
       const attendance = await client.query(
         `insert into tbl_kehadiran_tugas (id_jadual, id_pengguna, masa_check_in, status_kehadiran)
-         values ($1, $2, now(), 'Hadir')
+         values ($1, $2, now() at time zone 'Asia/Kuala_Lumpur', 'Hadir')
          on conflict (id_jadual) do nothing
          returning *`,
         [assignmentId, req.user.id_pengguna]
@@ -421,7 +427,7 @@ const checkAttendance = async (req, res, action) => {
     }
     const result = await client.query(
       `update tbl_kehadiran_tugas
-       set masa_check_out = now(), status_kehadiran = 'Selesai'
+       set masa_check_out = now() at time zone 'Asia/Kuala_Lumpur', status_kehadiran = 'Selesai'
        where id_jadual = $1 and id_pengguna = $2 and masa_check_in is not null and masa_check_out is null
        returning *`,
       [assignmentId, req.user.id_pengguna]

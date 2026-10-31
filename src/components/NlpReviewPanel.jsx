@@ -16,6 +16,7 @@ const readMetadata = (value) => {
 const textOf = (value) => typeof value === 'string' ? value : value?.text || value?.quote || value?.value || value?.name || value?.label || '';
 const reviewState = (status) => status === 'consistent' ? { title: 'Tiada percanggahan dikesan', Icon: CheckCircle2, tone: 'clear' }
   : status === 'needs_review' ? { title: 'Perlu semakan', Icon: AlertCircle, tone: 'attention' }
+    : ['pending', 'processing'].includes(status) ? { title: 'Semakan AI sedang diproses', Icon: Clock3, tone: 'neutral' }
     : { title: 'Semakan AI belum tersedia', Icon: Clock3, tone: 'neutral' };
 
 export function NlpReviewPanel({ report = {}, analysis: initialAnalysis, job: initialJob, review: initialReview, autoRefresh = true, showRelated = true, reportRoute = '/semakan', canGiveFeedback = false }) {
@@ -31,7 +32,7 @@ export function NlpReviewPanel({ report = {}, analysis: initialAnalysis, job: in
     queryFn: async () => (await api.get(`/reports/${reportId}/analysis`)).data,
     enabled: Boolean(reportId) && autoRefresh,
     retry: false,
-    refetchInterval: (query) => ['pending', 'processing'].includes(query.state.data?.job?.status) && Date.now() - pollingStarted.current < 90000 ? 2500 : false,
+    refetchInterval: (query) => (['pending', 'processing'].includes(query.state.data?.job?.status) || ['pending', 'processing'].includes(query.state.data?.analysis?.metadata?.review?.status)) && Date.now() - pollingStarted.current < 90000 ? 2500 : false,
   });
   const relatedQuery = useQuery({
     queryKey: ['relatedReports', reportId],

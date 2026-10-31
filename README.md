@@ -162,12 +162,14 @@ Jumlah anggota pembantu keselamatan bagi setiap syif:
 
 Senarai pos kawalan rasmi dimasukkan dalam `backend/database/seed.sql`.
 
-## Rule-Based NLP
+## Hybrid NLP and event clarification
 
-The verified runtime uses database-configured keyword rules:
+The runtime combines trained inference with database-configured rules and source-context checks:
 
-- Database-configured keyword rules at runtime. The saved Naive Bayes training artifact is not compatible with the runtime `weights` contract.
-- Active keywords are read from `tbl_kategori_insiden`; no confidence-based fallback is implemented.
+- `textModel.js` validates and runs the saved multinomial Naive Bayes count model. `reportAnalysis.js` combines its output with context-aware category rules and active keywords from `tbl_kategori_insiden`.
+- Reports can contain separate reported, suspected, negated, drill or unclear events. Optional clarification answers are stored separately from the original narrative and validated against the draft and offered question sequence.
+- Confidence is an uncalibrated relative model score or keyword coverage, not a probability of a real incident. Unsupported classifications remain Unknown.
+- Local analysis and conservative risk alerts are committed first. Optional Gemini review runs in an independent recoverable queue and cannot suppress alerts or make official decisions.
 
 When a Pengawal Keselamatan submits a daily report, the backend:
 
@@ -204,7 +206,7 @@ The generated model is saved to:
 backend/ml/model/nlp-model.json
 ```
 
-Training produces an experimental artifact; it does not activate the saved Naive Bayes classifier in the current runtime. See `backend/ml/README.md`.
+Training produces a versioned count model used by the runtime. Synthetic evaluation is development evidence, not independently measured operational accuracy. See `backend/ml/README.md`.
 
 Risk levels:
 
@@ -222,8 +224,10 @@ Base URL: `http://localhost:3000/api`
 | GET | `/health` | Public |
 | POST | `/auth/login` | Public |
 | GET | `/auth/me` | Authenticated |
+| POST | `/auth/change-password` | Authenticated; current password required |
 | GET | `/meta` | Authenticated |
 | GET | `/reports` | All roles, scoped for Pengawal |
+| GET | `/reports/export.csv` | All roles, scoped for Pengawal; same filters as report list |
 | POST | `/reports` | Pengawal Keselamatan |
 | PATCH | `/reports/:id/review` | Ketua Pengawal |
 | GET | `/dashboard` | Pentadbir Sistem, Ketua Pengawal |
@@ -244,6 +248,7 @@ Base URL: `http://localhost:3000/api`
 | GET | `/notifications` | All roles, own notifications |
 | PATCH | `/notifications/:id/read` | All roles, own notifications |
 | GET | `/audit` | Pentadbir Sistem |
+| GET | `/audit?format=csv` | Pentadbir Sistem; current audit filters supported |
 | GET | `/users` | Pentadbir Sistem |
 | POST | `/users` | Pentadbir Sistem |
 | PATCH | `/users/:id` | Pentadbir Sistem |
@@ -288,4 +293,4 @@ Start with [handover](docs/final/PROJECT_HANDOVER.md), [implementation audit](do
 
 ## NLP upgrade development snapshot
 
-See [Phase 7 implementation and limitations](docs/NLP_PHASE7.md) for trained inference, automatic source checks, the Gemini review connection, simplified reporting and test evidence. External review should remain disabled for operational use until alert persistence is separated from provider latency.
+See [Phase 7](docs/NLP_PHASE7.md) and [Phase 8](docs/NLP_PHASE8.md) for trained inference, source checks and event clarification. Local classification and alerts now persist before optional external review. Provider availability and operational accuracy still require independent verification.

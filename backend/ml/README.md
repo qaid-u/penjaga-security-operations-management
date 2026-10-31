@@ -1,15 +1,15 @@
-# PENJAGA incident classification: verified runtime boundary
+# PENJAGA hybrid incident classification
 
-`nlpService.js` reads active categories, priorities and keyword arrays from PostgreSQL. It normalizes text and performs substring matching. Matching categories receive priority base scores (Low 10, Medium 35, High 65, Critical 85) plus 10 per distinct matched keyword. The largest score is clamped to 0–100; thresholds >80, >60, >30 produce Critical, High, Medium respectively. Otherwise risk is Low. No match defaults to Rondaan Biasa.
+`nlpService.js` loads active database categories and the versioned model in `model/nlp-model.json`. `textModel.js` validates the multinomial Naive Bayes count format and preprocessing version before inference. `reportAnalysis.js` combines predictions with configured keywords and source-context rules. Missing or incompatible models fall back to rules with an explicit source-check finding.
 
-Confidence is matched-keyword coverage within the selected category, not a calibrated probability. Substring matches may produce false positives; negation, context and multilingual performance are not validated. Active categories are required for report submission.
+The pipeline distinguishes reported, suspected, negated, drill and unclear events, retaining exact source spans. `eventDialogue.js` asks optional bounded questions; answers are validated against the original narrative, selected post and offered question sequence. Answers do not rewrite the original report or prove a physical location.
 
-## Experimental training
+`npm run train:nlp` replaces the local count model using synthetic training samples. The runtime reloads changed model files. Confidence denotes an uncalibrated relative model score or keyword coverage; it is not an incident probability. Independent labelled operational evaluation is still required.
 
-`npm run train:nlp` runs `backend/scripts/train-nlp-model.js` and replaces `model/nlp-model.json` using synthetic samples from `data/nlp-training-samples.json` and deterministic expansions. The script trains multinomial Naive Bayes and reports a synthetic validation result. It is not evidence of runtime accuracy or performance on independent operational data.
+## Persistence and optional external review
 
-## Integration gap
+Reports are committed with a durable local-analysis job. The local worker persists classification, evidence and deduplicated conservative notifications in one transaction. A separate worker claims pending review metadata on that saved analysis and invokes optional Gemini review. Provider latency never holds up the local queue or initial alerts.
 
-The runtime reads the JSON for each report but consumes only a `weights` object. The checked-in Naive Bayes artifact has `categories`, vocabulary and count/metric fields, but no `weights`. Its learned counts therefore do not affect current classifications. There is no low-confidence model fallback implementation. `NLP_MODEL_PATH` changes the file path, not this contract.
+Review leases expire after three minutes and are reclaimed at most three times. A crashed process leaves recoverable pending/processing metadata. Provider errors produce an unavailable review without undoing local results. The review worker checks the narrative/post/clarification hash again before attaching results, and cannot change risk scores, report decisions or mappings. Existing completed historical analyses are not automatically reanalysed or reviewed.
 
-Future work: choose one model format, integrate inference explicitly, validate against an independently labelled and consented holdout set, assess per-category precision/recall and calibration, and retain human review. Never commit confidential reports to training files.
+Enable external review explicitly using deployment configuration and a server-side API key. Tests mock provider responses; they do not establish live provider accuracy.

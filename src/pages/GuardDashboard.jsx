@@ -1,30 +1,21 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { CalendarDays, FileText, ArrowRight } from 'lucide-react';
 import api from '../api/axios';
-import { PageHeader, Card, ActionTile, StatCard, LoadingState, EmptyState } from '../components/ui';
+import { PageHeader, Card, Button, Badge, LoadingState, EmptyState, AlertMessage } from '../components/ui';
 
 export function GuardDashboard() {
-  const [data, setData] = useState(null);
-  const navigate = useNavigate();
-  useEffect(() => { api.get('/dashboard/guard').then((res) => setData(res.data)); }, []);
-  if (!data) return <LoadingState message="Memuatkan dashboard pengawal..." />;
-  const cards = [
-    ['Laporan saya', data.today.laporan_dihantar || 0],
-    ['Tugasan hari ini', data.today.tugasan_hari_ini || 0],
-  ];
-  return (
-    <div className="space-y-5">
-      <PageHeader title="Dashboard Pengawal" description="Semak jadual, laporan dan status tugasan anda." />
-      <Card title="Tugasan Perlu Dibuat">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <ActionTile title="Tugasan Hari Ini" value={data.today.tugasan_hari_ini || 0} description="Semak pos, syif dan status bertugas anda." tone={(data.today.tugasan_hari_ini || 0) > 0 ? 'default' : 'urgent'} action={() => navigate('/jadual')} />
-          <ActionTile title="Laporan Hari Ini" value={data.today.laporan_dihantar || 0} description={(data.today.laporan_dihantar || 0) > 0 ? 'Laporan harian telah direkodkan.' : 'Hantar laporan selepas tugasan/rondaan.'} tone={(data.today.laporan_dihantar || 0) > 0 ? 'default' : 'urgent'} action={() => navigate('/laporan')} />
-        </div>
-      </Card>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{cards.map(([label, value]) => <StatCard key={label} label={label} value={value} />)}</div>
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card title="Status Bertugas">{data.duty && data.duty.length ? data.duty.map((d) => <div key={d.id_jadual} className="app-row mb-2 rounded-md border p-3 text-sm"><span className="font-medium text-primary-token">{d.nama_pos}</span><p>{d.tarikh_tugas?.slice(0, 10)} - {d.syif} - {d.status_bertugas}</p></div>) : <EmptyState title="Tiada jadual" description="Belum ada tugasan bertugas untuk dipaparkan." />}</Card>
+  const { data, isPending, isError, refetch } = useQuery({ queryKey: ['guard-dashboard'], queryFn: async () => (await api.get('/dashboard/guard')).data });
+  return <div className="space-y-6">
+    <PageHeader title="Tugasan saya" description="Semak jadual anda dan rekodkan laporan selepas bertugas." />
+    {isPending ? <LoadingState message="Memuatkan tugasan..." /> : isError ? <Card><AlertMessage>Tugasan belum dapat dimuatkan.</AlertMessage><Button className="mt-3" variant="ghost" onClick={() => refetch()}>Cuba lagi</Button></Card> : <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link to="/jadual" className="workspace-metric"><span className="workspace-metric-top"><CalendarDays size={20} />Tugasan hari ini</span><strong>{data.today?.tugasan_hari_ini ?? 0}</strong><small>Semak jadual & rekod kehadiran<ArrowRight size={16} /></small></Link>
+        <Link to="/laporan" className="workspace-metric"><span className="workspace-metric-top"><FileText size={20} />Laporan hari ini</span><strong>{data.today?.laporan_dihantar ?? 0}</strong><small>Tulis laporan harian<ArrowRight size={16} /></small></Link>
       </div>
-    </div>
-  );
+      <Card title="Jadual akan datang" action={<Link to="/jadual" className="workspace-text-link">Lihat jadual saya</Link>}>
+        {data.duty?.length ? data.duty.map(d => <Link to="/jadual" key={d.id_jadual} className="workspace-report-row"><div><strong>{d.nama_pos}</strong><p>{d.tarikh_tugas?.slice(0, 10)} · {d.syif} · {d.masa_mula?.slice(0,5)} – {d.masa_tamat?.slice(0,5)}</p></div><Badge>{d.status_kehadiran || d.status_bertugas}</Badge><ArrowRight size={16} /></Link>) : <EmptyState title="Belum ada tugasan" description="Jadual anda akan dipaparkan selepas tugasan ditetapkan oleh Ketua atau Admin." />}
+      </Card>
+    </>}
+  </div>;
 }

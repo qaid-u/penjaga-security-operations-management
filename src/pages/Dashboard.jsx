@@ -1,175 +1,71 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FileCheck, CalendarDays, ClipboardCheck, Bell, Brain, Activity } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowRight, CalendarDays, ClipboardCheck, FileCheck } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import api from '../api/axios';
 import { ShiftBriefing } from '../components/ShiftBriefing';
-import { ModelShowcase } from '../components/building/ModelShowcase';
 import { ROLE, riskColors } from '../utils/helpers';
-import { PageHeader, Card, ActionTile, StatCard, Badge, Button, FilterPanel, Input, Select, LoadingState, EmptyState, AlertMessage } from '../components/ui';
-
-function LiveTickerBanner({ priority }) {
-  return <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-l-4 border-[var(--color-brand-gold)] bg-[var(--color-brand-dark)] px-5 py-4 text-white">
-    <div className="flex items-start gap-3"><Activity size={21} className="mt-0.5 shrink-0 text-[var(--color-brand-gold)]" aria-hidden="true" /><div><p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-brand-gold)]">Ringkasan rekod operasi</p><p className="mt-1 text-sm leading-relaxed text-slate-100">{Number(priority?.laporan_kritikal_menunggu) > 0 ? `${Number(priority.laporan_kritikal_menunggu)} laporan High/Critical menunggu perhatian.` : 'Tiada laporan High/Critical menunggu semakan dalam rekod yang dipaparkan.'}</p><p className="mt-1 text-xs text-slate-300">Maklumat berdasarkan rekod sistem dan penapis pilihan; bukan pengesahan keadaan fizikal di pos.</p></div></div>
-  </div>;
-}
+import { PageHeader, Card, StatCard, Badge, Button, Field, Input, Select, LoadingState, EmptyState, AlertMessage } from '../components/ui';
+import buildingPhoto from '../assets/johor-government-bg.jpg';
 
 export function Dashboard({ auth }) {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
-  const [meta, setMeta] = useState({ posts: [] });
+  const [view, setView] = useState('overview');
+  const [briefingOpen, setBriefingOpen] = useState(false);
   const [filters, setFilters] = useState({ date: '', location: '', risk: '' });
-  const navigate = useNavigate();
-  const load = useCallback(() => api.get('/dashboard', { params: filters }).then((res) => { setData(res.data); setError(''); }).catch(() => setError('Dashboard belum dapat dimuatkan. Semak sambungan dan cuba sekali lagi.')), [filters]);
-  useEffect(() => { api.get('/meta').then((res) => setMeta(res.data)).catch(() => setError('Pilihan pos belum dapat dimuatkan. Cuba muat semula halaman.')); }, []);
-  useEffect(() => { load(); }, [load]);
-  if (!data) return <div className="space-y-5"><ModelShowcase />{error ? <Card title="Dashboard"><AlertMessage>{error}</AlertMessage><Button type="button" variant="ghost" className="mt-3" onClick={load}>Cuba lagi</Button></Card> : <LoadingState message="Memuatkan pusat kawalan operasi..." />}</div>;
+  const params = view === 'analytics' ? filters : {};
+  const { data, isPending, isError, refetch } = useQuery({ queryKey: ['dashboard', params], queryFn: async () => (await api.get('/dashboard', { params })).data });
+  const { data: meta } = useQuery({ queryKey: ['meta'], queryFn: async () => (await api.get('/meta')).data, enabled: view === 'analytics' });
   const isChief = auth.user?.nama_peranan === ROLE.chief;
-  const isAdmin = auth.user?.nama_peranan === ROLE.admin;
-
-  const analyticCards = [
-    ['Total Laporan Harian', data.cards.total_laporan ?? 0],
-    ['Laporan Berisiko Tinggi', data.cards.risiko_tinggi ?? 0],
-    ['Tindakan Belum Selesai', data.cards.tindakan_belum_selesai ?? 0],
-    ['Laporan Berlampiran Bukti', data.cards.laporan_berlampiran ?? 0],
+  const priority = data?.priority || {};
+  const metrics = [
+    { label: isChief ? 'Menunggu semakan' : 'Perlu tindakan baharu', value: isChief ? priority.laporan_menunggu_semakan : priority.laporan_perlu_tindakan, to: isChief ? '/semakan' : '/tindakan', hint: isChief ? 'Semak laporan masuk' : 'Urus laporan diluluskan', icon: FileCheck },
+    { label: 'Tindakan terbuka', value: priority.tindakan_terbuka, to: '/tindakan', hint: 'Lihat kemajuan tindakan', icon: ClipboardCheck },
+    { label: 'Tugasan hari ini', value: data?.cards?.jadual_hari_ini, to: '/jadual', hint: 'Semak jadual & liputan', icon: CalendarDays },
   ];
-
-  const chiefCards = [
-    ['Laporan Menunggu', data.priority?.laporan_menunggu_semakan ?? 0],
-    ['Laporan Kritikal', data.priority?.laporan_kritikal_menunggu ?? 0],
-    ['Tindakan Terbuka', data.priority?.tindakan_terbuka ?? 0],
-    ['Jadual Hari Ini', data.cards.jadual_hari_ini ?? 0],
-  ];
-
-  if (isChief) {
-    return (
-      <div className="desktop-ops space-y-5">
-        <PageHeader title="Dashboard Ketua Pengawal" description="Fokus kepada laporan yang perlu disemak, tugasan jadual dan komunikasi tindakan susulan." action={<Button variant="ghost" onClick={() => navigate('/semakan')}><FileCheck size={16} /> Semakan Laporan</Button>} />
-
-        <ModelShowcase />
-
-        {error && <AlertMessage>{error}</AlertMessage>}
-        <LiveTickerBanner priority={data.priority} />
-        <ShiftBriefing />
-
-        <Card title="Tindakan Ketua Hari Ini">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <ActionTile title="Laporan Menunggu Semakan" value={data.priority?.laporan_menunggu_semakan || 0} description="Lulus/tolak laporan dan tentukan tindakan susulan." tone={(data.priority?.laporan_menunggu_semakan || 0) > 0 ? 'urgent' : 'default'} action={() => navigate('/semakan')} />
-            <ActionTile title="Laporan Kritikal" value={data.priority?.laporan_kritikal_menunggu || 0} description="High/Critical yang perlu didahulukan." tone={(data.priority?.laporan_kritikal_menunggu || 0) > 0 ? 'urgent' : 'default'} action={() => navigate('/semakan')} />
-            <ActionTile title="Kemaskini Tindakan" value={data.priority?.permintaan_kemaskini_ketua || 0} description="Permintaan Admin yang menunggu maklum balas Ketua." tone={(data.priority?.permintaan_kemaskini_ketua || 0) > 0 ? 'urgent' : 'default'} action={() => navigate('/tindakan')} />
-            <ActionTile title="Jadual Bertugas" value={data.cards.jadual_hari_ini || 0} description="Semak tugasan dan liputan pos hari ini." action={() => navigate('/jadual')} />
-          </div>
-        </Card>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{chiefCards.map(([label, value]) => <StatCard key={label} label={label} value={value} />)}</div>
-        <div className="grid gap-5 lg:grid-cols-2">
-          <Card title="Laporan Risiko Perlu Perhatian Utama">
-            {(data.latest || []).length ? data.latest.map((item) => (
-              <div key={item.id_laporan} className="app-row mb-2 flex items-center justify-between gap-3 rounded-md border p-3 text-sm hover:border-amber-400 transition-colors">
-                <div>
-                  <p className="font-semibold text-primary-token">{item.tajuk_laporan}</p>
-                  <p className="text-xs text-secondary-token">{item.nama_pos} • {item.tarikh_laporan?.slice(0,10)}</p>
-                </div>
-                <Badge tone={item.tahap_risiko}>{item.tahap_risiko}</Badge>
-              </div>
-            )) : <EmptyState title="Tiada laporan kritikal" description="Laporan risiko tinggi akan dipaparkan di sini." />}
+  return <div className="desktop-ops space-y-6">
+    <PageHeader title="Ringkasan operasi" description="Mulakan dengan perkara yang memerlukan perhatian anda." />
+    {!isChief && <div className="workspace-tabs" aria-label="Paparan ringkasan">
+      <button aria-pressed={view === 'overview'} onClick={() => setView('overview')}>Operasi semasa</button>
+      <button aria-pressed={view === 'analytics'} onClick={() => setView('analytics')}>Statistik & trend</button>
+    </div>}
+    {view === 'analytics' && <Card title="Tapis statistik">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label="Tarikh laporan"><Input type="date" value={filters.date} onChange={e => setFilters({ ...filters, date: e.target.value })} /></Field>
+        <Field label="Pos kawalan"><Select value={filters.location} onChange={e => setFilters({ ...filters, location: e.target.value })}><option value="">Semua pos</option>{(meta?.posts || []).map(p => <option key={p.id_pos} value={p.id_pos}>{p.nama_pos}</option>)}</Select></Field>
+        <Field label="Tahap risiko"><Select value={filters.risk} onChange={e => setFilters({ ...filters, risk: e.target.value })}><option value="">Semua risiko</option>{['Low','Medium','High','Critical'].map(r => <option key={r}>{r}</option>)}</Select></Field>
+      </div>
+      {Object.values(filters).some(Boolean) && <Button className="mt-4" variant="ghost" onClick={() => setFilters({ date: '', location: '', risk: '' })}>Kosongkan penapis</Button>}
+    </Card>}
+    {isPending ? <LoadingState message="Memuatkan ringkasan operasi..." /> : isError ? <Card><AlertMessage>Ringkasan belum dapat dimuatkan.</AlertMessage><Button className="mt-3" variant="ghost" onClick={() => refetch()}>Cuba lagi</Button></Card> : <>
+      {view === 'overview' ? <>
+        <div className="workspace-metrics">{metrics.map(({ label, value, to, hint, icon: Icon }, index) => <Link to={to} key={label} className={`workspace-metric ${index === 0 && Number(value) > 0 ? 'is-priority' : ''}`}>
+          <span className="workspace-metric-top"><Icon size={18} />{label}</span><strong>{value ?? 0}</strong><small>{hint}<ArrowRight size={15} /></small>
+        </Link>)}</div>
+        {Number(priority.laporan_kritikal_menunggu) > 0 && <p className="workspace-note"><Badge tone="High">Perlu perhatian</Badge> {priority.laporan_kritikal_menunggu} laporan High/Critical menunggu semakan. <Link className="workspace-text-link" to="/semakan">Buka laporan</Link></p>}
+        <div className="workspace-overview-grid">
+          <Card title="Laporan terkini" action={<Link className="workspace-text-link" to="/semakan">Lihat semua</Link>}>
+            {(data.latest || []).length ? data.latest.slice(0, 5).map(item => <Link key={item.id_laporan} to={`/semakan?report=${item.id_laporan}`} className="workspace-report-row"><div><strong>{item.tajuk_laporan}</strong><p>{item.nama_pos} · {item.tarikh_laporan?.slice(0, 10)}</p></div><Badge tone={item.tahap_risiko}>{item.tahap_risiko || 'Belum dianalisis'}</Badge><ArrowRight size={16} /></Link>) : <EmptyState title="Belum ada laporan" description="Laporan baharu akan dipaparkan di sini." />}
           </Card>
-          <Card title="Akses Pantas Modul">
-            <div className="grid gap-2">
-              <Button variant="ghost" onClick={() => navigate('/semakan')}><FileCheck size={16} /> Semak Laporan Masuk</Button>
-              <Button variant="ghost" onClick={() => navigate('/jadual')}><CalendarDays size={16} /> Urus Jadual Bertugas</Button>
-              <Button variant="ghost" onClick={() => navigate('/tindakan')}><ClipboardCheck size={16} /> Balas Kemaskini Tindakan</Button>
-              <Button variant="ghost" onClick={() => navigate('/notifikasi')}><Bell size={16} /> Pusat Notifikasi Operasi</Button>
+          <div className="space-y-5">
+            <Link to="/3d-command-centre" className="workspace-map-link"><img src={buildingPhoto} alt="Bangunan pentadbiran Johor" /><h2>Terokai pos dalam 3D</h2><p>Lihat lokasi pos dan rekod operasi dalam satu paparan bangunan.</p><span>Buka pusat kawalan <ArrowRight size={16} /></span></Link>
+            <div className="workspace-note space-y-3">
+              <p><Link to="/tindakan" className="workspace-text-link">{priority.permintaan_kemaskini_ketua ?? 0} permintaan kemas kini tindakan</Link></p>
+              <p><Link to="/notifikasi" className="workspace-text-link">{priority.notifikasi_belum_dibaca ?? 0} notifikasi belum dibaca</Link></p>
             </div>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="desktop-ops space-y-5">
-      <PageHeader title="Dashboard Analitik Admin" description="Pantau trend laporan, taburan risiko, tindakan susulan dan prestasi NLP operasi." action={<Button variant="ghost" onClick={() => navigate('/nlp')}><Brain size={16} /> Ringkasan & semakan NLP</Button>} />
-
-      <ModelShowcase />
-
-      {error && <AlertMessage>{error}</AlertMessage>}
-      <LiveTickerBanner priority={data.priority} />
-      <ShiftBriefing />
-
-      <FilterPanel>
-        <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-[180px_1fr_180px]">
-          <Input type="date" value={filters.date} onChange={(e) => setFilters({ ...filters, date: e.target.value })} />
-          <Select value={filters.location} onChange={(e) => setFilters({ ...filters, location: e.target.value })}><option value="">Semua lokasi pos kawalan</option>{meta.posts.map((p) => <option key={p.id_pos} value={p.id_pos}>{p.nama_pos}</option>)}</Select>
-          <Select value={filters.risk} onChange={(e) => setFilters({ ...filters, risk: e.target.value })}><option value="">Semua tahap risiko</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></Select>
-        </div>
-      </FilterPanel>
-
-      <Card title="Tindakan Operasi Perlu Perhatian">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {isAdmin && <ActionTile title="Perlu Tindakan Admin" value={data.priority?.laporan_perlu_tindakan || 0} description="Laporan diluluskan Ketua tetapi belum ada tindakan susulan." tone={(data.priority?.laporan_perlu_tindakan || 0) > 0 ? 'urgent' : 'default'} action={() => navigate('/tindakan')} />}
-          <ActionTile title="Tindakan Terbuka" value={data.priority?.tindakan_terbuka || 0} description="Isu susulan yang masih belum selesai." tone={(data.priority?.tindakan_terbuka || 0) > 0 ? 'urgent' : 'default'} action={() => navigate('/tindakan')} />
-          <ActionTile title="Permintaan Kemaskini" value={data.priority?.permintaan_kemaskini_ketua || 0} description="Permintaan Admin kepada Ketua yang masih aktif." action={() => navigate('/tindakan')} />
-          <ActionTile title="Notifikasi Baharu" value={data.priority?.notifikasi_belum_dibaca || 0} description="Makluman sistem yang belum dibaca." action={() => navigate('/notifikasi')} />
-        </div>
-      </Card>
-
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{analyticCards.map(([label, value]) => <StatCard key={label} label={label} value={value} />)}</div>
-
-      <div className="grid gap-4 xl:grid-cols-[1fr_1fr_0.9fr]">
-        <Card title="Analisis Kategori Insiden (NLP)">
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={data.byCategory || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} />
-              <YAxis allowDecimals={false} tick={{ fill: 'var(--color-text-secondary)' }} />
-              <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
-              <Bar dataKey="value" fill="var(--color-brand-navy)" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card title="Taburan Tahap Risiko Operations">
-          <ResponsiveContainer width="100%" height={240}>
-            <PieChart>
-              <Pie data={data.byRisk || []} dataKey="value" nameKey="name" outerRadius={86} innerRadius={40} paddingAngle={4} label>
-                {(data.byRisk || []).map((entry) => <Cell key={entry.name} fill={riskColors[entry.name] || 'var(--color-risk-info)'} />)}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card title="Trend Laporan Keselamatan" className="xl:col-span-1">
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={data.trend || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
-              <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} />
-              <YAxis allowDecimals={false} tick={{ fill: 'var(--color-text-secondary)' }} />
-              <Tooltip />
-              <Line type="monotone" dataKey="laporan" stroke="var(--color-brand-gold)" strokeWidth={3} dot={{ r: 4 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card title="Pengecaman Kata Kunci Risiko NLP & Laporan Terkini" className="xl:col-span-3">
-          <div className="flex flex-wrap gap-2 mb-4">
-            {(data.keywords || []).map((item) => (
-              <Badge key={item.keyword} tone="urgent">{item.keyword} ({item.value})</Badge>
-            ))}
           </div>
-          <div className="grid gap-2 xl:grid-cols-2">
-            {(data.latest || []).map((item) => (
-              <div key={item.id_laporan} className="app-row flex items-center justify-between rounded-md border p-3 text-sm hover:border-slate-400 transition-colors">
-                <div>
-                  <p className="font-semibold text-primary-token">{item.tajuk_laporan}</p>
-                  <p className="text-xs text-secondary-token">{item.nama_pos} • {item.tarikh_laporan?.slice(0, 10)}</p>
-                </div>
-                <Badge tone={item.tahap_risiko}>{item.tahap_risiko}</Badge>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-    </div>
-  );
+        </div>
+        <details className="workspace-disclosure" onToggle={event => setBriefingOpen(event.currentTarget.open)}><summary>Taklimat syif <small>Ringkasan tambahan untuk serahan tugas</small></summary>{briefingOpen && <ShiftBriefing />}</details>
+        <p className="workspace-note">Maklumat berdasarkan rekod sistem; bukan pengesahan keadaan fizikal di pos.</p>
+      </> : <>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">{[['Jumlah laporan', data.cards?.total_laporan], ['Laporan High/Critical', data.cards?.risiko_tinggi], ['Laporan berlampiran', data.cards?.laporan_berlampiran]].map(([label, value]) => <StatCard key={label} label={label} value={value ?? 0} />)}</div>
+        <div className="grid gap-5 xl:grid-cols-2">
+          <Card title="Kategori insiden"><ResponsiveContainer width="100%" height={260}><BarChart data={data.byCategory || []}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} /><Tooltip /><Bar dataKey="value" name="Laporan" fill="#376b80" radius={[4,4,0,0]} /></BarChart></ResponsiveContainer></Card>
+          <Card title="Taburan risiko"><ResponsiveContainer width="100%" height={260}><PieChart><Pie data={data.byRisk || []} dataKey="value" nameKey="name" outerRadius={88} innerRadius={52} paddingAngle={3} label>{(data.byRisk || []).map(item => <Cell key={item.name} fill={riskColors[item.name] || '#94a3b8'} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer><div className="flex flex-wrap gap-2">{(data.byRisk || []).map(item => <Badge key={item.name} tone={item.name}>{item.name}: {item.value}</Badge>)}</div></Card>
+          <Card title="Trend laporan · 7 hari" className="xl:col-span-2"><ResponsiveContainer width="100%" height={240}><LineChart data={data.trend || []}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="date" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} /><Tooltip /><Line type="monotone" dataKey="laporan" name="Laporan" stroke="#267c88" strokeWidth={2} /></LineChart></ResponsiveContainer></Card>
+          <Card title="Kata kunci dikesan" className="xl:col-span-2"><div className="flex flex-wrap gap-2">{(data.keywords || []).map(item => <Badge key={item.keyword}>{item.keyword} ({item.value})</Badge>)}{!data.keywords?.length && <p className="workspace-note">Tiada kata kunci untuk penapis ini.</p>}</div></Card>
+        </div>
+      </>}
+    </>}
+  </div>;
 }

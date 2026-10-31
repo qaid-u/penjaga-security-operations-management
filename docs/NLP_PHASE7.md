@@ -116,7 +116,7 @@ See [test plan](testing/NLP_PHASE7_TEST_PLAN.md) for the detailed release checks
 
 This snapshot includes the Phase 6 delivery package and the implemented Phase 7 local classifier, source checks, Gemini adapter, durable jobs and simplified interface. It is development work, not an operational release certification.
 
-- The current worker awaits the Gemini response before persisting the analysis and conservative alert. The provider timeout is bounded, but review latency and queue backlog can delay alerts. Separating local analysis/alerts from the external review queue remains unfinished. Keep external review disabled for operational use until that refinement is implemented and tested.
+- Updated 29 October 2026: local analysis and conservative alerts now persist before optional Gemini review. Review runs independently using durable metadata leases; provider latency no longer blocks the local queue. Earlier latency findings describe the previous implementation.
 - A live Gemini request has not been verified. The latest local smoke check returned NOT_CONFIGURED; provider tests used mocked responses. The private key must be configured and the backend restarted before running the synthetic connection check.
 - Existing Phase 6 documents and presentation describe their dated verification snapshot. Phase 7 changes supersede the old statement that trained inference is disconnected. Current capabilities and limitations are described in this document.
 - The additive migration was applied to the local development database after a private recovery backup. The 102 historical reports were retained, with no historical AI backfill triggered.

@@ -129,6 +129,7 @@ const saveProgress = async (req, res, type) => {
   let client;
   try {
     client = await pool.connect();
+    await client.query('begin');
     const result = await client.query(
       `insert into tbl_progress_tindakan
          (id_tindakan, id_pengguna, catatan_progress, jenis_progress, perlu_respon_ketua, lampiran_fail)
@@ -144,10 +145,24 @@ const saveProgress = async (req, res, type) => {
         JSON.stringify(uploads.map((file) => `/uploads/${file.filename}`)),
       ]
     );
-    if (!result.rowCount) return res.status(404).json({ message: 'Tindakan tidak ditemui' });
+    if (!result.rowCount) {
+      await client.query('rollback');
+      return res.status(404).json({ message: 'Tindakan tidak ditemui' });
+    }
+    await client.query(
+      `insert into tbl_notifikasi(id_pengguna,id_laporan,id_tindakan,tajuk_notifikasi,mesej_notifikasi,jenis_notifikasi,tahap_keutamaan)
+       select u.id_pengguna,a.id_laporan,a.id_tindakan,$1,$2,$3,'Medium'
+       from tbl_pengguna u join tbl_peranan r on r.id_peranan=u.id_peranan
+       cross join tbl_tindakan_susulan a
+       where a.id_tindakan=$4 and u.status_akaun='Aktif' and r.nama_peranan=$5 and u.id_pengguna<>$6`,
+      [type === 'Permintaan Admin' ? 'Permintaan kemas kini tindakan' : 'Kemajuan tindakan baharu', catatan_progress.trim(), type, req.params.id,
+        type === 'Permintaan Admin' ? 'Ketua Pengawal' : 'Pentadbir Sistem', req.user.id_pengguna]
+    );
     await logAudit(client, req.user.id_pengguna, type === 'Permintaan Admin' ? 'REQUEST_ACTION_UPDATE' : 'ADD_ACTION_PROGRESS', `Tindakan #${req.params.id}`, type);
+    await client.query('commit');
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    if (client) await client.query('rollback');
     console.error('Save action progress error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal menyimpan progress tindakan' });
   } finally {

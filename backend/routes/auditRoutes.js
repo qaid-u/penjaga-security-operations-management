@@ -42,6 +42,7 @@ router.get('/', auth, requireRole(roles.admin), async (req, res) => {
   try {
     client = await pool.connect();
     const countResult = await client.query(`select count(*)::int as total ${baseQuery}`, params);
+    if (isCsv && countResult.rows[0].total > limit) return res.status(400).json({ message: 'Eksport maksimum 10000 rekod. Sila kecilkan penapis.' });
     const result = await client.query(
       `select a.*, p.nama_penuh, r.nama_peranan, pos.nama_pos
        ${baseQuery}

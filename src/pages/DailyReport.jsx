@@ -7,9 +7,11 @@ import api from '../api/axios';
 import { maxEvidenceFiles, notifyError, notifyAction, notifySuccess, statusTone } from '../utils/helpers';
 import { NlpAssistant } from '../components/NlpAssistant';
 import { NlpReviewPanel } from '../components/NlpReviewPanel';
-import { Card, Field, Select, Input, Textarea, ChecklistChoice, Button, AlertMessage, Badge, EmptyState, AttachmentLinks, LoadingState } from '../components/ui';
+import { PageHeader, Card, Field, Select, Input, Textarea, ChecklistChoice, Button, AlertMessage, Badge, EmptyState, AttachmentLinks, LoadingState, Pagination } from '../components/ui';
 
 export function DailyReport() {
+  const [view, setView] = useState('write');
+  const [historyPage, setHistoryPage] = useState(1);
   const [analysis, setAnalysis] = useState(null);
   const [analysisJob, setAnalysisJob] = useState(null);
   const [submitted, setSubmitted] = useState(null);
@@ -28,7 +30,7 @@ export function DailyReport() {
   const previewUrlsRef = useRef([]);
   const queryClient = useQueryClient();
   
-  const { data: metaData } = useQuery({
+  const { data: metaData, isPending: metaPending, isError: metaError, refetch: retryMeta } = useQuery({
     queryKey: ['meta'],
     queryFn: async () => {
       const res = await api.get('/meta');
@@ -36,10 +38,10 @@ export function DailyReport() {
     }
   });
 
-  const { data: reportsData } = useQuery({
-    queryKey: ['myReports'],
+  const { data: reportsData, isPending: reportsPending, isError: reportsError, refetch: retryReports } = useQuery({
+    queryKey: ['myReports', historyPage],
     queryFn: async () => {
-      const res = await api.get('/reports', { params: { limit: 10 } });
+      const res = await api.get('/reports', { params: { page: historyPage, limit: 10 } });
       return res.data;
     }
   });
@@ -67,6 +69,7 @@ export function DailyReport() {
       setAnalysis(data.analysis || data.nlp || null);
       setAnalysisJob(data.analysisJob || null);
       setSubmitted(data.report);
+      setHistoryPage(1);
       setNlpContext(null);
       setForm({ syif: 'Pagi', tarikh_laporan: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()), masa_laporan: new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date()), checklist: [] });
       clearEvidenceFiles();
@@ -181,12 +184,14 @@ export function DailyReport() {
     submitMutation.mutate(body);
   };
   
-  if (!metaData) return <LoadingState message="Memuatkan borang laporan..." />;
+
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-      <Card title="Laporan Harian">
-        <form onSubmit={submit} className="space-y-4">
+    <div className="workspace-daily-form space-y-6">
+      <PageHeader title="Laporan harian" description="Rekodkan pemeriksaan dan kejadian semasa bertugas." />
+      <div className="workspace-tabs" aria-label="Paparan laporan harian"><button aria-pressed={view === 'write'} onClick={() => setView('write')}>Tulis laporan</button><button aria-pressed={view === 'history'} onClick={() => { stopCamera(); setView('history'); }}>Laporan saya</button></div>
+      <Card title="Laporan baharu" className={view === 'write' ? '' : 'hidden'}>
+        {metaPending ? <LoadingState message="Memuatkan borang laporan..." /> : metaError ? <AlertMessage>Borang laporan belum dapat dimuatkan. <button type="button" className="underline" onClick={() => retryMeta()}>Cuba lagi</button></AlertMessage> : <form onSubmit={submit} className="space-y-4">
           <p className="nlp-step-label"><span>1</span> Tugasan dan pos</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Pos kawalan"><Select required value={form.id_pos || ''} onChange={(e) => { setNlpContext(null); setForm({ ...form, id_pos: e.target.value }); }}><option value="">Pilih pos</option>{meta.posts.map((p) => <option key={p.id_pos} value={p.id_pos}>{p.nama_pos}</option>)}</Select></Field>
@@ -252,13 +257,13 @@ export function DailyReport() {
             <p className="nlp-step-label"><span>5</span> Semak dan hantar</p>
             <Button className="w-full sm:w-auto" disabled={submitMutation.isPending}>{submitMutation.isPending ? 'Menghantar...' : 'Hantar laporan'}</Button>
           </div>
-        </form>
+        </form>}
       </Card>
       <div className="space-y-5">
         {submitted && <AlertMessage type="success">Laporan berjaya disimpan. Analisis automatik diproses berasingan dan keputusan rasmi dibuat oleh Ketua Pengawal.</AlertMessage>}
         {submitted && <NlpReviewPanel key={submitted.id_laporan} report={submitted} analysis={analysis} job={analysisJob} reportRoute="/laporan" />}
 
-        <Card title="Laporan Saya">{reports.length ? reports.map((report) => <div key={report.id_laporan} className="app-row mb-2 rounded-md border p-3 text-sm"><div className="flex justify-between gap-2"><span className="font-medium text-primary-token">{report.tajuk_laporan}</span><Badge tone={report.tahap_risiko}>{report.tahap_risiko}</Badge></div><div className="mt-2 flex flex-wrap gap-2"><Badge tone={statusTone(report.status_laporan)}>{report.status_laporan}</Badge><span>{report.nama_pos}</span></div>{report.status_laporan === 'Ditolak' && <AlertMessage>Laporan ditolak. Semak catatan Ketua dan hantar laporan baharu jika pembetulan diperlukan.</AlertMessage>}{report.status_laporan === 'Diluluskan' && <AlertMessage type="success">Laporan telah diluluskan.</AlertMessage>}<div className="mt-3"><Button type="button" variant="ghost" onClick={() => setSearchParams({ report: report.id_laporan })}><Eye size={15} /> Buka laporan</Button></div><AttachmentLinks value={report.lampiran_fail} label="Lampiran" /></div>) : <EmptyState title="Tiada laporan" description="Laporan yang anda hantar akan dipaparkan di sini." />}</Card>
+        <Card title="Laporan Saya" className={view === 'history' ? '' : 'hidden'}>{reportsPending ? <LoadingState message="Memuatkan sejarah laporan..." /> : reportsError ? <AlertMessage>Sejarah laporan belum dapat dimuatkan. <button type="button" className="underline" onClick={() => retryReports()}>Cuba lagi</button></AlertMessage> : reports.length ? reports.map((report) => <div key={report.id_laporan} className="app-row mb-2 rounded-md border p-3 text-sm"><div className="flex justify-between gap-2"><span className="font-medium text-primary-token">{report.tajuk_laporan}</span><Badge tone={report.tahap_risiko}>{report.tahap_risiko}</Badge></div><div className="mt-2 flex flex-wrap gap-2"><Badge tone={statusTone(report.status_laporan)}>{report.status_laporan}</Badge><span>{report.nama_pos}</span></div>{report.status_laporan === 'Ditolak' && <AlertMessage>Laporan ditolak. Semak catatan Ketua dan hantar laporan baharu jika pembetulan diperlukan.</AlertMessage>}{report.status_laporan === 'Diluluskan' && <AlertMessage type="success">Laporan telah diluluskan.</AlertMessage>}<div className="mt-3"><Button type="button" variant="ghost" onClick={() => setSearchParams({ report: report.id_laporan })}><Eye size={15} /> Buka laporan</Button></div><AttachmentLinks value={report.lampiran_fail} label="Lampiran" /></div>) : <EmptyState title="Tiada laporan" description="Laporan yang anda hantar akan dipaparkan di sini." />}<Pagination page={historyPage} totalPages={reportsData?.meta?.totalPages || 1} onPageChange={setHistoryPage} /></Card>
       </div>
       {selectedReportId && <div role="dialog" aria-modal="true" aria-labelledby="own-report-title" className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4"><div className="app-elevated max-h-[94vh] w-full overflow-y-auto rounded-t-2xl border p-4 shadow-xl sm:max-w-5xl sm:rounded-2xl lg:p-6"><div className="mb-5 flex items-start justify-between gap-3"><div><p className="label-caps">Laporan saya</p><h2 id="own-report-title">Dokumen Laporan #{selectedReportId}</h2></div><Button type="button" variant="ghost" onClick={closeDetail}><X size={16} /> Tutup</Button></div>{detailQuery.isPending ? <LoadingState message="Memuatkan laporan..." /> : detailQuery.isError ? <AlertMessage>Laporan ini belum dapat dibuka. Sila pastikan laporan tersebut milik akaun anda dan cuba sekali lagi.</AlertMessage> : detailQuery.data && <ReportDetailContent detail={detailQuery.data} reportRoute="/laporan" />}</div></div>}
     </div>

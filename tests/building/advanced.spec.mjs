@@ -68,6 +68,7 @@ test('history paginates, resolves mapped reports, preserves unmapped records and
   await expect(page.getByRole('button',{name:/01.*Pos Lobi Utama/})).toHaveAttribute('aria-pressed','false');
   await expect(page.getByLabel('Butiran laporan dipilih').getByRole('button',{name:/Fokus/})).toHaveCount(0);
   await history.getByRole('button',{name:'Halaman seterusnya'}).click();await expect(history.getByText('Halaman 2 / 2')).toBeVisible();
+  await page.getByText('Penapis lanjutan & julat pantas',{exact:true}).click();
   await page.getByLabel('Tahap risiko').selectOption('HighCritical');await expect(history.getByText(/1 laporan ·/)).toBeVisible();await expect(history.getByText('Halaman 1 / 1')).toBeVisible();
   await page.getByLabel('Kategori NLP').selectOption('Kategori Ujian');await page.getByLabel('Status laporan').selectOption('Ditolak');
   await expect(history.getByText('Tiada laporan sepadan dengan penapis ini.')).toBeVisible();
@@ -80,6 +81,7 @@ test('analytics cards and Kuala Lumpur quick ranges drive queries and matching t
   await page.getByRole('button',{name:/Laporan High \/ Critical/}).click();
   await expect(page.getByLabel('Tahap risiko')).toHaveValue('HighCritical');
   await expect(page.getByRole('region',{name:'Sejarah laporan'}).getByText(/1 laporan ·/)).toBeVisible();
+  await page.getByText('Penapis lanjutan & julat pantas',{exact:true}).click();
   await page.getByRole('button',{name:'7 hari terakhir',exact:true}).click();
   await expect(page.getByLabel('Laporan dari')).toHaveValue('2026-10-18');await expect(page.getByLabel('Laporan hingga')).toHaveValue('2026-10-24');
   await expect.poll(()=>calls.some((q)=>q.get('from')==='2026-10-18')).toBe(true);
@@ -108,6 +110,7 @@ test('tablet and mobile keyboard controls, sheet close and reduced motion work',
   await page.keyboard.press('Escape');await expect(button).toBeFocused();
   await expect(page.getByRole('button',{name:'Tutup maklumat lokasi'})).toBeHidden();
   await page.getByLabel('Paparan operasi').selectOption('followup');await expect(page.getByLabel('Petunjuk operasi')).toContainText('Selesai');
+  await page.getByText('Penapis lanjutan & julat pantas',{exact:true}).click();
   await page.getByLabel('Status tindakan').selectOption('Selesai');await expect(page.getByText('Tiada laporan sepadan dengan penapis ini.')).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

@@ -1,11 +1,12 @@
 process.env.NLP_WORKER_ENABLED='false';
 process.env.NLP_AI_REVIEW_ENABLED='false';
+process.env.PORT='0';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const {configureDemo}=require('../scripts/phase5-demo-config');
-configureDemo('penjaga_phase6_demo');
+configureDemo();
 const {Pool}=require('pg');
 const {dbOptions}=require('../config/dbOptions');
 
@@ -42,6 +43,7 @@ test('durable analysis jobs and report intelligence use an isolated synthetic sc
     const report=(await pool.query('select * from tbl_laporan_harian where id_laporan=1')).rows[0];
     const queue=async(options)=>{const c=await pool.connect();try{await c.query('begin');const job=await jobs.enqueue(c,report,1,options);await c.query('commit');return job;}catch(e){await c.query('rollback');throw e;}finally{c.release();}};
     const reviewer=async()=>({status:'needs_review',provider:'gemini',model:'mocked-provider',findings:[{code:'ambiguity',message:'Semak naratif.',quote:'Pencerobohan',start:0,end:12}],reason:'Synthetic provider test only'});
+    const runJob=async(options)=>{const ran=await jobs.runOne(pool);await jobs.runReviewOne(pool,options);return ran;};
     let first;
     await t.test('migration is repeatable and queue deduplicates pending submissions',async()=>{
       await pool.query(await fs.readFile(path.join(__dirname,'../database/migrations/004_nlp_review.sql'),'utf8'));
@@ -50,7 +52,7 @@ test('durable analysis jobs and report intelligence use an isolated synthetic sc
       assert.equal((await request('/api/reports/1',3)).data.report.tahap_risiko,'Unknown');
     });
     await t.test('worker uses actual local inference and persists evidence without official decisions',async()=>{
-      assert.equal(await jobs.runOne(pool,{reviewer}),true);
+      assert.equal(await runJob({reviewer}),true);
       const view=(await request('/api/reports/1/analysis',3)).data;
       assert.equal(view.job.status,'completed');assert.ok(view.analysis.metadata.model.trainedInferenceRan);
       assert.equal(view.analysis.metadata.review.status,'needs_review');assert.equal(view.analysis.kategori_dikesan,'Pencerobohan');
@@ -66,13 +68,13 @@ test('durable analysis jobs and report intelligence use an isolated synthetic sc
     });
     await t.test('parallel claims process one job and reanalysis never duplicates conservative alerts',async()=>{
       let calls=0;const bounded=async args=>{calls++;return reviewer(args);};
-      await Promise.all([jobs.runOne(pool,{reviewer:bounded}),jobs.runOne(pool,{reviewer:bounded})]);
+      await Promise.all([runJob({reviewer:bounded}),runJob({reviewer:bounded})]);
       assert.equal(calls,1);
       assert.equal((await pool.query('select count(*)::int n from tbl_hasil_nlp where id_laporan=1')).rows[0].n,2);
       assert.equal((await pool.query("select count(*)::int n from tbl_notifikasi where id_laporan=1 and jenis_notifikasi='Risiko Tinggi'")).rows[0].n,1);
     });
     await t.test('unavailable reviewer is stored honestly while local analysis succeeds',async()=>{
-      await queue({force:true});await jobs.runOne(pool,{reviewer:async()=>jobs.unavailable('NOT_CONFIGURED')});
+      await queue({force:true});await runJob({reviewer:async()=>jobs.unavailable('NOT_CONFIGURED')});
       const view=(await request('/api/reports/1/analysis',3)).data;assert.equal(view.job.status,'completed');assert.equal(view.analysis.metadata.review.status,'unavailable');
     });
     await t.test('source, search, related reports and helper preserve guard ownership/roles',async()=>{
@@ -108,7 +110,7 @@ test('durable analysis jobs and report intelligence use an isolated synthetic sc
       await pool.query("update tbl_job_nlp set status='failed' where id_laporan<>1 and status='pending'");
       await queue({force:true});await pool.query("update tbl_laporan_harian set kandungan_laporan='Changed synthetic source' where id_laporan=1");
       const before=(await pool.query('select count(*)::int n from tbl_hasil_nlp')).rows[0].n;
-      await jobs.runOne(pool,{reviewer});
+      await runJob({reviewer});
       assert.equal((await pool.query('select count(*)::int n from tbl_hasil_nlp')).rows[0].n,before);
       assert.equal((await pool.query('select last_error from tbl_job_nlp where id_laporan=1 order by id_job desc limit 1')).rows[0].last_error,'STALE_INPUT');
     });
@@ -136,7 +138,7 @@ test('durable analysis jobs and report intelligence use an isolated synthetic sc
       const reportId=submitted.data.id_laporan;
       const stored=(await pool.query('select * from tbl_laporan_harian where id_laporan=$1',[reportId])).rows[0];
       assert.equal(stored.kandungan_laporan,text);assert.deepEqual(stored.nlp_context,context);assert.equal(stored.id_pos,ss.id_pos);
-      await jobs.runOne(pool,{reviewer:async()=>jobs.unavailable('SYNTHETIC_ONLY')});
+      await runJob({reviewer:async()=>jobs.unavailable('SYNTHETIC_ONLY')});
       const saved=(await request(`/api/reports/${reportId}/analysis`,3)).data;
       assert.equal(saved.job.status,'completed');assert.equal(saved.analysis.metadata.schemaVersion,3);assert.equal(saved.analysis.metadata.events.length,2);
       assert.equal(saved.analysis.metadata.eventsTruncated,false);assert.equal(saved.analysis.metadata.eventCount,2);assert.equal(saved.analysis.metadata.eventLimit,64);
@@ -148,15 +150,48 @@ test('durable analysis jobs and report intelligence use an isolated synthetic sc
       const invalid=await request('/api/reports',3,'POST',{id_pos:ss.id_pos,tajuk_laporan:'Invalid stale clarification',kandungan_laporan:text+' new',syif:'Malam',tarikh_laporan:'2026-10-26',masa_laporan:'22:30',checklist:[],nlp_context:JSON.stringify(context)});
       assert.equal(invalid.status,400);assert.equal((await pool.query('select count(*)::int n from tbl_laporan_harian')).rows[0].n,count);
     });
-    await t.test('legacy leased jobs also reject selected-post races during provider review',async()=>{
+    await t.test('legacy jobs persist local results first and reject selected-post races in later review',async()=>{
       const source=(await pool.query("select * from tbl_laporan_harian where tajuk_laporan='DEMO Mixed events'")).rows[0];
       const copy=(await pool.query(`insert into tbl_laporan_harian(id_pengguna,id_pos,tajuk_laporan,syif,tarikh_laporan,masa_laporan,kandungan_laporan) values(3,$1,'DEMO Legacy race','Malam','2026-10-26','22:30',$2) returning *`,[source.id_pos,source.kandungan_laporan])).rows[0];
       const job=(await pool.query("insert into tbl_job_nlp(id_laporan,input_hash,pipeline_version,requested_by) values($1,$2,'penjaga-nlp-v2',3) returning *",[copy.id_laporan,jobs.hash(copy.kandungan_laporan)])).rows[0];
       const other=(await pool.query("select id_pos from tbl_lokasi_3d where hotspot_id='POST_DJM_MB_LG_LIFT'")).rows[0].id_pos;
       const before=(await pool.query('select count(*)::int n from tbl_hasil_nlp where id_laporan=$1',[copy.id_laporan])).rows[0].n;
-      await jobs.runOne(pool,{reviewer:async()=>{await pool.query('update tbl_laporan_harian set id_pos=$1 where id_laporan=$2',[other,copy.id_laporan]);return jobs.unavailable('SYNTHETIC_RACE');}});
-      assert.equal((await pool.query('select count(*)::int n from tbl_hasil_nlp where id_laporan=$1',[copy.id_laporan])).rows[0].n,before);
-      assert.equal((await pool.query('select last_error from tbl_job_nlp where id_job=$1',[job.id_job])).rows[0].last_error,'STALE_INPUT');
+      await runJob({reviewer:async()=>{await pool.query('update tbl_laporan_harian set id_pos=$1 where id_laporan=$2',[other,copy.id_laporan]);return jobs.unavailable('SYNTHETIC_RACE');}});
+      assert.equal((await pool.query('select count(*)::int n from tbl_hasil_nlp where id_laporan=$1',[copy.id_laporan])).rows[0].n,before+1);
+      assert.equal((await pool.query('select status from tbl_job_nlp where id_job=$1',[job.id_job])).rows[0].status,'completed');
+      assert.equal((await pool.query('select metadata from tbl_hasil_nlp where id_laporan=$1',[copy.id_laporan])).rows[0].metadata.review.reason,'STALE_INPUT');
+    });
+    await t.test('a slow provider cannot delay local persistence, alerts or the next local job',async()=>{
+      const create=async title=>{
+        const r=(await pool.query("insert into tbl_laporan_harian(id_pengguna,id_pos,tajuk_laporan,syif,tarikh_laporan,masa_laporan,kandungan_laporan) values(3,1,$1,'Pagi',current_date,'10:00','Kebakaran dan asap dikesan.') returning *",[title])).rows[0];
+        const c=await pool.connect();try{await c.query('begin');await jobs.enqueue(c,r,3);await c.query('commit');}finally{c.release();}return r;
+      };
+      const first=await create('DEMO Slow review');await jobs.runOne(pool);
+      let release, started;
+      const waiting=new Promise(resolve=>{started=resolve;});
+      const blocked=new Promise(resolve=>{release=resolve;});
+      const reviewRun=jobs.runReviewOne(pool,{reviewer:async()=>{started();await blocked;return jobs.unavailable('MOCK_COMPLETE');}});
+      await waiting;
+      try{
+        assert.equal((await pool.query('select status from tbl_job_nlp where id_laporan=$1',[first.id_laporan])).rows[0].status,'completed');
+        assert.equal((await pool.query("select count(*)::int n from tbl_notifikasi where id_laporan=$1 and jenis_notifikasi='Risiko Tinggi'",[first.id_laporan])).rows[0].n,1);
+        const second=await create('DEMO Next local job');await jobs.runOne(pool);
+        assert.equal((await pool.query('select status from tbl_job_nlp where id_laporan=$1',[second.id_laporan])).rows[0].status,'completed');
+      }finally{release();await reviewRun;}
+      await jobs.runReviewOne(pool,{reviewer:async()=>{throw new Error('provider down');}});
+      assert.equal((await pool.query("select metadata->'review'->>'reason' reason from tbl_hasil_nlp order by id_nlp desc limit 1")).rows[0].reason,'REVIEW_FAILED');
+    });
+    await t.test('review leases survive restarts and exhausted leases stop retrying',async()=>{
+      const id=(await pool.query('select id_nlp from tbl_hasil_nlp order by id_nlp desc limit 1')).rows[0].id_nlp;
+      await pool.query(`update tbl_hasil_nlp set metadata=jsonb_set(metadata,'{review}',jsonb_build_object('status','processing','lease','abandoned','lockedAt',now()-interval '4 minutes','attempts',1)) where id_nlp=$1`,[id]);
+      let calls=0;
+      await jobs.runReviewOne(pool,{reviewer:async()=>{calls++;return jobs.unavailable('RECOVERED');}});
+      assert.equal(calls,1);
+      assert.equal((await pool.query('select metadata from tbl_hasil_nlp where id_nlp=$1',[id])).rows[0].metadata.review.reason,'RECOVERED');
+      await pool.query(`update tbl_hasil_nlp set metadata=jsonb_set(metadata,'{review}',jsonb_build_object('status','processing','lease','abandoned','lockedAt',now()-interval '4 minutes','attempts',3)) where id_nlp=$1`,[id]);
+      assert.equal(await jobs.runReviewOne(pool,{reviewer:async()=>{calls++;return jobs.unavailable('UNEXPECTED');}}),false);
+      assert.equal(calls,1);
+      assert.equal((await pool.query('select metadata from tbl_hasil_nlp where id_nlp=$1',[id])).rows[0].metadata.review.reason,'LEASE_EXPIRED');
     });
   }finally{
     if(server)await new Promise(resolve=>server.close(resolve));

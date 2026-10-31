@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Eye, EyeOff, ChevronDown, Paperclip } from 'lucide-react';
 import api from '../api/axios';
 
@@ -67,10 +67,9 @@ export function ChecklistChoice({ active, children, onClick }) {
 
 export function PageHeader({ title, description, action }) {
   return (
-    <div className="app-surface mb-5 rounded-2xl border p-5">
+    <div className="workspace-page-heading mb-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="border-l-4 border-[var(--color-brand-gold)] pl-4">
-          <p className="label-caps">PENJAGA</p>
+        <div>
           <h1 className="mt-1 text-[var(--color-brand-navy)]">{title}</h1>
           {description && <p className="mt-2 max-w-3xl text-sm">{description}</p>}
         </div>
@@ -122,16 +121,33 @@ export function FilterPanel({ children }) {
   );
 }
 
-export function ConfirmModal({ open, title, message, confirmLabel = 'Sahkan', danger = false, onConfirm, onCancel }) {
+export function ConfirmModal({ open, title, message, confirmLabel = 'Sahkan', danger = false, pending = false, onConfirm, onCancel }) {
+  const dialog = useRef(null);
+  const titleId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialog.current?.querySelector('button')?.focus();
+    return () => { document.body.style.overflow = overflow; previous?.focus?.(); };
+  }, [open]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(0,0,0,0.55)] p-4 sm:items-center">
+    <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby={titleId} className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(0,0,0,0.55)] p-4 sm:items-center" onKeyDown={event => {
+      if (event.key === 'Escape') { event.stopPropagation(); if (!pending) onCancel(); }
+      if (event.key !== 'Tab') return;
+      const buttons = dialog.current.querySelectorAll('button:not(:disabled)');
+      const first = buttons[0], last = buttons[buttons.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }}>
       <div className="app-elevated motion-sheet w-full max-w-md rounded-lg border p-4 shadow-xl">
-        <h2>{title}</h2>
+          <h2 id={titleId}>{title}</h2>
         <p className="mt-2">{message}</p>
         <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          <Button variant="ghost" onClick={onCancel}>Batal</Button>
-          <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm}>{confirmLabel}</Button>
+          <Button variant="ghost" disabled={pending} onClick={onCancel}>Batal</Button>
+          <Button variant={danger ? 'danger' : 'primary'} disabled={pending} onClick={onConfirm}>{pending ? 'Memproses...' : confirmLabel}</Button>
         </div>
       </div>
     </div>
@@ -258,8 +274,8 @@ export function Pagination({ page, totalPages, onPageChange }) {
     <div className="flex flex-wrap items-center justify-between gap-3 border-t py-4">
       <p className="text-sm text-secondary-token">Muka surat {page} daripada {totalPages}</p>
       <div className="flex gap-2">
-        <Button variant="ghost" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Sebelumnya</Button>
-        <Button variant="ghost" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>Seterusnya</Button>
+        <Button type="button" variant="ghost" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Sebelumnya</Button>
+        <Button type="button" variant="ghost" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>Seterusnya</Button>
       </div>
     </div>
   );

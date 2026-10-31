@@ -51,7 +51,7 @@ export function AuditTrail() {
 
   return (
     <div className="desktop-ops">
-      <Card title="Audit Trail" action={<Button variant="ghost" onClick={() => downloadCsv('/audit/export.csv', 'audit-trail.csv')}><Download size={16} /> CSV</Button>}>
+      <Card title="Audit Trail" action={<Button variant="ghost" onClick={() => downloadCsv('/audit', 'audit-trail.csv', { ...filters, format: 'csv' })}><Download size={16} /> CSV</Button>}>
         <AlertMessage type="success">Gunakan penapis ini untuk semak aktiviti mengikut pengguna, peranan, pos, modul atau status sebelum membuka log yang panjang.</AlertMessage>
         <div className="mb-4 space-y-3 rounded-xl border bg-white p-4">
           <div className="grid gap-3 lg:grid-cols-[1fr_auto]">

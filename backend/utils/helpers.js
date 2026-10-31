@@ -1,7 +1,8 @@
 const escapeCSV = (str) => {
   if (str == null) return '';
-  const s = String(str).replace(/"/g, '""');
-  return /[",\n]/.test(s) ? `"${s}"` : s;
+  const value = String(str);
+  const s = (/^[\s]*[=+@-]/.test(value) || /^[\t\r\n]/.test(value) ? `'${value}` : value).replace(/"/g, '""');
+  return /[",\r\n]/.test(s) ? `"${s}"` : s;
 };
 
 const dateToString = (date) => {

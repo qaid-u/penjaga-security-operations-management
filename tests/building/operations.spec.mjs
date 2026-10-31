@@ -52,6 +52,8 @@ test('administrator can link/unlink existing posts and refresh summary; chief ca
     {id_pos:93,nama_pos:'Pos Bilik Kawalan CCTV',status_pos:'Aktif',nama_bangunan:'Bangunan Dato’ Jaafar Muhammad'}
   ]}));
   await page.goto('/3d-command-centre'); await entrance(page).click(); await expect(page.getByText(/Tiada rekod operasi dipautkan/)).toBeVisible();
+  await expect(page.getByText('Pemetaan lokasi — Pentadbir Sistem',{exact:true})).toHaveCount(0);
+  await page.getByLabel('Paparan operasi').selectOption('mapping');
   await page.getByText('Pemetaan lokasi — Pentadbir Sistem',{exact:true}).click();
   const select=page.getByLabel('Pautan Pos Lobi Utama',{exact:true});
   await expect(select.locator('option')).toHaveCount(2);

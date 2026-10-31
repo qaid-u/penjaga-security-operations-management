@@ -127,7 +127,7 @@ function LoadedViewer({ onRetry, supported, building, initialPost }) {
   <section className="building-operations" aria-label="Data operasi bangunan"><div className="building-operations-heading"><div><p className="building-eyebrow">DATA & REKOD</p><h2>Operasi {building.shortName}</h2></div><p>Rekod pangkalan data mengikut bangunan dipilih.<br />Bukan pemantauan GPS atau ramalan insiden.</p></div>
     <OperationalToolbar period={period} setPeriod={setPeriod} mode={mode} setMode={setMode} operations={operations} />
     <AdvancedFilters data={viewData} filters={filters} change={change} mode={mode} operations={operations} period={period} setPeriod={setPeriod} onZone={onZone} reset={resetFilters} />
-    {user?.nama_peranan === ROLE.admin && <LocationMappingPanel locations={operations.overview.data?.locations} userId={user.id_pengguna} building={building} />}
+    {user?.nama_peranan === ROLE.admin && mode === 'mapping' && <LocationMappingPanel locations={operations.overview.data?.locations} userId={user.id_pengguna} building={building} />}
   <OperationalAnalytics query={operations.overview} mode={mode} onMetric={onMetric} />
   {(mode === 'incidents' || mode === 'followup') && <IncidentHistory key={JSON.stringify([building.id,period,filters,mode])} query={operations.incidents} page={page} setPage={setPage} onLocate={(id) => select(id,false)} zone={filters.zone} />}
   </section>

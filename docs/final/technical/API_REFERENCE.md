@@ -2,7 +2,7 @@
 
 Inspected from `backend/server.js`, every registered route and its controller/service. Prefixes below are complete paths. A = Pentadbir Sistem; C = Ketua Pengawal; G = Pengawal Keselamatan; All = all three authenticated roles. Protected requests require `Authorization: Bearer <token>`. The shared middleware adds 401 for missing/invalid/expired identity and 403 for an inactive account or unauthorized role to every protected endpoint below. Errors are JSON `{message}`; SQL/credentials are not returned. ID/FK validation is not uniformly strict in legacy endpoints; invalid legacy IDs may yield 500 rather than 400. This reference does not claim a fully validated OpenAPI contract.
 
-Login tokens last 12 hours. The login limiter allows five failed attempts per 15 minutes per IP in one process; it is not distributed. Logout is local, with no server revocation endpoint. **POST /api/auth/change-password does not exist** despite the frontend form; do not document it as supported.
+Login tokens last 12 hours. The login limiter allows five failed attempts per 15 minutes per IP in one process; it is not distributed. Logout is local, with no server revocation endpoint. Password changes verify the current password, store a bcrypt hash, and are limited to five attempts per user per 15 minutes in one process.
 
 ## Implemented endpoints
 
@@ -11,6 +11,7 @@ Login tokens last 12 hours. The login limiter allows five failed attempts per 15
 | `GET` | `/api/health` | Public | None | 200 {status:OK,timestamp} | No DB check |
 | `GET` | `/api/ready` | Public | None | 200 {status:Ready,db:Connected} | 503 unavailable database |
 | `POST` | `/api/auth/login` | Public | JSON username,password | 200 {token,user:{id_pengguna,nama_penuh,nama_pengguna,emel,nama_peranan}} | 400 malformed; 401 credentials; 403 inactive; 429 attempt limit; 500 |
+| `POST` | `/api/auth/change-password` | All | JSON currentPassword,newPassword (10+ characters, max 72 UTF-8 bytes) | 200 {message} | 400 invalid/current password; 429 attempt limit; 500 |
 | `GET` | `/api/auth/me` | All | Bearer token | 200 {user} (current DB identity) | 401 missing/expired/invalid; 403 inactive; 500 |
 | `GET` | `/api/meta` | All | None | 200 {roles,posts,categories,incidentCategories,checklist,guards} | 400 invalid input; 500 database/server failure |
 | `GET` | `/api/users` | A | None | 200 user[] with role; excludes password hash | 400 invalid input; 500 database/server failure |
@@ -19,7 +20,8 @@ Login tokens last 12 hours. The login limiter allows five failed attempts per 15
 | `GET` | `/api/posts` | A | None | 200 post[] | 400 invalid input; 500 database/server failure |
 | `POST` | `/api/posts` | A | JSON nama_pos; optional nama_bangunan,lokasi,waktu_operasi | 200 {message} | 400 invalid input; 500 database/server failure |
 | `PATCH` | `/api/posts/:id` | A | Path id; JSON status_pos (Aktif/Tidak Aktif) | 200 {message} | 400 status; 404 missing; 500 |
-| `GET` | `/api/reports` | All; G own only | Query page,limit; see report controller for filters | 200 {data:report[],meta:{total,page,limit,totalPages}} | 400 invalid input; 500 database/server failure |
+| `GET` | `/api/reports` | All; G own only | Query page,limit,search,status,post,shift,risk,date,attention; follow_up=pending selects approved reports requiring action with no existing action | 200 {data:report[],meta:{total,page,limit,totalPages}} | 400 invalid input; 500 database/server failure |
+| `GET` | `/api/reports/export.csv` | All; G own only | Same filters as report list | CSV attachment, up to 10,000 matching reports | 400 invalid filters or export too large; 500 |
 | `GET` | `/api/reports/:id` | All; G own only | Path id | 200 {report,reviews:[],checklist:[],actions:[]} | 403 another guard owner; 404 absent; 500 |
 | `POST` | `/api/reports` | G | JSON or multipart: id_pos,id_kategori_insiden optional,tajuk_laporan,kandungan_laporan,syif,tarikh_laporan,masa_laporan,checklist (array or JSON string); lampiran_fail files max 6 | 201 {message,id_laporan,report,nlp:{kategori_dikesan,tahap_risiko,skor_risiko,kata_kunci_dikesan,tahap_keyakinan}} | 400 fields/checklist/file; 413 size; 500 including missing active categories |
 | `PATCH` | `/api/reports/:id/review` | C | Path id; JSON status approved/Disahkan or rejected/Ditolak,comment,requiresFollowUp boolean | 200 {message}; stores Diluluskan/Ditolak | 400 status/types; 404 missing; 409 already reviewed; 500 |
@@ -30,8 +32,8 @@ Login tokens last 12 hours. The login limiter allows five failed attempts per 15
 | `POST` | `/api/actions/:id/request-update` | A | Path action id; JSON or multipart catatan_progress; lampiran_fail max 3 | 201 progress row | 400 notes/file; 404 action; 413 size; 500 |
 | `GET` | `/api/jadual/mingguan` | A,C | None | 200 week[] | 500 |
 | `GET` | `/api/jadual/mingguan/:id` | A,C | Path week id | 200 week row | 404 missing; 500 |
-| `GET` | `/api/jadual/mingguan/:id/coverage-summary` | A,C | Path week id | 200 {coverage,details,coverageByPost,totalRequired,totalAssigned,shortage,activeDutyCount,absentGuardCount,uncoveredPosts} | 404 missing; 500 |
-| `GET` | `/api/jadual/my-schedule` | G | None | 200 own assignment[] from current_date onward, with attendance | 500 |
+| `GET` | `/api/jadual/mingguan/:id/coverage-summary` | A,C | Path week id; optional date=YYYY-MM-DD within that week; omitted date returns weekly totals | 200 {coverage,details,coverageByPost,totalRequired,totalAssigned,shortage,activeDutyCount,absentGuardCount,uncoveredPosts} | 400 invalid/out-of-week date; 404 missing; 500 |
+| `GET` | `/api/jadual/my-schedule` | G | None | 200 own assignment[] from the current Kuala Lumpur date onward, plus eligible overnight shifts; includes can_check_in and can_check_out | 500 |
 | `GET` | `/api/jadual/keperluan-pos` | A,C | None | 200 requirement[] joined to post | 500 |
 | `POST` | `/api/jadual/keperluan-pos` | A,C | JSON id_pos,syif,bilangan_diperlukan integer >=0,status_aktif optional | 200 upserted requirement row | 400 input; 500 |
 | `POST` | `/api/jadual/check-conflict` | A,C | JSON id_pengguna,tarikh_tugas,masa_mula,masa_tamat,id_jadual optional | 200 {ok,critical:string[]} | 400 input; 500 |
@@ -41,12 +43,14 @@ Login tokens last 12 hours. The login limiter allows five failed attempts per 15
 | `POST` | `/api/jadual/mingguan/:id/import-csv` | A | Multipart jadual_fail CSV; exact header fields below | 200 {imported} | 400 CSV/row/conflict; 404 week; 413 size; 500 |
 | `POST` | `/api/jadual/mingguan/:id/upload-pdf` | A | Multipart jadual_fail PDF | 201 file row | 400 missing/signature; 404 week; 413 size; 500 |
 | `POST` | `/api/jadual/mingguan/:id/:action` | A | Path week id; action confirm/lock/unlock | 200 week row; status Disahkan/Dikunci/Draf | 400 action; 404 week; 500 |
-| `POST` | `/api/jadual/assignments/:id/check-in` | G owner | Path assignment id; no body | 200 attendance row; assignment becomes Hadir | 404 not own/today; 409 duplicate; 500 |
-| `POST` | `/api/jadual/assignments/:id/check-out` | G owner | Path assignment id; no body | 200 attendance row; assignment becomes Selesai | 404 not own/today; 409 no active check-in; 500 |
+| `POST` | `/api/jadual/assignments/:id/check-in` | G owner | Path assignment id; no body | 200 attendance row; assignment becomes Hadir | 404 not own or outside eligible attendance date/time; 409 duplicate; 500 |
+| `POST` | `/api/jadual/assignments/:id/check-out` | G owner | Path assignment id; no body | 200 attendance row; assignment becomes Selesai | 404 not own or outside eligible attendance date; 409 no active check-in; 500 |
 | `GET` | `/api/dashboard` | A,C | Query date,location (post ID),risk | 200 {cards,priority,trend,byCategory,byRisk,keywords,latest} | 400 invalid input; 500 database/server failure |
 | `GET` | `/api/dashboard/guard` | G | None | 200 {today,duty:assignment[]} | 400 invalid input; 500 database/server failure |
 | `GET` | `/api/audit` | A | Query page,limit<=100,user,role,pos,module,activity,status,dateMode,date,month,year,format=csv | 200 {data,meta}; CSV attachment if requested (max10,000 rows) | 400 invalid input; 500 database/server failure |
-| `GET` | `/api/notifications` | All own only | None | 200 notification[] latest50 | 400 invalid input; 500 database/server failure |
+| `GET` | `/api/notifications` | All own only | Query page (50 per page), unread=true optional | 200 notification[] | 400 invalid input; 500 database/server failure |
+| `GET` | `/api/notifications/unread-count` | All own only | None | 200 {unread}, across all pages | 500 database failure |
+| `PATCH` | `/api/notifications/read-all` | All own only | No body | 200 {updated}; marks own unread records read | 500 database failure |
 | `PATCH` | `/api/notifications/:id/read` | All own only | Path notification id | 200 {message} | 404 absent or other owner; 500 |
 | `GET` | `/api/nlp-training/` | A | None | 200 category[] | 500 |
 | `POST` | `/api/nlp-training/` | A | JSON nama_kategori,tahap_keutamaan,kata_kunci_rujukan array or comma-separated; optional penerangan_kategori | 201 category row | 400 fields/priority; 409 duplicate; 500 |
@@ -84,3 +88,7 @@ Report-list pagination uses page and limit. Inspect `reportController.js` before
 6. Administrator GET selected 3D summary with explicit dates.
 
 A successful API result records a database event, not physical guard location. Integration assertions: `tests/phase6/final.spec.mjs`; sanitized response statuses: `../../psm/evidence/phase6-workflow-results.json`. Never paste real bearer tokens or operational request bodies into documentation.
+
+Daily coverage uses one day of post requirements and returns assigned guards in `coverageByPost[].assignments`. Shortage is summed per post/shift; excess staffing at one post cannot offset a shortage elsewhere. Calendar dates remain `YYYY-MM-DD`.
+
+The notification centre refreshes every 30 seconds while active. Follow-up requests notify active chief guards; chief progress updates notify active administrators. Report review notifies the submitting guard, and approval requiring follow-up also notifies administrators. Unread counts include older records beyond the first 50.

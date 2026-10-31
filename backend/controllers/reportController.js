@@ -5,9 +5,13 @@ const { enqueue, wakeWorker, schemaReady } = require('../services/nlpJobs');
 const { logAudit } = require('../utils/audit');
 const { processNLP } = require('../ml/nlpService');
 const { parseClarificationInput } = require('../ml/clarificationInput');
+const { reportFilters } = require('../utils/reportFilters');
+const { escapeCSV } = require('../utils/helpers');
 
 const reportSelect = `
-  select l.*, p.nama_penuh, pos.nama_pos,
+  select l.id_laporan,l.id_pengguna,l.id_pos,l.id_kategori_insiden,l.tajuk_laporan,l.syif,
+         l.tarikh_laporan,l.masa_laporan,l.kandungan_laporan,l.status_laporan,l.perlu_tindakan_susulan,
+         l.lampiran_fail,l.tarikh_dicipta,l.tarikh_kemaskini,to_jsonb(l)->'nlp_context' as nlp_context,p.nama_penuh,pos.nama_pos,
          nlp.kategori_dikesan, case when nlp.tahap_risiko in ('Low','Medium','High','Critical') then nlp.tahap_risiko else 'Unknown' end as tahap_risiko, nlp.skor_risiko,
          nlp.kata_kunci_dikesan, nlp.ringkasan_automatik, nlp.tahap_keyakinan,
          nlp.id_nlp, nlp.metadata as nlp_metadata,
@@ -28,24 +32,33 @@ const getReports = async (req, res) => {
   const offset = (page - 1) * limit;
   let client;
   try {
+    const { params, where } = reportFilters(req.query, req.user);
+    const isCsv = req.path === '/export.csv' || req.query.format === 'csv';
+    const base = `with report_rows as (${reportSelect})`;
     client = await pool.connect();
-    const params = [];
-    const whereClause = req.user.nama_peranan === roles.guard
-      ? (params.push(req.user.id_pengguna), ' where l.id_pengguna = $1')
-      : '';
     const countResult = await client.query(
-      `select count(*)::int as total from tbl_laporan_harian l${whereClause}`,
+      `${base} select count(*)::int as total from report_rows${where}`,
       params
     );
-    const result = await client.query(
-      `${reportSelect}${whereClause}
-       order by l.tarikh_laporan desc, l.masa_laporan desc
-       limit $${params.length + 1} offset $${params.length + 2}`,
-      [...params, limit, offset]
-    );
     const total = countResult.rows[0].total;
-    res.json({ data: result.rows, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
+    if (isCsv && total > 10000) return res.status(400).json({ message: 'Eksport maksimum 10000 laporan. Sila kecilkan penapis.' });
+    const result = await client.query(
+      `${base} select *, to_char(tarikh_laporan, 'YYYY-MM-DD') as tarikh_laporan from report_rows${where}
+       order by report_rows.tarikh_laporan desc, masa_laporan desc, id_laporan desc
+       limit $${params.length + 1} offset $${params.length + 2}`,
+      [...params, isCsv ? 10000 : limit, isCsv ? 0 : offset]
+    );
+    if (isCsv) {
+      const rows = [['ID', 'Tarikh', 'Masa', 'Tajuk', 'Pengawal', 'Pos', 'Syif', 'Status', 'Kategori', 'Risiko', 'Laporan'],
+        ...result.rows.map(r => [r.id_laporan, r.tarikh_laporan, r.masa_laporan, r.tajuk_laporan, r.nama_penuh, r.nama_pos, r.syif, r.status_laporan, r.kategori_dikesan, r.tahap_risiko, r.kandungan_laporan])];
+      res.type('text/csv'); res.attachment('laporan-harian.csv');
+      return res.send('\uFEFF' + rows.map(row => row.map(escapeCSV).join(',')).join('\r\n'));
+    }
+    const posts = await client.query(`select distinct p.id_pos,p.nama_pos from tbl_pos_kawalan p join tbl_laporan_harian l using(id_pos)
+      where ($1::int is null or l.id_pengguna=$1) order by p.nama_pos,p.id_pos`, [req.user.nama_peranan === roles.guard ? req.user.id_pengguna : null]);
+    res.json({ data: result.rows, filters: { posts: posts.rows }, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
   } catch (error) {
+    if (error.status === 400) return res.status(400).json({ message: error.message });
     console.error('Get reports error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan laporan' });
   } finally {
@@ -121,7 +134,7 @@ const createReport = async (req, res) => {
   try {
     checklist = typeof checklistInput === 'string' ? JSON.parse(checklistInput) : checklistInput;
     if (!Array.isArray(checklist)) throw new Error('Checklist format must be an array');
-    if (checklist.some((item) => !item.id_checklist || !['Ya', 'Tidak', 'Tidak Berkaitan'].includes(item.jawapan))) {
+    if (checklist.some((item) => !item || !Number.isSafeInteger(item.id_checklist) || item.id_checklist < 1 || !['Ya', 'Tidak', 'Tidak Berkaitan'].includes(item.jawapan) || (item.catatan != null && (typeof item.catatan !== 'string' || item.catatan.length > 2000))) || new Set(checklist.map(item => item.id_checklist)).size !== checklist.length) {
       return res.status(400).json({ message: 'Jawapan checklist tidak sah' });
     }
   } catch {
@@ -135,6 +148,11 @@ const createReport = async (req, res) => {
     if (!await schemaReady(client)) return res.status(503).json({message:'Migrasi NLP diperlukan sebelum laporan baharu boleh diproses.'});
     await client.query('begin');
     transactionStarted = true;
+    const required = await client.query('select id_checklist from tbl_checklist where status_aktif=true for share');
+    const provided = new Set(checklist.map(item => item.id_checklist));
+    if (required.rows.length !== provided.size || required.rows.some(item => !provided.has(item.id_checklist))) {
+      throw Object.assign(new Error('Sila jawab setiap checklist aktif sekali sahaja. Muat semula borang jika checklist telah berubah.'), { status: 400 });
+    }
     const nlpContext=parseClarificationInput(req.body.nlp_context);
     if(nlpContext.clarifications?.length)await processNLP(kandungan_laporan,{db:client,selectedPostId:Number(id_pos),sourceHash:nlpContext.draftHash,clarifications:nlpContext.clarifications});
     const reportResult = await client.query(
@@ -234,6 +252,16 @@ const reviewReport = async (req, res) => {
           [id, req.user.nama_penuh, 'Tindakan susulan diperlukan berdasarkan semakan laporan.', report.tahap_risiko || 'Medium']
         );
       }
+    }
+    if (normalizedStatus === 'Diluluskan' && requiresFollowUp) {
+      await client.query(
+        `insert into tbl_notifikasi(id_pengguna,id_laporan,id_tindakan,tajuk_notifikasi,mesej_notifikasi,jenis_notifikasi,tahap_keutamaan)
+         select u.id_pengguna,$1,a.id_tindakan,'Tindakan susulan diperlukan',$2,'Tindakan Susulan','Medium'
+         from tbl_pengguna u join tbl_peranan r on r.id_peranan=u.id_peranan
+         join tbl_tindakan_susulan a on a.id_laporan=$1
+         where u.status_akaun='Aktif' and r.nama_peranan='Pentadbir Sistem'`,
+        [id, `Laporan #${id} diluluskan dan memerlukan tindakan susulan.`]
+      );
     }
     await logAudit(client, req.user.id_pengguna, 'REVIEW_REPORT', `Laporan #${id}`, `Status: ${normalizedStatus}`);
     await client.query('commit');

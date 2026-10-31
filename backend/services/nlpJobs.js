@@ -48,8 +48,8 @@ async function saveAnalysis(client,report,result,review,{jobId=null,inputHash:so
   if(jobId)await client.query("update tbl_job_nlp set status='completed',id_nlp=$1,completed_at=now(),locked_at=null,lease_token=null,last_error=null where id_job=$2",[saved.rows[0].id_nlp,jobId]);
   return saved.rows[0];
 }
-async function runOne(pool,{reviewer=reviewAnalysis}={}){
-  // Atomic lease. No connection remains checked out while Gemini is responding.
+async function runOne(pool){
+  // Local inference and alerts never wait for the optional provider.
   const lease=crypto.randomUUID();
   const job=(await pool.query(`update tbl_job_nlp set status='processing',attempts=attempts+1,locked_at=now(),lease_token=$1
     where id_job=(select id_job from tbl_job_nlp where status='pending' and available_at<=now() order by id_job for update skip locked limit 1) returning *`,[lease])).rows[0];
@@ -60,7 +60,7 @@ async function runOne(pool,{reviewer=reviewAnalysis}={}){
     const analysisInputHash=inputHash(report);
     const refs=await context(pool);
     const result=await processNLP(report.kandungan_laporan,{context:refs,selectedPostId:report.id_pos,sourceHash:report.nlp_context?.draftHash,clarifications:report.nlp_context?.clarifications});
-    const review=await reviewer({text:report.kandungan_laporan,analysis:result,...refs});
+    const review={status:'pending',provider:'gemini',model:configuration().model,findings:[],attempts:0};
     const client=await pool.connect();
     try{
       await client.query('begin');
@@ -68,7 +68,7 @@ async function runOne(pool,{reviewer=reviewAnalysis}={}){
       const current=(await client.query('select * from tbl_laporan_harian where id_laporan=$1 for update',[job.id_laporan])).rows[0];
       if(locked?.status!=='processing'||locked.lease_token!==lease||!current||inputHash(current)!==analysisInputHash)throw Object.assign(new Error('STALE_INPUT'),{code:'STALE_INPUT'});
       await saveAnalysis(client,report,result,review,{jobId:job.id_job,inputHash:analysisInputHash});
-      await logAudit(client,job.requested_by,'ANALYSE_REPORT',`Laporan #${job.id_laporan}`,'Analisis tempatan dan semakan AI direkodkan');
+      await logAudit(client,job.requested_by,'ANALYSE_REPORT',`Laporan #${job.id_laporan}`,'Analisis tempatan dan amaran disimpan; semakan AI dalam giliran berasingan');
       await client.query('commit');
     }catch(error){await client.query('rollback');throw error;}finally{client.release();}
   }catch(error){
@@ -79,9 +79,51 @@ async function runOne(pool,{reviewer=reviewAnalysis}={}){
   }
   return true;
 }
+async function runReviewOne(pool,{reviewer=reviewAnalysis}={}){
+  // Review state lives with its immutable analysis input. The existing review
+  // metadata index supports this queue without a new deployment migration.
+  await pool.query(`update tbl_hasil_nlp set metadata=jsonb_set(metadata,'{review}',metadata->'review' || '{"status":"unavailable","reason":"LEASE_EXPIRED","findings":[]}'::jsonb)
+    where metadata->'review'->>'status'='processing' and (metadata->'review'->>'lockedAt')::timestamptz < now()-interval '3 minutes'
+      and coalesce((metadata->'review'->>'attempts')::int,0)>=3`);
+  const lease=crypto.randomUUID();
+  const saved=(await pool.query(`update tbl_hasil_nlp set metadata=jsonb_set(metadata,'{review}',metadata->'review' ||
+      jsonb_build_object('status','processing','lease', $1::text,'lockedAt',now(),'attempts',coalesce((metadata->'review'->>'attempts')::int,0)+1))
+    where id_nlp=(select id_nlp from tbl_hasil_nlp where metadata->'review'->>'status'='pending'
+      or (metadata->'review'->>'status'='processing' and (metadata->'review'->>'lockedAt')::timestamptz < now()-interval '3 minutes'
+        and coalesce((metadata->'review'->>'attempts')::int,0)<3)
+      order by id_nlp for update skip locked limit 1) returning *`,[lease])).rows[0];
+  if(!saved)return false;
+  let review;
+  try{
+    const report=(await pool.query('select * from tbl_laporan_harian where id_laporan=$1',[saved.id_laporan])).rows[0];
+    if(!report||inputHash(report)!==saved.metadata.inputHash)review=unavailable('STALE_INPUT');
+    else {
+      const refs=await context(pool);
+      const m=saved.metadata;
+      const analysis={...m,topCategory:saved.kategori_dikesan,riskLevel:saved.tahap_risiko,riskScore:saved.skor_risiko};
+      review=await reviewer({text:report.kandungan_laporan,analysis,...refs});
+    }
+  }catch{review=unavailable('REVIEW_FAILED');}
+  const client=await pool.connect();
+  try{
+    await client.query('begin');
+    const report=(await client.query('select * from tbl_laporan_harian where id_laporan=$1 for update',[saved.id_laporan])).rows[0];
+    if(!report||inputHash(report)!==saved.metadata.inputHash)review=unavailable('STALE_INPUT');
+    await client.query(`update tbl_hasil_nlp set metadata=jsonb_set(metadata,'{review}',$1::jsonb)
+      where id_nlp=$2 and metadata->'review'->>'lease'=$3 and metadata->'review'->>'status'='processing'`,[JSON.stringify(review),saved.id_nlp,lease]);
+    await client.query('commit');
+  }catch(error){await client.query('rollback');throw error;}finally{client.release();}
+  return true;
+}
 function startWorker(pool){
   if(workers.has(pool)||process.env.NLP_WORKER_ENABLED==='false')return ()=>{};
-  let active=false;let stopped=false;
+  let active=false;let reviewActive=false;let stopped=false;
+  const reviewTick=async()=>{
+    if(reviewActive||stopped)return;reviewActive=true;
+    try{if(await schemaReady(pool))await runReviewOne(pool);}
+    catch(error){if(error.code!=='42P01')console.error('NLP review worker unavailable:',error.code||error.name);}
+    finally{reviewActive=false;}
+  };
   const tick=async()=>{
     if(active||stopped)return;active=true;
     try{
@@ -90,8 +132,8 @@ function startWorker(pool){
       await runOne(pool);
     }catch(error){if(error.code!=='42P01')console.error('NLP worker unavailable:',error.code||error.name);}finally{active=false;}
   };
-  const timer=setInterval(tick,1500);timer.unref();
+  const timer=setInterval(()=>{tick();reviewTick();},1500);timer.unref();
   const stop=()=>{stopped=true;clearInterval(timer);workers.delete(pool);};workers.set(pool,{tick,stop});return stop;
 }
 function wakeWorker(pool){const worker=workers.get(pool);if(worker)setImmediate(worker.tick);}
-module.exports={enqueue,saveAnalysis,runOne,startWorker,wakeWorker,schemaReady,hash,inputHash,PIPELINE_VERSION,unavailable};
+module.exports={enqueue,saveAnalysis,runOne,runReviewOne,startWorker,wakeWorker,schemaReady,hash,inputHash,PIPELINE_VERSION,unavailable};

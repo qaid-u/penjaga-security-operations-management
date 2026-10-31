@@ -8,6 +8,7 @@ const intelligence = require('../controllers/reportIntelligenceController');
 router.use(cleanupFailedUploads);
 
 router.get('/', auth, getReports);
+router.get('/export.csv', auth, getReports);
 router.post('/assist', auth, requireRole(roles.guard), intelligence.assist);
 router.get('/search', auth, intelligence.search);
 router.get('/briefing', auth, requireRole(roles.admin, roles.chief), intelligence.briefing);
