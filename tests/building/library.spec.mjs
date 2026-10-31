@@ -15,6 +15,8 @@ async function setup(page, { role = 'Pentadbir Sistem', delayBuilding = '', noWe
     localStorage.setItem('penjaga_user', JSON.stringify({ id_pengguna: 1, nama_peranan, nama_penuh: 'Ujian Perpustakaan Model' }));
   }, role);
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.route('**/api/notifications/unread-count', route => route.fulfill({json:{unread:0}}));
+  await page.route('**/api/meta', route => route.fulfill({json:{posts:[]}}));
   if (noWebGL) await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (type, ...args) {
@@ -157,10 +159,10 @@ test('compact dashboard link opens 3D without preloading models and gallery is o
   const { models } = await setup(page);
   await page.route('**/api/dashboard*', route => route.fulfill({ json: { cards: {}, priority: {}, latest: [] } }));
   await page.goto('/dashboard');
-  await expect(page.getByRole('heading', { name: 'Terokai pos dalam 3D' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Terokai portfolio bangunan 3D' })).toBeVisible();
   expect(models).toEqual([]);
-  await page.locator('.workspace-map-link').click();
-  await expect(page).toHaveURL(/\/3d-command-centre$/u);
+  await page.locator('.model-showcase__cta').click();
+  await expect(page).toHaveURL(/\/3d-command-centre\?building=DJM$/u);
   await expect(page.locator('canvas')).toBeVisible();
   await expect(page.getByRole('group', { name: 'Pilihan bangunan 3D' })).toBeHidden();
   await page.getByText('Galeri bangunan', { exact: false }).click();

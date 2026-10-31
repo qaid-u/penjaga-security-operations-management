@@ -17,6 +17,8 @@ playwright-report/
 docs/psm-evaluation/data/
 .env
 backend/.env
+.env.deployment
+.database-backups.local/
 backend/*.log
 backend/uploads/
 

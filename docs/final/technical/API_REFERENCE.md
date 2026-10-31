@@ -45,7 +45,7 @@ Login tokens last 12 hours. The login limiter allows five failed attempts per 15
 | `POST` | `/api/jadual/mingguan/:id/:action` | A | Path week id; action confirm/lock/unlock | 200 week row; status Disahkan/Dikunci/Draf | 400 action; 404 week; 500 |
 | `POST` | `/api/jadual/assignments/:id/check-in` | G owner | Path assignment id; no body | 200 attendance row; assignment becomes Hadir | 404 not own or outside eligible attendance date/time; 409 duplicate; 500 |
 | `POST` | `/api/jadual/assignments/:id/check-out` | G owner | Path assignment id; no body | 200 attendance row; assignment becomes Selesai | 404 not own or outside eligible attendance date; 409 no active check-in; 500 |
-| `GET` | `/api/dashboard` | A,C | Query date,location (post ID),risk | 200 {cards,priority,trend,byCategory,byRisk,keywords,latest} | 400 invalid input; 500 database/server failure |
+| `GET` | `/api/dashboard` | A,C | Query date or from/to,location (post ID),risk | 200 {cards,priority,trend,byCategory,byRisk,keywords,latest,insights} | 400 invalid input; 500 database/server failure |
 | `GET` | `/api/dashboard/guard` | G | None | 200 {today,duty:assignment[]} | 400 invalid input; 500 database/server failure |
 | `GET` | `/api/audit` | A | Query page,limit<=100,user,role,pos,module,activity,status,dateMode,date,month,year,format=csv | 200 {data,meta}; CSV attachment if requested (max10,000 rows) | 400 invalid input; 500 database/server failure |
 | `GET` | `/api/notifications` | All own only | Query page (50 per page), unread=true optional | 200 notification[] | 400 invalid input; 500 database/server failure |
@@ -92,3 +92,17 @@ A successful API result records a database event, not physical guard location. I
 Daily coverage uses one day of post requirements and returns assigned guards in `coverageByPost[].assignments`. Shortage is summed per post/shift; excess staffing at one post cannot offset a shortage elsewhere. Calendar dates remain `YYYY-MM-DD`.
 
 The notification centre refreshes every 30 seconds while active. Follow-up requests notify active chief guards; chief progress updates notify active administrators. Report review notifies the submitting guard, and approval requiring follow-up also notifies administrators. Unread counts include older records beyond the first 50.
+
+## Calendar exports and compact operation views
+
+Reports (including `/reports/export.csv`), `/audit` and `/dashboard` accept `from=YYYY-MM-DD&to=YYYY-MM-DD`. Both bounds are required, inclusive, and validated; reversed or invalid dates return 400. Other filters and role restrictions still apply. Weekly exports use Monday through Sunday; monthly and yearly exports use full calendar boundaries, including leap years. CSV exports retain their 10,000-record limit and report ownership rules.
+
+The report and audit lists show eight records per page. Scheduling and follow-ups show six expandable records per page; search and building/status filters operate on the complete loaded collection before paging. Admin and chief dashboards appear before the building previews. Dashboard CSV and standalone SVG downloads can use their own calendar period; browser printing supports PDF. Report statistics follow the selected period, while operational backlog and today’s schedule remain explicitly labelled current snapshots.
+
+## Dashboard analytics semantics
+
+The dashboard opens on the latest 14 calendar days in Kuala Lumpur. `insights.period` describes the requested window and its observed end (at most today). Bounded periods compare with the immediately preceding interval of the same observed length; all-time and future-only periods have no comparison. The daily series includes zero-report dates and is capped at the final 366 days for long windows; aggregate totals still cover the full observed interval.
+
+`insights.current` and `previous` contain total, classified, High/Critical, reviewed and attachment counts. Risk share divides High/Critical by valid classified reports; classification coverage and completed reviews divide by total reports. Empty denominators and zero-volume baselines produce unavailable rates, not invented percentage changes. Risk-share changes are percentage points. Latest stored NLP classifications are used; missing or invalid classifications remain Unknown.
+
+`insights.posts` lists up to five posts ordered by High/Critical report count, then report volume. Source links preserve period and risk filters. `insights.backlog` groups currently submitted reports into 0–2, 3–6 and 7+ calendar days since report date, using the post/risk scope across all dates. These are descriptive reporting measures, not incident rates, safety scores, guard performance measures, SLA calculations or forecasts. CSV and SVG exports include the observed dates, denominators and comparison context.

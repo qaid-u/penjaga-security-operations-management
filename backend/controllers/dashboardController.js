@@ -1,20 +1,27 @@
+const {dashboardInsights} = require('../services/dashboardInsights');
+const {dateRange} = require('../utils/dateRange');
 const pool = require('../config/db');
 
 const buildFilters = (query) => {
   const params = [];
   const conditions = [];
   if (query.date) {
+    dateRange({from:query.date,to:query.date});
     params.push(query.date);
     conditions.push(`l.tarikh_laporan = $${params.length}::date`);
   }
   if (query.location) {
+    if(typeof query.location !== 'string' || !/^[1-9]\d*$/.test(query.location) || Number(query.location)>2147483647)throw Object.assign(new Error('Pos tidak sah'),{status:400});
     params.push(query.location);
     conditions.push(`l.id_pos = $${params.length}::int`);
   }
   if (query.risk) {
+    if(!['Low','Medium','High','Critical','Unknown'].includes(query.risk))throw Object.assign(new Error('Risiko tidak sah'),{status:400});
     params.push(query.risk);
     conditions.push(`case when n.tahap_risiko in ('Low','Medium','High','Critical') then n.tahap_risiko else 'Unknown' end = $${params.length}`);
   }
+  const range = dateRange(query);
+  if (range) { params.push(range.from);conditions.push(`l.tarikh_laporan >= $${params.length}::date`);params.push(range.to);conditions.push(`l.tarikh_laporan <= $${params.length}::date`); }
   return { params, where: conditions.length ? `where ${conditions.join(' and ')}` : '' };
 };
 
@@ -22,6 +29,7 @@ const getDashboard = async (req, res) => {
   let client;
   try {
     client = await pool.connect();
+    await client.query('begin isolation level repeatable read read only');
     const { params, where } = buildFilters(req.query);
     const [cards, priority, trend, byCategory, byRisk, keywords, latest] = [
       await client.query(
@@ -50,7 +58,7 @@ const getDashboard = async (req, res) => {
         `select to_char(l.tarikh_laporan, 'YYYY-MM-DD') as date, count(*)::int as laporan
          from tbl_laporan_harian l
          left join lateral (select * from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) n on true
-         ${where} ${where ? 'and' : 'where'} l.tarikh_laporan >= current_date - interval '6 days'
+         ${where} ${req.query.from ? '' : `${where ? 'and' : 'where'} l.tarikh_laporan >= current_date - interval '6 days'`}
          group by l.tarikh_laporan order by l.tarikh_laporan`,
         params
       ),
@@ -75,7 +83,7 @@ const getDashboard = async (req, res) => {
         params
       ),
       await client.query(
-        `select l.id_laporan, l.tajuk_laporan, l.tarikh_laporan, pos.nama_pos,
+        `select l.id_laporan, l.tajuk_laporan, to_char(l.tarikh_laporan,'YYYY-MM-DD') as tarikh_laporan, pos.nama_pos,
                 case when n.tahap_risiko in ('Low','Medium','High','Critical') then n.tahap_risiko else 'Unknown' end as tahap_risiko
          from tbl_laporan_harian l
          left join lateral (select * from tbl_hasil_nlp where id_laporan=l.id_laporan order by tarikh_analisis desc,id_nlp desc limit 1) n on true
@@ -88,7 +96,10 @@ const getDashboard = async (req, res) => {
     const scheduleToday = await client.query(
       'select count(*)::int as count from tbl_jadual_bertugas where tarikh_tugas = current_date'
     );
+    const insights = await dashboardInsights(client,req.query);
+    await client.query('commit');
     res.json({
+      insights,
       cards: {
         ...cards.rows[0],
         jadual_hari_ini: scheduleToday.rows[0].count,
@@ -102,6 +113,8 @@ const getDashboard = async (req, res) => {
       latest: latest.rows,
     });
   } catch (error) {
+    if(client)await client.query('rollback').catch(()=>{});
+    if (error.status === 400) return res.status(400).json({message:error.message});
     console.error('Get dashboard error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan dashboard' });
   } finally {

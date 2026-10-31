@@ -1,6 +1,6 @@
 # Deployment preparation and release guide
 
-Status: local build and Compose configuration verified; image execution, hosted TLS and recovery drills unverified. No public deployment was authorized or performed. Release approval must address the [audit](PROJECT_IMPLEMENTATION_AUDIT.md), especially password change, overnight attendance and target hardware performance.
+Status: local build and database backup/restore verified; image execution, hosted TLS and production recovery remain unverified. No public deployment was authorized or performed. Local database upgrade evidence is in [database validation](../testing/DATABASE_UPGRADE.md). Historical Phase 6 release findings remain in the [audit](PROJECT_IMPLEMENTATION_AUDIT.md); verify current implementation before treating those findings as open.
 
 ## Prerequisites and configuration
 
@@ -16,6 +16,8 @@ Reuse the repository's Nginx/frontend, Express/backend and PostgreSQL Compose se
 | PGHOST,PGPORT,PGDATABASE,PGUSER,PGPASSWORD | direct PostgreSQL connection |
 | DATABASE_URL | alternative connection string; do not expose in logs |
 | PGSSL,PGSSLMODE,PGSSL_CA | verified certificate/TLS settings; see dbOptions.js |
+| PGOPTIONS | defaults to `-c timezone=Asia/Kuala_Lumpur`; explicit options override this |
+| PG_BIN | PostgreSQL client binary directory for the host backup command, if not on PATH |
 | VITE_API_URL | public build-time API base, Compose /api |
 | VITE_API_ORIGIN | public backend origin for downloads; blank for same-origin |
 | NLP_MODEL_PATH | optional file path; does not resolve the trained-inference mismatch |
@@ -24,14 +26,14 @@ Uploads have a fixed `backend/uploads` root and Compose persistent volume; there
 
 ## New and existing PostgreSQL targets
 
-For a new empty target, apply schema.sql, roles.sql and migration003 with `psql -v ON_ERROR_STOP=1`. Fresh Compose volumes do this automatically. Fresh initialization no longer loads legacy seed.sql, so there are no automatic demo accounts or operational records. Provision one private administrator with `backend/scripts/bootstrap-admin.js` and BOOTSTRAP_* variables; the tool refuses an existing active administrator. Configure actual categories/posts/users and authorized weekly rows separately.
+For a new empty target, configure the private backend connection and run `npm --prefix backend run db:migrate -- --init`. Compose executes this migration runner before starting the API on both fresh and existing volumes. It creates the base schema, role definitions and all ordered migrations, with no demo accounts or report seeds. Provision one private administrator with `backend/scripts/bootstrap-admin.js` and BOOTSTRAP_* variables; the tool refuses an existing active administrator. Configure actual categories/posts/users and authorized weekly rows separately.
 
 For an existing target:
 
-1. Record PostgreSQL/version/timezone and inspect actual tables/columns/indexes and current mappings. `node backend/scripts/migrate-3d.js --inspect` is read-only when run with the intended private configuration.
+1. Record PostgreSQL/version/timezone and inspect actual tables/columns/indexes and current mappings. `npm --prefix backend run db:status` is read-only when run with the intended private configuration.
 2. Take a verified backup and test restore into a separate database. Retain uploads from the same recovery window. Schedule a maintenance window for any schema/index lock.
 3. Compare existing schema with [database design](technical/DATABASE_DESIGN.md). CREATE TABLE IF NOT EXISTS is not a general reconciliation mechanism. Do not apply destructive reset scripts or blindly rerun reference seeds.
-4. Apply only the approved additive migration using `npm --prefix backend run migrate:3d`. Its transaction uses an advisory lock, 5s lock timeout and 60s statement timeout; existing hotspot mappings are preserved. Stop on errors and investigate rather than dropping data.
+4. Apply pending migrations using `npm --prefix backend run db:migrate`. The transaction uses advisory locks, a 5s lock timeout and a 120s statement timeout; existing hotspot mappings are preserved. Applied file checksums must match. Migration 007 audits conversion of the known historical action label; unrecognized invalid data rolls back the upgrade. Large tables may need a separately planned index maintenance window. Stop on errors and investigate rather than dropping data.
 5. Re-inspect, verify foreign keys/indexes, and exercise health/readiness and authorized queries. No existing operational database migration was executed during Phase 6.
 
 ## Build and start (after explicit deployment approval)
@@ -62,7 +64,11 @@ The user approved the exterior demo GLB in public/models. Served file: `public/m
 
 ## Backup and recovery
 
-Define an approved recovery point/time objective before release. Use `pg_dump -Fc` with private connection configuration; encrypt and restrict backups. Archive backend uploads and deployment configuration separately without exposing secrets. Test `pg_restore` into a new isolated database, point a separate service to it, verify attachments/relationships and counts, then document results. Never restore over the live database as a routine verification step. Preserve the previous image/version and compatible database backup before schema changes; an application rollback alone cannot undo data/schema changes safely. No restore drill was performed here.
+Define an approved recovery point/time objective before release. For a host installation, stop application writers and run `npm --prefix backend run db:backup` with PostgreSQL client utilities on PATH or `PG_BIN` configured. The ignored private output directory contains a custom-format database dump, evidence files and a manifest. Incomplete backups have no completed manifest. The command checks archive readability; only an actual isolated restore proves recovery. Encrypt and restrict retained backups, and copy them to approved backup storage. Deployment configuration/secrets need separate protected recovery storage.
+
+For Docker deployments, run the PostgreSQL client inside the database container and archive the uploads volume while application writers are stopped. On a Linux hosting shell, `docker compose exec -T database sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > database.dump` exports the database without placing credentials on the command line; archive `/app/uploads` from the backend container separately. Do not publish a database port just to take a backup.
+
+Test `pg_restore` into a new isolated database, verify attachments/relationships and record checksums, then document results. Never restore over the live database for a recovery test. A local restore on 31 October 2026 matched all 23 pre-upgrade tables and 103 reports; this does not establish production recovery readiness. Preserve the previous image/version and compatible database backup before schema changes; an application rollback alone cannot undo data/schema changes safely.
 
 ## Release gates still open
 

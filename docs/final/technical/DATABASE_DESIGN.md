@@ -1,6 +1,6 @@
 # Database design
 
-Generated from the actual `backend/database/schema.sql` plus additive `003_lokasi_3d.sql`: 20 application tables. The demo manifest tables are isolated tooling, not production entities. Diagram source: [database-erd.mmd](diagrams/database-erd.mmd). Nullable foreign keys use optional parent cardinality; each child may have at most one referenced parent and each parent may have zero or many children. SQL unique indexes further constrain particular relationships.
+The base schema and ERD below describe the original 20 tables including 3D mappings. Migrations 004–007 add three NLP workflow tables and the migration ledger, giving 24 application/maintenance tables. Demo manifest tables are isolated tooling. Diagram source: [database-erd.mmd](diagrams/database-erd.mmd). Nullable foreign keys use optional parent cardinality; each child may have at most one referenced parent and each parent may have zero or many children. SQL unique indexes further constrain particular relationships.
 
 ```mermaid
 erDiagram
@@ -264,6 +264,10 @@ Indexes include report status/risk, audit time, weekly dates, assignments by wee
 
 Existing databases must not be reset. Schema `CREATE TABLE IF NOT EXISTS` does not reconcile arbitrary legacy column differences. Inspect and back up the target before applying the additive migration; preserve mappings. See [deployment guide](../DEPLOYMENT_GUIDE.md).
 
+Migration 007 adds 20 validated checks for statuses, shifts, confidence bounds, date ordering, attendance ordering and nonnegative staffing requirements. Overnight shifts remain valid. Unique indexes enforce one final review per report and one answer per checklist/report. Additional indexes cover all-post date filters, guard report history, pending reports, per-user notifications, unread notifications, daily assignments and user audit history. New reports default to Unknown until classified. The recognized legacy action label `Dalam Proses` is converted to `Dalam Tindakan` with one audit record per change; unrelated historical fields and IDs are retained.
+
+`tbl_schema_migrations` records filename, SHA-256 checksum and application time. The shared runner holds advisory locks and commits all pending migrations with their ledger entries in one transaction. Edited applied files, missing versions and unrecognized invalid legacy data stop the upgrade. Application sessions default to `Asia/Kuala_Lumpur`; an explicit `PGOPTIONS` overrides this. Existing timestamp columns are not reinterpreted or rewritten. Dashboard queries now share a repeatable-read, read-only snapshot. See [database upgrade validation](../../testing/DATABASE_UPGRADE.md).
+
 ## `tbl_peranan`
 
 | Column | SQL declaration |
@@ -328,7 +332,7 @@ Existing databases must not be reset. Schema `CREATE TABLE IF NOT EXISTS` does n
 | `masa_laporan` | `time not null` |
 | `kandungan_laporan` | `text not null` |
 | `status_laporan` | `varchar(30) not null default 'Dihantar'` |
-| `tahap_risiko` | `varchar(20) not null default 'Low'` |
+| `tahap_risiko` | `varchar(20) not null default 'Unknown'` |
 | `perlu_tindakan_susulan` | `boolean not null default false` |
 | `lampiran_fail` | `text` |
 | `tarikh_dicipta` | `timestamp not null default now()` |

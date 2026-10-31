@@ -51,7 +51,7 @@ create table if not exists tbl_laporan_harian (
   masa_laporan time not null,
   kandungan_laporan text not null,
   status_laporan varchar(30) not null default 'Dihantar',
-  tahap_risiko varchar(20) not null default 'Low',
+  tahap_risiko varchar(20) not null default 'Unknown',
   perlu_tindakan_susulan boolean not null default false,
   lampiran_fail text,
   tarikh_dicipta timestamp not null default now(),

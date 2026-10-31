@@ -4,7 +4,7 @@ import { ArrowUpRight, Box, MapPin } from 'lucide-react';
 import { modeledBuildings } from './buildingModels';
 import './model-showcase.css';
 
-export function ModelShowcase() {
+export function ModelShowcase({compact=false}) {
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState('DJM');
   const selected = modeledBuildings.find((building) => building.id === selectedId) || modeledBuildings[0];
@@ -12,7 +12,7 @@ export function ModelShowcase() {
   const modelCount = new Set(modeledBuildings.map((building) => building.modelId)).size;
   const open = () => navigate(`/3d-command-centre?building=${encodeURIComponent(selected.id)}`);
 
-  return <section className="model-showcase" aria-label="Terokai portfolio bangunan 3D">
+  return <section className={`model-showcase ${compact ? 'ops-model-compact' : ''}`} aria-label="Terokai portfolio bangunan 3D">
     <div className="model-showcase__intro">
       <div className="model-showcase__eyebrow"><Box size={16} aria-hidden="true" /><span>PENJAGA / PERSPEKTIF 3D</span></div>
       <h2>Terokai bangunan.<br /><span>Fahami operasi.</span></h2>

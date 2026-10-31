@@ -80,8 +80,10 @@ export async function downloadCsv(path, filename, params = {}) {
     link.click();
     URL.revokeObjectURL(url);
     notifySuccess(`${filename} dimuat turun`);
+    return true;
   } catch (error) {
     notifyError(error, 'Fail CSV gagal dimuat turun');
+    return false;
   }
 }
 

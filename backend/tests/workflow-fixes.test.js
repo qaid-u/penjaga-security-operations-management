@@ -21,7 +21,7 @@ test('workflow regressions use disposable schema and real authenticated APIs',as
   let server;
   try{
     await admin.query(`create schema ${schema}`);
-    for(const file of ['schema.sql','roles.sql','migrations/003_lokasi_3d.sql','migrations/004_nlp_review.sql'])await pool.query(await fs.readFile(path.join(__dirname,'../database',file),'utf8'));
+    for(const file of ['schema.sql','roles.sql','migrations/003_lokasi_3d.sql','migrations/004_nlp_review.sql','migrations/007_database_integrity.sql'])await pool.query(await fs.readFile(path.join(__dirname,'../database',file),'utf8'));
     const password='Original-password-123';
     const hash=await bcrypt.hash(password,10);
     await pool.query(`insert into tbl_pengguna(id_pengguna,id_peranan,nama_penuh,nama_pengguna,emel,kata_laluan) values
@@ -66,6 +66,14 @@ test('workflow regressions use disposable schema and real authenticated APIs',as
       assert.equal((await request('/audit?format=csv',3)).status,403);
       assert.equal((await request('/reports/export.csv',null)).status,401);
       for(const cell of ['=SUM(A1)',' +cmd','@formula','-1+2'])assert.ok(escapeCSV(cell).startsWith("'"));
+    });
+    await t.test('report, dashboard and audit exports honor inclusive calendar ranges',async()=>{
+      const filtered=await request('/reports?from=2026-10-01&to=2026-10-01',1);assert.equal(filtered.status,200);assert.equal(filtered.data.meta.total,2);
+      const csv=await request('/reports/export.csv?from=2026-10-01&to=2026-10-01',3);assert.match(csv.data,/Old needle/);assert.ok(!csv.data.includes('Private needle'));assert.ok(!csv.data.includes('Recent '));
+      const stats=await request('/dashboard?from=2026-10-01&to=2026-10-01',2);assert.equal(stats.status,200);assert.equal(stats.data.cards.total_laporan,2);assert.equal(stats.data.trend[0].date,'2026-10-01');assert.equal(stats.data.latest[0].tarikh_laporan,'2026-10-01');
+      await pool.query("insert into tbl_audit_trail(id_pengguna,modul_sistem,jenis_aktiviti,penerangan_aktiviti,status_aktiviti,tarikh_masa_aktiviti) values(1,'Period test','Range start','start','Berjaya','2024-02-01 00:00:00'),(1,'Period test','Range end','end','Berjaya','2024-02-29 23:59:59'),(1,'Period test','Outside range','outside','Berjaya','2024-03-01 00:00:00')");
+      const audit=await request('/audit?format=csv&from=2024-02-01&to=2024-02-29',1);assert.equal(audit.status,200);assert.match(audit.data,/Range start/);assert.match(audit.data,/Range end/);assert.ok(!audit.data.includes('Outside range'));
+      for(const endpoint of ['/reports/export.csv','/audit?format=csv','/dashboard'])for(const range of ['from=2026-02-30&to=2026-03-01','from=2027-01-01&to=2026-01-01','from=2026-01-01','from=0000-01-01&to=2026-01-01'])assert.equal((await request(endpoint+(endpoint.includes('?')?'&':'?')+range,1)).status,400);
     });
     await t.test('API requires all and only active checklist answers exactly once',async()=>{
       const body={id_pos:1,tajuk_laporan:'Checklist regression',kandungan_laporan:'Routine patrol',syif:'Pagi',tarikh_laporan:'2026-10-29',masa_laporan:'09:00'};
@@ -134,6 +142,17 @@ test('workflow regressions use disposable schema and real authenticated APIs',as
       assert.equal((await request('/notifications/unread-count',2)).data.unread,1);
       assert.equal((await request('/actions/'+action.id_tindakan+'/progress',2,'POST',{catatan_progress:'The lock is repaired'})).status,201);
       assert.equal((await request('/notifications/unread-count',1)).data.unread,1);
+    });
+    await t.test('analytics compares equal windows, fills zero days and keeps unknown risk out of the risk denominator',async()=>{
+      const rows=(await pool.query("insert into tbl_laporan_harian(id_pengguna,id_pos,tajuk_laporan,syif,tarikh_laporan,masa_laporan,kandungan_laporan,status_laporan) values(3,2,'Analysis high','Pagi','2025-01-01','09:00','Synthetic','Dihantar'),(3,1,'Analysis unknown','Pagi','2025-01-01','10:00','Synthetic','Dihantar'),(3,1,'Analysis low','Pagi','2025-01-03','11:00','Synthetic','Diluluskan'),(3,1,'Analysis previous','Pagi','2024-12-30','09:00','Synthetic','Dihantar') returning id_laporan")).rows;
+      for(const [index,risk] of [[0,'High'],[2,'Low'],[3,'Low']])await pool.query("insert into tbl_hasil_nlp(id_laporan,teks_diproses,kategori_dikesan,skor_risiko,tahap_risiko) values($1,'Synthetic','Kerosakan Aset',10,$2)",[rows[index].id_laporan,risk]);
+      const response=await request('/dashboard?from=2025-01-01&to=2025-01-03',2);assert.equal(response.status,200);
+      const a=response.data.insights;assert.equal(a.current.total,3);assert.equal(a.current.classified,2);assert.equal(a.current.high,1);assert.equal(a.current.reviewed,1);assert.equal(a.previous.total,1);assert.equal(a.comparison.volumeChange,200);assert.equal(a.comparison.riskShareChange,50);assert.equal(a.comparison.from,'2024-12-29');assert.equal(a.comparison.to,'2024-12-31');assert.equal(a.series.length,3);assert.equal(a.series[1].reports,0);assert.equal(a.series[1].previous,1);assert.equal(a.posts[0].id_pos,2);
+      const zero=(await request('/dashboard?from=2018-01-02&to=2018-01-03',1)).data.insights;assert.equal(zero.current.total,0);assert.equal(zero.comparison.volumeChange,null);assert.equal(zero.comparison.riskShareChange,null);assert.equal(zero.series.length,2);
+      assert.equal((await request('/dashboard?from=2099-01-01&to=2099-01-03',1)).data.insights.futurePeriod,true);
+      const all=(await request('/dashboard',1)).data.insights;assert.equal(all.comparison,null);assert.ok(all.series.length<=366);
+      assert.equal((await request('/dashboard?location=bad',1)).status,400);
+      const linked=await request('/reports?post=2&from=2025-01-01&to=2025-01-03&risk=HighCritical',2);assert.equal(linked.status,200);assert.equal(linked.data.meta.total,1);assert.equal(linked.data.data[0].id_laporan,rows[0].id_laporan);
     });
     await t.test('password change verifies old password and stores a new bcrypt hash',async()=>{
       const url='/auth/change-password';const next='Replacement-password-456';

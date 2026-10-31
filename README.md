@@ -29,12 +29,10 @@ Create a database:
 createdb penjaga_db
 ```
 
-Load schema and seed data:
+Configure private database credentials in `backend/.env`, then initialize an empty database:
 
 ```bash
-psql -d penjaga_db -f backend/database/schema.sql
-psql -d penjaga_db -f backend/database/seed.sql
-node backend/scripts/migrate-3d.js
+npm --prefix backend run db:migrate -- --init
 ```
 
 The dashboard features a visual building showcase. The 3D command centre offers eight building identities using six exterior models, with 15 official security posts and building-scoped operational records. Floor labels are shown only where supplied; indoor coordinates remain unconfirmed. Run the migration above and restart the backend after updating an existing installation. See [building integration](docs/testing/BUILDING_LIBRARY_INTEGRATION.md) and the [official DJM post configuration](docs/testing/DJM_OFFICIAL_POSTS.md).
@@ -50,8 +48,8 @@ JWT_SECRET=change-this-for-production
 PGHOST=localhost
 PGPORT=5432
 PGDATABASE=penjaga_db
-PGUSER=postgres
-PGPASSWORD=postgres
+PGUSER=your_database_role
+PGPASSWORD=your_private_database_password
 ```
 
 You can also use `DATABASE_URL=postgres://user:password@localhost:5432/penjaga_db`.

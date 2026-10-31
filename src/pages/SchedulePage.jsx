@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Upload, X } from 'lucide-react';
+import { Upload, X, MapPin, Search, ChevronDown, CalendarDays, Users } from 'lucide-react';
 import api from '../api/axios';
 import { ROLE, notifyError, notifySuccess, shiftTimes, shiftTimeLabel, statusTone } from '../utils/helpers';
-import { PageHeader, Card, AlertMessage, Button, Field, Select, Input, Badge, Textarea, EmptyState, LoadingState, ConfirmModal } from '../components/ui';
+import { PageHeader, Card, AlertMessage, Button, Field, Select, Input, Badge, Textarea, EmptyState, LoadingState, ConfirmModal, Pagination } from '../components/ui';
 
 export function SchedulePage({ auth }) {
   const canManage = [ROLE.admin, ROLE.chief].includes(auth.user?.nama_peranan);
   const isAdmin = auth.user?.nama_peranan === ROLE.admin;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const [postSearch, setPostSearch] = useState('');
+  const [buildingFilter, setBuildingFilter] = useState('');
+  const [postPage, setPostPage] = useState(1);
   const [scheduleView, setScheduleView] = useState('assignments');
   const [weekSelection, setSelectedWeekId] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -55,9 +58,15 @@ export function SchedulePage({ auth }) {
       const matchesPost = !assignmentFilters.post || String(row.id_pos) === String(assignmentFilters.post);
       const matchesShift = !assignmentFilters.shift || row.syif === assignmentFilters.shift;
       const matchesStatus = assignmentFilters.status === 'all' || (assignmentFilters.status === 'need' ? shortage > 0 : shortage === 0);
-      return matchesPost && matchesShift && matchesStatus;
+      const post = meta.posts.find(p => p.id_pos === row.id_pos);
+      const matchesBuilding = !buildingFilter || post?.nama_bangunan === buildingFilter;
+      const matchesSearch = !postSearch || [row.nama_pos,post?.nama_bangunan].join(' ').toLowerCase().includes(postSearch.toLowerCase());
+      return matchesPost && matchesShift && matchesStatus && matchesBuilding && matchesSearch;
     });
-  }, [assignmentFilters, coverage]);
+  }, [assignmentFilters, coverage, meta.posts, buildingFilter, postSearch]);
+  const postPages = Math.max(1, Math.ceil(assignmentRows.length/6));
+  const visiblePostPage = Math.min(postPage,postPages);
+  const visiblePostRows = assignmentRows.slice((visiblePostPage-1)*6,visiblePostPage*6);
 
   const openAssignment = (assignment = null) => {
     const baseDate = selectedWeek?.tarikh_mula?.slice(0, 10) || today;
@@ -246,14 +255,14 @@ export function SchedulePage({ auth }) {
       <div className="workspace-tabs" aria-label="Paparan jadual"><button aria-pressed={scheduleView === 'assignments'} onClick={() => setScheduleView('assignments')}>Tugasan & liputan</button><button aria-pressed={scheduleView === 'settings'} onClick={() => setScheduleView('settings')}>Tetapan & import</button></div>
       <div className="space-y-5">
         <div className="space-y-5">
-          {selectedWeek && <Card>
+          {selectedWeek && scheduleView === 'settings' && <Card>
             <div className="flex flex-wrap items-center gap-4 text-sm"><strong>Status jadual</strong>
               <Badge tone={statusTone(selectedWeek.status_jadual)}>{selectedWeek.status_jadual}</Badge>
               <p>{selectedWeek.tarikh_mula?.slice(0, 10)} hingga {selectedWeek.tarikh_tamat?.slice(0, 10)}</p>
               {selectedWeek.catatan && <p>{selectedWeek.catatan}</p>}
               <div className="flex flex-wrap gap-2">
                 {isAdmin && scheduleView === 'settings' && <Button variant="ghost" onClick={() => updateWeekStatus('confirm')}>Sahkan</Button>}
-                {isAdmin && <Button variant="ghost" onClick={() => updateWeekStatus('lock')}>Kunci</Button>}
+                {isAdmin && scheduleView === 'settings' && <Button variant="ghost" onClick={() => updateWeekStatus('lock')}>Kunci</Button>}
                 {isAdmin && <Button variant="ghost" onClick={() => updateWeekStatus('unlock')}>Buka Kunci</Button>}
               </div>
               {lockedForChief && <AlertMessage>Jadual dikunci. Ketua tidak boleh mengubah tugasan sehingga Admin membuka kunci.</AlertMessage>}
@@ -287,37 +296,33 @@ export function SchedulePage({ auth }) {
         </div>
 
         {scheduleView === 'assignments' && <div className="space-y-5">
-          {coverage && <Card title="Ringkasan Liputan"><p className="mb-4 workspace-note">Tarikh: {quickDate} · Keperluan dan kehadiran untuk hari dipilih.</p>
+          {coverage && <details className="workspace-disclosure ops-coverage-disclosure"><summary><Users size={16} className="inline mr-2"/>Ringkasan liputan · {coverage.shortage} kekurangan</summary><Card title="Ringkasan Liputan"><p className="mb-4 workspace-note">Tarikh: {quickDate} · Keperluan dan kehadiran untuk hari dipilih.</p>
             <dl className="workspace-coverage-stats">{[['Keperluan',coverage.totalRequired],['Ditugaskan',coverage.totalAssigned],['Kekurangan',coverage.shortage],['Sedang hadir',coverage.activeDutyCount],['Tidak hadir',coverage.absentGuardCount]].map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
             {coverage.uncoveredPosts?.length > 0 && <AlertMessage>{coverage.uncoveredPosts.length} kombinasi pos/syif belum mempunyai pengawal.</AlertMessage>}
-          </Card>}
+          </Card></details>}
 
           {coverage && <Card title="Keperluan Pos & Tugasan Pengawal">
+            <div className="ops-search-row mb-4"><Search size={18}/><Input aria-label="Cari pos atau bangunan" placeholder="Cari pos atau bangunan..." value={postSearch} onChange={e=>{setPostSearch(e.target.value);setPostPage(1);}}/></div>
+            <Field label="Bangunan"><Select value={buildingFilter} onChange={e=>{setBuildingFilter(e.target.value);setPostPage(1);}}><option value="">Semua bangunan</option>{[...new Set(meta.posts.map(p=>p.nama_bangunan).filter(Boolean))].sort().map(b=><option key={b}>{b}</option>)}</Select></Field>
             <p className="mb-4 workspace-note">Pilih tarikh, kemudian tugaskan pengawal pada pos yang bertanda “Perlu tambah”.</p>
-            <div className="mb-4 grid gap-3 rounded-lg border bg-white p-3 sm:grid-cols-2 xl:grid-cols-[180px_minmax(0,1fr)_180px_170px]">
-              <Field label="Tarikh tugasan"><Input type="date" min={start} max={end} value={quickDate} onChange={(e) => setQuickDate(e.target.value)} /></Field>
+            <div className="my-3 max-w-xs">              <Field label="Tarikh tugasan"><Input type="date" min={start} max={end} value={quickDate} onChange={(e) => setQuickDate(e.target.value)} /></Field></div>
+            <details className="workspace-disclosure mb-4"><summary><Search size={14} className="inline mr-2"/>Penapis pos, syif & liputan</summary><div className="grid gap-3 sm:grid-cols-3">
               <Field label="Cari ikut pos"><Select value={assignmentFilters.post} onChange={(e) => setAssignmentFilters({ ...assignmentFilters, post: e.target.value })}><option value="">Semua pos</option>{meta.posts.map((post) => <option key={post.id_pos} value={post.id_pos}>{post.nama_pos}</option>)}</Select></Field>
               <Field label="Syif dan masa"><Select value={assignmentFilters.shift} onChange={(e) => setAssignmentFilters({ ...assignmentFilters, shift: e.target.value })}><option value="">Semua syif</option><option value="Pagi">Pagi ({shiftTimeLabel('Pagi')})</option><option value="Petang">Petang ({shiftTimeLabel('Petang')})</option><option value="Malam">Malam ({shiftTimeLabel('Malam')})</option><option value="Office Hour">Office Hour ({shiftTimeLabel('Office Hour')})</option></Select></Field>
               <Field label="Paparan"><Select value={assignmentFilters.status} onChange={(e) => setAssignmentFilters({ ...assignmentFilters, status: e.target.value })}><option value="need">Perlu tambah</option><option value="complete">Cukup lengkap</option><option value="all">Semua</option></Select></Field>
-            </div>
+            </div></details>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
               <p className="text-secondary-token">{assignmentRows.length} pos/syif dipaparkan. Fokus utama ialah pos yang belum cukup pengawal.</p>
-              <Button variant="ghost" onClick={() => setAssignmentFilters({ post: '', shift: '', status: 'need' })}>Reset penapis</Button>
+              <Button variant="ghost" onClick={() => {setAssignmentFilters({ post: '', shift: '', status: 'need' });setPostSearch('');setBuildingFilter('');setPostPage(1);}}>Reset penapis</Button>
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {assignmentRows.length ? assignmentRows.map((row) => {
+            <div className="space-y-3 ops-post-list">
+              {assignmentRows.length ? visiblePostRows.map((row) => {
                 const shortage = Math.max(0, Number(row.required) - Number(row.assigned));
                 const isCovered = shortage === 0;
                 return (
-                  <div key={`${row.id_pos}-${row.syif}`} className={`rounded-lg border p-4 text-sm shadow-sm ${isCovered ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="text-base font-semibold text-primary-token">{row.nama_pos}</p>
-                        <p className="text-secondary-token">Syif {row.syif}</p>
-                        <p className="mt-1 inline-flex rounded-md bg-white px-2 py-1 text-xs font-semibold text-primary-token">Masa {shiftTimeLabel(row.syif)}</p>
-                      </div>
-                      <Badge tone={isCovered ? 'Low' : 'Medium'}>{isCovered ? 'Cukup' : 'Perlu tambah'}</Badge>
-                    </div>
+                  <details key={row.id_pos+'-'+row.syif} className="ops-post-record">
+                    <summary><MapPin size={19}/><span className="ops-record-heading"><strong>{row.nama_pos}</strong><small><CalendarDays size={12}/>{row.syif} · {shiftTimeLabel(row.syif)}</small></span><span className="ops-post-count"><Users size={14}/>{row.assigned}/{row.required}<small>{isCovered?'Cukup':shortage+' lagi'}</small></span><ChevronDown size={17} className="ops-chevron"/></summary>
+                    <div className="ops-record-body">
                     <p className="mt-4"><strong>{row.assigned} / {row.required}</strong> pengawal ditugaskan{shortage > 0 && <span className="text-amber-800"> · Perlu {shortage} lagi</span>}</p>
                     {row.assignments?.length > 0 ? (
                       <div className="mt-3 space-y-2">
@@ -340,10 +345,12 @@ export function SchedulePage({ auth }) {
                       </div>
                     ) : <p className="mt-3 rounded-md border border-dashed bg-white p-3 text-secondary-token">Belum ada pengawal ditugaskan untuk pos dan syif ini.</p>}
                     <Button className="mt-3 w-full justify-center sm:w-auto" variant={shortage ? 'primary' : 'ghost'} onClick={() => openAssignmentForRequirement(row)} disabled={!selectedWeekId || lockedForChief}>{shortage ? 'Tugaskan pengawal sekarang' : 'Tambah pengawal lain'}</Button>
-                  </div>
+                    </div>
+                  </details>
                 );
               }) : <EmptyState title="Tiada pos untuk paparan ini" description="Cuba pilih Semua atau tukar penapis pos/syif." />}
             </div>
+            <Pagination page={visiblePostPage} totalPages={postPages} onPageChange={setPostPage} />
           </Card>}
         </div>}
       </div>

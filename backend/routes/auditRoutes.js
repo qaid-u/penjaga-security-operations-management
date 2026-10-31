@@ -1,3 +1,4 @@
+const {dateRange} = require('../utils/dateRange');
 const express = require('express');
 const pool = require('../config/db');
 const { auth, requireRole, roles } = require('../middleware/auth');
@@ -6,6 +7,8 @@ const { escapeCSV, dateToString } = require('../utils/helpers');
 const router = express.Router();
 
 router.get('/', auth, requireRole(roles.admin), async (req, res) => {
+  let range;
+  try { range = dateRange(req.query); } catch(error) { return res.status(400).json({message:error.message}); }
   const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
   const isCsv = req.query.format === 'csv';
   const limit = isCsv ? 10000 : Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
@@ -29,6 +32,8 @@ router.get('/', auth, requireRole(roles.admin), async (req, res) => {
   if (req.query.dateMode === 'date' && req.query.date) addFilter(req.query.date, 'a.tarikh_masa_aktiviti::date = ?::date');
   if (req.query.dateMode === 'month' && req.query.month) addFilter(req.query.month, "to_char(a.tarikh_masa_aktiviti, 'YYYY-MM') = ?");
   if (req.query.dateMode === 'year' && req.query.year) addFilter(req.query.year, "to_char(a.tarikh_masa_aktiviti, 'YYYY') = ?");
+
+  if (range) { addFilter(range.from, 'a.tarikh_masa_aktiviti::date >= ?::date'); addFilter(range.to, 'a.tarikh_masa_aktiviti::date <= ?::date'); }
 
   const baseQuery = `
     from tbl_audit_trail a

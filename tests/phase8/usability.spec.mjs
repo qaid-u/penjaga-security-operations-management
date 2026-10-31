@@ -36,6 +36,7 @@ test('desktop dashboard prioritizes daily work and keeps analytics accessible',a
   await expect(page.locator('.workspace-metrics > a')).toHaveCount(3);
   await expect(page.getByRole('link',{name:'Pengguna',exact:true})).toBeHidden();
   await expect(page.getByRole('heading',{name:'Kategori insiden'})).toHaveCount(0);
+  await page.locator('.ops-dashboard-latest > summary').click();
   await expect(page.getByRole('heading',{name:'Laporan terkini'})).toBeVisible();
   await noOverflow(page);
   await page.screenshot({path:testInfo.outputPath('dashboard-desktop.png'),fullPage:true});
@@ -50,7 +51,7 @@ test('phone navigation opens, traps focus, closes with Escape and navigates',asy
   await page.setViewportSize({width:390,height:844});
   const {errors}=await setup(page);
   await page.goto('/dashboard');
-  await expect(page.getByRole('heading',{name:'Laporan terkini'})).toBeVisible();
+  await expect(page.locator('.ops-dashboard-latest > summary')).toBeVisible();
   await noOverflow(page);
   await page.screenshot({path:testInfo.outputPath('dashboard-phone.png'),fullPage:true});
   await page.getByRole('button',{name:'Buka menu penuh'}).click();
@@ -106,10 +107,11 @@ test('admin can read reports without chief approval controls',async({page})=>{
 test('schedule separates settings from coverage and can change weeks',async({page},testInfo)=>{
   const {errors}=await setup(page);
   await page.goto('/jadual');
+  await page.locator('.ops-coverage-disclosure > summary').click();
   await expect(page.getByRole('heading',{name:'Ringkasan Liputan'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Tetapan Keperluan Pos'})).toHaveCount(0);
   await page.getByLabel('Minggu jadual').selectOption('2');
-  await expect(page.getByText('2026-11-02 hingga 2026-11-08',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('Minggu jadual')).toHaveValue('2');
   await expect(page.getByLabel('Tarikh tugasan')).toHaveValue('2026-11-02');
   await page.screenshot({path:testInfo.outputPath('schedule-desktop.png'),fullPage:true});
   await page.getByRole('button',{name:'Tetapan & import'}).click();
@@ -125,6 +127,7 @@ test('follow-up forms are disclosed on demand and guard navigation stays role-sp
   await page.goto('/tindakan');
   await expect(page.getByRole('button',{name:'Simpan tindakan'})).toBeHidden();
   await expect(page.getByRole('button',{name:'Minta kemaskini',exact:true})).toBeHidden();
+  await page.locator('.ops-action-record > summary').first().click();
   await page.getByText('Kemas kini & sejarah',{exact:false}).click();
   await expect(page.getByRole('button',{name:'Minta kemaskini',exact:true})).toBeVisible();
   await page.getByText('Tambah tindakan baharu',{exact:false}).click();

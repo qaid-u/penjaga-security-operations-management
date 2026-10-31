@@ -1,14 +1,17 @@
+import { PeriodControls } from '../components/PeriodControls';
+import { ExportButton } from '../components/ExportButton';
 import { useMemo, useState, useEffect } from 'react';
-import { Download } from 'lucide-react';
+import { Filter, History } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../api/axios';
-import { downloadCsv, monthLabel, recentMonthOptions } from '../utils/helpers';
+import { monthLabel, recentMonthOptions } from '../utils/helpers';
 import { Card, Button, AlertMessage, Field, Input, Select, EmptyState, Pagination, LoadingState } from '../components/ui';
 
 export function AuditTrail() {
   const [meta, setMeta] = useState({ roles: [], posts: [] });
   const [users, setUsers] = useState([]);
   const [filters, setFilters] = useState({ user: '', role: '', pos: '', module: '', activity: '', dateMode: 'all', date: '', month: '', year: '', status: '' });
+  const [periodReset,setPeriodReset] = useState(0);
   const [page, setPage] = useState(1);
   const auditMonthOptions = useMemo(() => recentMonthOptions(36), []);
 
@@ -16,22 +19,23 @@ export function AuditTrail() {
     Promise.all([api.get('/meta'), api.get('/users')]).then(([m, u]) => {
       setMeta(m.data);
       setUsers(u.data);
-    });
+    }).catch(() => { /* The log and export remain available if filter options fail. */ });
   }, []);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['audit', { ...filters, page }],
     queryFn: async () => {
-      const res = await api.get('/audit', { params: { ...filters, page, limit: 50 } });
+      const res = await api.get('/audit', { params: { ...filters, page, limit: 8 } });
       return res.data;
     },
-    placeholderData: (prev) => prev,
+
   });
 
   const handleFilterChange = (key, value) => {
     setFilters((prev) => {
       const next = { ...prev, [key]: value };
       if (key === 'dateMode') {
+        delete next.from; delete next.to;
         next.date = '';
         next.month = '';
         next.year = '';
@@ -42,6 +46,7 @@ export function AuditTrail() {
   };
 
   const resetFilters = () => {
+    setPeriodReset(value=>value+1);
     setFilters({ user: '', role: '', pos: '', module: '', activity: '', dateMode: 'all', date: '', month: '', year: '', status: '' });
     setPage(1);
   };
@@ -51,9 +56,9 @@ export function AuditTrail() {
 
   return (
     <div className="desktop-ops">
-      <Card title="Audit Trail" action={<Button variant="ghost" onClick={() => downloadCsv('/audit', 'audit-trail.csv', { ...filters, format: 'csv' })}><Download size={16} /> CSV</Button>}>
-        <AlertMessage type="success">Gunakan penapis ini untuk semak aktiviti mengikut pengguna, peranan, pos, modul atau status sebelum membuka log yang panjang.</AlertMessage>
-        <div className="mb-4 space-y-3 rounded-xl border bg-white p-4">
+      <Card title="Audit Trail" action={<ExportButton endpoint="/audit" filename="audit-trail.csv" filters={filters}/>}>
+        <p className="mb-4 workspace-note"><History size={15} className="inline mr-2"/>Semak aktiviti sistem atau eksport rekod mengikut minggu, bulan dan tahun.</p>
+        <PeriodControls key={periodReset} onChange={range=>{setFilters(current=>({...current,...range,from:range.from,to:range.to,dateMode:'all',date:'',month:'',year:''}));setPage(1);}}/><details className="workspace-disclosure mb-4"><summary><Filter size={15} className="inline mr-2"/>Tapis rekod audit</summary><div className="space-y-3">
           <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <Field label="Pengguna"><Select value={filters.user} onChange={(e) => handleFilterChange('user', e.target.value)}><option value="">Semua pengguna</option>{users.map((user) => <option key={user.id_pengguna} value={user.nama_penuh}>{user.nama_penuh}</option>)}</Select></Field>
@@ -73,8 +78,9 @@ export function AuditTrail() {
             {filters.dateMode === 'month' && <Field label="Pilih bulan"><Select value={filters.month} onChange={(e) => handleFilterChange('month', e.target.value)}><option value="">Semua bulan</option>{auditMonthOptions.map((month) => <option key={month} value={month}>{monthLabel(month)}</option>)}</Select></Field>}
             {filters.dateMode === 'year' && <Field label="Pilih tahun"><Input type="number" min="2020" max="2100" placeholder="Contoh: 2026" value={filters.year} onChange={(e) => handleFilterChange('year', e.target.value)} /></Field>}
           </div>
-        </div>
+        </div></details>
         
+        {isError && <AlertMessage>Rekod audit belum dapat dimuatkan. <button type="button" onClick={()=>refetch()} className="underline">Cuba lagi</button></AlertMessage>}
         {isLoading ? (
           <LoadingState message="Memuatkan audit trail..." />
         ) : (

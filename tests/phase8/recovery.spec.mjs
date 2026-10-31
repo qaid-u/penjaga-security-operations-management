@@ -29,12 +29,14 @@ test('daily schedule shows actual assigned guards, refreshes dates and confirms 
     return false;
   });
   await page.goto('/jadual');
+  await page.locator('.ops-post-record > summary').first().click();
   await expect(page.getByText('Assigned Guard',{exact:true})).toBeVisible();
   expect(dates.at(-1)).toMatch(/^2026-(10-(2[6-9]|3[01])|11-01)$/);
   await page.getByLabel('Tarikh tugasan').fill('2026-10-27');
   await expect.poll(()=>dates.at(-1)).toBe('2026-10-27');
   await expect(page.getByText('Assigned Guard',{exact:true})).toHaveCount(0);
   await page.getByLabel('Tarikh tugasan').fill('2026-10-26');
+  await page.locator('.ops-post-record > summary').first().click();
   await expect(page.getByText('Assigned Guard',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Padam',exact:true}).click();
   expect(deletes).toBe(0);
@@ -120,7 +122,7 @@ test('failed conflict checks keep the assignment form usable',async({page})=>{
     if(url.pathname==='/api/jadual/check-conflict'){await route.fulfill({status:503,json:{message:'Semakan sementara gagal'}});return true;}
     return false;
   });
-  await page.goto('/jadual');await page.getByRole('button',{name:'Tugaskan pengawal sekarang'}).click();
+  await page.goto('/jadual');await page.locator('.ops-post-record > summary').first().click();await page.getByRole('button',{name:'Tugaskan pengawal sekarang'}).click();
   await page.getByRole('combobox',{name:'Pengawal',exact:true}).selectOption('3');
   await page.getByRole('button',{name:'Simpan tugasan',exact:true}).click();
   await expect(page.getByText('Semakan sementara gagal',{exact:false})).toBeVisible();

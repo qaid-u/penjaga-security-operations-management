@@ -1,22 +1,23 @@
+import { ExportButton } from '../components/ExportButton';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Download, Eye, X } from 'lucide-react';
+import { Eye, X, Pin, RefreshCw, Filter } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/axios';
-import { ROLE, downloadCsv, notifyAction, notifyError, notifySuccess, statusTone } from '../utils/helpers';
+import { ROLE, notifyAction, notifyError, notifySuccess, statusTone } from '../utils/helpers';
 import { PageHeader, Field, Card, Button, AlertMessage, Select, Input, Badge, EmptyState, ConfirmModal, Pagination, LoadingState } from '../components/ui';
 import { ReportDetailContent } from '../components/ReportDetailContent';
 
 export function ReviewReports({ auth }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const canReviewReports = auth.user?.nama_peranan === ROLE.chief;
   const [comments, setComments] = useState({});
   const [followUpFlags, setFollowUpFlags] = useState({});
   const [pinnedReports, setPinnedReports] = useState([]);
   const [detail, setDetail] = useState(null);
   const [confirmReview, setConfirmReview] = useState(null);
-  const [reviewFilters, setReviewFilters] = useState({ status: 'Dihantar', search: '', post: '', shift: '', risk: '', date: '' });
+  const [reviewFilters, setReviewFilters] = useState(()=>({ status: searchParams.get('status') || (searchParams.get('post') ? 'Semua' : 'Dihantar'), search: '', post: /^[1-9]\d*$/.test(searchParams.get('post')||'')?searchParams.get('post'):'', shift: '', risk: searchParams.get('risk')||'', date: '', from: searchParams.get('from')||'', to: searchParams.get('to')||'' }));
   const [page, setPage] = useState(1);
-  const [searchParams, setSearchParams] = useSearchParams();
   const requestedReport = searchParams.get('report');
   const [attentionOnly, setAttentionOnly] = useState(false);
   const detailSequence = useRef(0);
@@ -29,7 +30,7 @@ export function ReviewReports({ auth }) {
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['reports', { page, ...filterParams }],
     queryFn: async () => {
-      const res = await api.get('/reports', { params: { page, limit: 50, ...filterParams } });
+      const res = await api.get('/reports', { params: { page, limit: 8, ...filterParams } });
       return res.data;
     },
   });
@@ -103,23 +104,24 @@ export function ReviewReports({ auth }) {
 
   return (
     <div className="desktop-ops">
-      <PageHeader title={canReviewReports ? 'Semakan laporan' : 'Pemantauan laporan'} description={canReviewReports ? 'Pilih laporan untuk membaca butiran dan membuat keputusan.' : 'Pantau laporan dan analisis risiko. Kelulusan dibuat oleh Ketua Pengawal.'} action={<Button variant="ghost" onClick={() => downloadCsv('/reports/export.csv', 'laporan-harian.csv', filterParams)}><Download size={16} /> CSV</Button>} />
+      <PageHeader title={canReviewReports ? 'Semakan laporan' : 'Pemantauan laporan'} description={canReviewReports ? 'Pilih laporan untuk membaca butiran dan membuat keputusan.' : 'Pantau laporan dan analisis risiko. Kelulusan dibuat oleh Ketua Pengawal.'} action={<ExportButton endpoint="/reports/export.csv" filename="laporan-harian.csv" filters={filterParams}/>} />
       <Card>
         {isError && <AlertMessage>Senarai laporan belum dapat dimuatkan. <button type="button" className="underline" onClick={() => refetch()}>Cuba sekali lagi</button></AlertMessage>}
         <div className="workspace-tabs" aria-label="Status laporan">
           {['Dihantar', 'Diluluskan', 'Ditolak', 'Semua'].map((status) => <button key={status} aria-pressed={reviewFilters.status === status} onClick={() => changeFilters({ ...reviewFilters, status })}>{status === 'Dihantar' ? 'Menunggu' : status}</button>)}
         </div>
+        {reviewFilters.from && <p className="workspace-note mb-3">Tempoh analisis: {reviewFilters.from} hingga {reviewFilters.to} <button className="underline ml-2" onClick={()=>changeFilters({...reviewFilters,from:'',to:''})}>Kosongkan tempoh</button></p>}
         <div className="workspace-filter-search">
           <Input aria-label="Cari laporan" placeholder="Cari tajuk, pengawal, pos" value={reviewFilters.search} onChange={(e) => changeFilters({ ...reviewFilters, search: e.target.value })} />
-          <Button type="button" variant="ghost" disabled={isFetching} onClick={() => refetch()}>{isFetching ? 'Memuatkan...' : 'Muat semula'}</Button>
+          <Button type="button" variant="ghost" disabled={isFetching} onClick={() => refetch()}><RefreshCw size={16} className={isFetching?'ops-spin':''}/><span className="ops-refresh-label">{isFetching ? 'Memuatkan...' : 'Muat semula'}</span></Button>
         </div>
         <details className="workspace-disclosure mb-5">
-          <summary>Penapis tambahan <span className="workspace-filter-count">{[reviewFilters.post,reviewFilters.shift,reviewFilters.risk,reviewFilters.date,attentionOnly].filter(Boolean).length || 'Tiada'} aktif</span></summary>
+          <summary><Filter size={15} className="inline mr-2"/>Penapis tambahan <span className="workspace-filter-count">{[reviewFilters.post,reviewFilters.shift,reviewFilters.risk,reviewFilters.date,attentionOnly].filter(Boolean).length || 'Tiada'} aktif</span></summary>
           <div className="workspace-filter-options">
             <Field label="Pos kawalan"><Select value={reviewFilters.post} onChange={(e) => changeFilters({ ...reviewFilters, post: e.target.value })}><option value="">Semua pos</option>{postOptions.map((post) => <option key={post.id_pos} value={post.id_pos}>{post.nama_pos}</option>)}</Select></Field>
             <Field label="Syif"><Select value={reviewFilters.shift} onChange={(e) => changeFilters({ ...reviewFilters, shift: e.target.value })}><option value="">Semua syif</option><option>Pagi</option><option>Petang</option><option>Malam</option><option>Office Hour</option></Select></Field>
-            <Field label="Tahap risiko"><Select value={reviewFilters.risk} onChange={(e) => changeFilters({ ...reviewFilters, risk: e.target.value })}><option value="">Semua risiko</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></Select></Field>
-            <Field label="Tarikh laporan"><Input type="date" value={reviewFilters.date} onChange={(e) => changeFilters({ ...reviewFilters, date: e.target.value })} /></Field>
+            <Field label="Tahap risiko"><Select value={reviewFilters.risk} onChange={(e) => changeFilters({ ...reviewFilters, risk: e.target.value })}><option value="">Semua risiko</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option><option value="HighCritical">High / Critical</option></Select></Field>
+            <Field label="Tarikh laporan"><Input type="date" value={reviewFilters.date} onChange={(e) => changeFilters({ ...reviewFilters, date: e.target.value,from:'',to:'' })} /></Field>
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-primary-token"><input type="checkbox" checked={attentionOnly} onChange={(event) => { setAttentionOnly(event.target.checked); setPage(1); }} className="h-4 w-4 accent-[var(--color-brand-navy)]" /> Perlu perhatian analisis sahaja</label>
@@ -144,7 +146,6 @@ export function ReviewReports({ auth }) {
                     <Badge tone={r.tahap_risiko}>{r.tahap_risiko}</Badge>
                   </div>
                 </div>
-                <p className="desktop-clamp mt-2 text-sm">{r.kandungan_laporan}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {['pending', 'processing'].includes(r.analysis_status) && <Badge>Sedang dianalisis</Badge>}
                   {r.analysis_status === 'failed' && <Badge>Analisis belum selesai</Badge>}
@@ -153,8 +154,8 @@ export function ReviewReports({ auth }) {
                 </div>
                 {r.status_laporan === 'Diluluskan' && r.perlu_tindakan_susulan && !r.ada_tindakan_susulan && <p className="mt-3 workspace-note">Memerlukan tindakan susulan Admin.</p>}
                 <div className="workspace-record-actions">
-                  <Button variant="ghost" onClick={() => setSearchParams({ report: r.id_laporan })}><Eye size={16} /> Detail</Button>
-                  <button className="workspace-text-link min-h-11 px-3" onClick={() => setPinnedReports(current => current.includes(r.id_laporan) ? current.filter(id => id !== r.id_laporan) : [...current, r.id_laporan])}>{pinnedReports.includes(r.id_laporan) ? 'Nyahpin' : 'Pin'}</button>
+                  <Button variant="ghost" onClick={() => setSearchParams(current=>{const next=new URLSearchParams(current);next.set('report',r.id_laporan);return next;})}><Eye size={16} /> Detail</Button>
+                  <button className="workspace-text-link min-h-11 px-3" onClick={() => setPinnedReports(current => current.includes(r.id_laporan) ? current.filter(id => id !== r.id_laporan) : [...current, r.id_laporan])}><Pin size={15} className="inline mr-1"/>{pinnedReports.includes(r.id_laporan) ? 'Nyahpin' : 'Pin'}</button>
                   {r.status_laporan === 'Diluluskan' && r.perlu_tindakan_susulan && <Button variant="ghost" onClick={() => navigate('/tindakan')}>Tindakan</Button>}
                 </div>
               </article>

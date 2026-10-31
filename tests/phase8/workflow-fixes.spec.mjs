@@ -33,7 +33,7 @@ test('server filters reset pagination and CSV receives the same filters', async 
   await page.getByText('Penapis tambahan', {exact:false}).first().click();
   await page.locator('select').filter({has:page.locator('option[value="2"]')}).selectOption('2');
   const download=page.waitForEvent('download');
-  await page.getByRole('button',{name:'CSV',exact:true}).click();await download;
+  await page.getByRole('button',{name:'CSV',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Muat turun',exact:true}).click();await download;
   const exported=requests.find(u=>u.pathname==='/api/reports/export.csv');
   expect(exported.searchParams.get('search')).toBe('needle');expect(exported.searchParams.get('post')).toBe('2');expect(exported.searchParams.get('status')).toBe('Dihantar');
 });
@@ -64,7 +64,7 @@ test('audit CSV preserves selected filters and uses supported API',async({page})
     return false;
   });
   await page.goto('/audit');
-  const download=page.waitForEvent('download');await page.getByRole('button',{name:'CSV',exact:true}).click();await download;
+  const download=page.waitForEvent('download');await page.getByRole('button',{name:'CSV',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Muat turun',exact:true}).click();await download;
   expect(exported.pathname).toBe('/api/audit');expect(exported.searchParams.get('format')).toBe('csv');expect(exported.searchParams.get('dateMode')).toBe('all');
 });
 

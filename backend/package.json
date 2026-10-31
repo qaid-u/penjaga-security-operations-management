@@ -8,6 +8,10 @@
     "qs": "^6.16.1"
   },
   "scripts": {
+    "db:migrate": "node scripts/migrate.js",
+    "db:status": "node scripts/migrate.js --inspect",
+    "db:backup": "node scripts/backup-database.js",
+    "test:database": "node --test tests/database.test.js",
     "migrate:3d": "node scripts/migrate-3d.js",
     "test:3d": "node --test tests/threeD.test.js",
     "start": "node server.js",

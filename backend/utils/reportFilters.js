@@ -1,3 +1,4 @@
+const {dateRange} = require('./dateRange');
 const roles = require('../config/roles');
 function reportFilters(query, user) {
   const params = [];
@@ -11,10 +12,11 @@ function reportFilters(query, user) {
   for (const [key, column, values] of [
     ['status', 'status_laporan', ['Dihantar', 'Diluluskan', 'Ditolak', 'Semua']],
     ['shift', 'syif', ['Pagi', 'Petang', 'Malam', 'Office Hour']],
-    ['risk', 'tahap_risiko', ['Low', 'Medium', 'High', 'Critical', 'Unknown']],
+    ['risk', 'tahap_risiko', ['Low', 'Medium', 'High', 'Critical', 'Unknown', 'HighCritical']],
   ]) {
     if (query[key]) {
       if (!values.includes(query[key])) invalid();
+      if (key === 'risk' && query[key] === 'HighCritical') { conditions.push("tahap_risiko in ('High','Critical')"); continue; }
       if (query[key] !== 'Semua') add(`${column} = ?`, query[key]);
     }
   }
@@ -27,6 +29,8 @@ function reportFilters(query, user) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(query.date) || Number.isNaN(date.valueOf()) || date.toISOString().slice(0,10) !== query.date) invalid();
     add('tarikh_laporan = ?::date', query.date);
   }
+  const range = dateRange(query);
+  if (range) { add('tarikh_laporan >= ?::date',range.from); add('tarikh_laporan <= ?::date',range.to); }
   if (query.search?.trim()) {
     if (query.search.length > 500) invalid();
     // Literal substring search: user % and _ do not become SQL wildcards.

@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Eye, X } from 'lucide-react';
+import { Eye, X, ClipboardCheck, ChevronDown, Plus, CheckCircle2, Clock } from 'lucide-react';
 import api from '../api/axios';
 import { ROLE, notifyAction, notifyError, notifySuccess, statusTone } from '../utils/helpers';
-import { PageHeader, Card, AlertMessage, Field, Input, Select, Textarea, Button, Badge, FilterPanel, EmptyState, AttachmentLinks, Pagination, LoadingState } from '../components/ui';
+import { PageHeader, Card, AlertMessage, Field, Input, Select, Textarea, Button, Badge, EmptyState, AttachmentLinks, Pagination, LoadingState } from '../components/ui';
 import { ReportDetailContent } from '../components/ReportDetailContent';
 
 export function FollowUp({ auth }) {
   const canManageFollowUp = auth.user?.nama_peranan === ROLE.admin;
+  const [actionPage,setActionPage] = useState(1);
   const [candidatePage, setCandidatePage] = useState(1);
   const [creating, setCreating] = useState(false);
   const queryClient = useQueryClient();
@@ -102,6 +103,10 @@ export function FollowUp({ auth }) {
     return matchesSearch && matchesStatus;
   });
 
+  const actionPages=Math.max(1,Math.ceil(filteredActions.length/6));
+  const shownPage=Math.min(actionPage,actionPages);
+  const visibleActions=filteredActions.slice((shownPage-1)*6,shownPage*6);
+
   return (
     <div className="desktop-ops space-y-5">
       <PageHeader
@@ -112,7 +117,7 @@ export function FollowUp({ auth }) {
         <AlertMessage>{candidateTotal} laporan telah diluluskan tetapi belum ada tindakan susulan. Admin perlu cipta dan kemas kini tindakan.</AlertMessage>
       )}
       <div className="space-y-5">
-        {canManageFollowUp && <details className="workspace-disclosure"><summary>Tambah tindakan baharu <small>{candidateTotal} laporan menunggu tindakan</small></summary><div className="max-w-3xl">
+        {canManageFollowUp && <details className="workspace-disclosure"><summary><Plus size={16} className="inline mr-2"/>Tambah tindakan baharu <small>{candidateTotal} laporan menunggu tindakan</small></summary><div className="max-w-3xl">
           <form onSubmit={create} className="space-y-3">
             <Field label="Cari laporan">
               <Input placeholder="Cari tajuk, pengawal atau pos" value={reportSearch} onChange={e => { setReportSearch(e.target.value); changeCandidatePage(1); }} />
@@ -138,27 +143,20 @@ export function FollowUp({ auth }) {
           </form>
         </div></details>}
         <div className="space-y-5">
-          <FilterPanel>
+          <div className="ops-action-filter"><div className="ops-status-chips" aria-label="Status tindakan pantas">{[['','Semua'],['Baru','Baru'],['Dalam Tindakan','Dalam tindakan'],['Selesai','Selesai']].map(([value,label])=><button key={value} aria-pressed={filters.status===value} onClick={()=>{setFilters({...filters,status:value});setActionPage(1);}}>{value==='Selesai'?<CheckCircle2 size={15}/>:<Clock size={15}/>}<span>{label}</span><strong>{actions.filter(a=>!value||a.status_tindakan===value).length}</strong></button>)}</div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_220px]">
-              <Input aria-label="Cari tindakan" placeholder="Cari laporan, pegawai, pos" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
+              <Input aria-label="Cari tindakan" placeholder="Cari laporan, pegawai, pos" value={filters.search} onChange={(e) => {setFilters({ ...filters, search: e.target.value });setActionPage(1);}} />
               <Select aria-label="Status tindakan" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}><option value="">Semua status</option><option>Baru</option><option>Dalam Tindakan</option><option>Selesai</option></Select>
             </div>
-          </FilterPanel>
+          </div>
           <Card title="Senarai Tindakan">
             <p className="mb-3 text-sm text-secondary-token">{filteredActions.length} daripada {actions.length} tindakan dipaparkan.</p>
             {actionsQuery.isError && <AlertMessage>Tindakan belum dapat dimuatkan. <button type="button" className="underline" onClick={() => actionsQuery.refetch()}>Cuba lagi</button></AlertMessage>}
-            {actionsQuery.isPending ? <LoadingState message="Memuatkan tindakan..." /> : actionsQuery.isError ? null : filteredActions.length ? filteredActions.map((a) => (
-              <div key={a.id_tindakan} className={`desktop-record mb-3 rounded-md border p-4 text-sm ${a.tahap_keutamaan === 'Critical' && a.status_tindakan !== 'Selesai' ? 'app-row-alert' : 'app-row'}`}>
-                <div className="flex flex-wrap justify-between gap-2">
-                  <div>
-                    <span className="font-medium text-primary-token">{a.tajuk_laporan}</span>
-                    <p className="text-data">{a.nama_penuh || '-'} - {a.nama_pos || '-'} - {a.tarikh_laporan?.slice(0, 10)}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge tone={a.tahap_keutamaan}>{a.tahap_keutamaan}</Badge>
-                    <Badge tone={statusTone(a.status_tindakan)}>{a.status_tindakan}</Badge>
-                  </div>
-                </div>
+            {actionsQuery.isPending ? <LoadingState message="Memuatkan tindakan..." /> : actionsQuery.isError ? null : filteredActions.length ? visibleActions.map((a) => (
+              <details key={a.id_tindakan} className="ops-post-record ops-action-record">
+                <summary><ClipboardCheck size={19}/><span className="ops-record-heading"><strong>{a.tajuk_laporan}</strong><small>{a.nama_pos||'-'} · {a.pegawai_bertanggungjawab||'-'}</small></span><span className="ops-action-badges"><Badge tone={statusTone(a.status_tindakan)}>{a.status_tindakan}</Badge><Badge tone={a.tahap_keutamaan}>{a.tahap_keutamaan}</Badge></span><ChevronDown size={17} className="ops-chevron"/></summary>
+                {a.progress_notes?.some(p=>p.perlu_respon_ketua)&&<p className="px-4 pb-3"><Badge tone="Medium">Perlu respon Ketua</Badge></p>}
+                <div className="ops-record-body">
                 <p className="mt-2">{a.tindakan_diambil}</p>
                 <p className="mt-1">Pegawai: {a.pegawai_bertanggungjawab}</p>
                 <Button className="mt-3 w-full justify-center sm:w-auto" variant="ghost" onClick={() => loadReportDetail(a.id_laporan)}><Eye size={16} /> Lihat laporan asal</Button>
@@ -200,8 +198,10 @@ export function FollowUp({ auth }) {
                   </div>
                 </div> : <div className="mt-3 grid gap-2"><AlertMessage type="success">Status rasmi hanya boleh dikemaskini oleh Pentadbir Sistem. Jika Admin meminta kemaskini, balas di sini bersama bukti jika perlu.</AlertMessage><Textarea rows={2} placeholder="Catatan / progress untuk Admin" value={progressNotes[a.id_tindakan] || ''} onChange={(e) => setProgressNotes({ ...progressNotes, [a.id_tindakan]: e.target.value })} /><Input type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(e) => setProgressFiles({ ...progressFiles, [a.id_tindakan]: Array.from(e.target.files || []) })} />{(progressFiles[a.id_tindakan] || []).length > 0 && <p className="text-data">{progressFiles[a.id_tindakan].length} lampiran bukti dipilih.</p>}<Button onClick={() => submitProgress(a.id_tindakan)}>Hantar progress kepada Admin</Button></div>}
                 </details>
-              </div>
+                </div>
+              </details>
             )) : <EmptyState title="Tiada tindakan" description="Tiada tindakan susulan sepadan dengan tapisan semasa." />}
+            <Pagination page={shownPage} totalPages={actionPages} onPageChange={setActionPage}/>
           </Card>
         </div>
       </div>
