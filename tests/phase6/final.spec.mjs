@@ -95,13 +95,8 @@ test('P6-02 actual synthetic application screenshots',async({page})=>{
     }
   };
   await page.goto('/login');await capture('01-login');await login(page,'admin');await expect(page.getByRole('heading',{name:/Dashboard/}).first()).toBeVisible();await capture('02-admin-dashboard');
-  for(const [route,name]of [['/jadual','04-schedule-management'],['/nlp','07-nlp-categories'],['/tindakan','08-follow-up-actions'],['/pengguna','09-user-management']]){
+  for(const [route,name]of [['/jadual','04-schedule-management'],['/semakan','07-report-monitoring'],['/tindakan','08-follow-up-actions'],['/pengguna','09-user-management']]){
     await page.goto(route);await expect(page.locator('main')).toBeVisible();await page.waitForLoadState('networkidle');await capture(name);
-    if(route==='/nlp'){
-      await page.getByRole('button',{name:'Buka ringkasan',exact:true}).first().click();
-      await expect(page.getByText('Skor keutamaan',{exact:true}).first()).toBeVisible();
-      await capture('16-stored-nlp-analysis');
-    }
   }
   await page.goto('/3d-command-centre');await expect(page.locator('canvas')).toBeVisible();await capture('10-3d-overview');
   await page.getByRole('button',{name:/01.*Pos Lobi Utama/}).click();await expect(page.getByRole('heading',{name:'Pos Lobi Utama',exact:true})).toBeVisible();await capture('11-selected-hotspot');

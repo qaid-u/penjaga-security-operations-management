@@ -17,6 +17,7 @@ const getMeta = async (req, res) => {
       ),
     ];
     res.json({
+      automaticLearning:{ready:await require('../services/automaticLearning').ready(client),enabled:process.env.NLP_AUTO_TRAIN_ENABLED!=='false'},
       roles: roles.rows,
       posts: posts.rows,
       categories: categories.rows,

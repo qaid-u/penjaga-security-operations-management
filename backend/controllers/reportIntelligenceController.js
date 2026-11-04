@@ -98,7 +98,7 @@ const briefing=handle(async(req,res)=>{
 const status=handle(async(_req,res)=>{
   const cfg=require('../ml/geminiReviewer').configuration();const ready=await schemaReady(pool);
   const counts=ready?(await pool.query('select status,count(*)::int as count from tbl_job_nlp group by status')).rows:[];
-  const model=require('../ml/nlpService').loadModel();
+  const model=await require('../services/automaticLearning').activeModel(pool,require('../ml/nlpService').loadModel());
   res.set('Cache-Control','no-store').json({ready,provider:cfg.provider,model:cfg.model,configured:cfg.configured,enabled:cfg.enabled,promptVersion:cfg.promptVersion,localModel:{type:model?.modelType||null,version:model?.version||null},queue:counts});
 });
 module.exports={assist,analysis,reanalyse,feedback,similar,search,briefing,status,rank,ownedReport};

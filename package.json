@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:vercel": "node scripts/check-vercel-config.mjs && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test:building": "node --test scripts/building-model.test.mjs scripts/building-library.test.mjs scripts/post-placement.test.mjs scripts/marker-layout.test.mjs scripts/marker-projection-cache.test.mjs",
@@ -24,10 +25,12 @@
     "demo:phase6:prepare": "node backend/scripts/prepare-phase6-demo.js",
     "test:nlp": "node --test backend/tests/nlp-engine.test.js backend/tests/event-dialogue.test.js backend/tests/clarification-input.test.js backend/tests/gemini-reviewer.test.js backend/tests/nlp-jobs.test.js tests/phase7/evaluation.test.mjs",
     "evaluate:nlp": "node scripts/evaluate-nlp.mjs",
-    "test:phase7:browser": "playwright test --config playwright.phase7.config.mjs",
+    "test:phase7:browser": "playwright test --config playwright.phase8.config.mjs classification.spec.mjs",
     "test:events": "node --test backend/tests/event-dialogue.test.js backend/tests/clarification-input.test.js scripts/event-dialogue-evaluation.test.mjs",
     "evaluate:events": "node scripts/evaluate-event-dialogue.mjs --output docs/testing/evidence/phase8-event-evaluation.json",
-    "test:phase8:browser": "playwright test --config playwright.phase8.config.mjs"
+    "test:phase8:browser": "playwright test --config playwright.phase8.config.mjs",
+    "dev:system": "node scripts/dev-system.mjs",
+    "seed:demo": "node backend/scripts/seed-demo-records.js"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.6",

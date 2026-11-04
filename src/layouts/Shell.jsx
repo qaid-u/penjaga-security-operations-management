@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, CalendarDays, FileText, FileCheck, ClipboardCheck, Brain, History, Users, MapPin, Bell, KeyRound, Shield, X, Menu, LogOut, Box } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, FileText, FileCheck, ClipboardCheck, History, Users, MapPin, Bell, KeyRound, Shield, X, Menu, LogOut, Box } from 'lucide-react';
 import { NotificationCount } from '../components/NotificationCount';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 import { ROLE } from '../utils/helpers';
@@ -25,7 +25,6 @@ export function Shell({ auth, children }) {
       { to: '/3d-command-centre', label: 'Pusat Kawalan 3D', icon: Box, group: 'Terokai' },
     ]),
     ...(role === ROLE.admin ? [
-      { to: '/nlp', label: 'Analisis laporan', icon: Brain, group: 'Pengurusan' },
       { to: '/pengguna', label: 'Pengguna', icon: Users, group: 'Pengurusan' },
       { to: '/pos', label: 'Pos kawalan', icon: MapPin, group: 'Pengurusan' },
       { to: '/audit', label: 'Rekod aktiviti', icon: History, group: 'Pengurusan' },

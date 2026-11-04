@@ -14,7 +14,7 @@ import { SchedulePage } from './pages/SchedulePage';
 import { DailyReport } from './pages/DailyReport';
 import { ReviewReports } from './pages/ReviewReports';
 import { FollowUp } from './pages/FollowUp';
-import { NlpTrainingPage } from './pages/NlpTrainingPage';
+
 import { AuditTrail } from './pages/AuditTrail';
 import { UsersPage } from './pages/UsersPage';
 import { PostsPage } from './pages/PostsPage';
@@ -58,7 +58,7 @@ function App() {
         <Route path="/laporan" element={<Protected auth={auth} roles={[ROLE.guard]}><DailyReport /></Protected>} />
         <Route path="/semakan" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief]}><ReviewReports auth={auth} /></Protected>} />
         <Route path="/tindakan" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief]}><FollowUp auth={auth} /></Protected>} />
-        <Route path="/nlp" element={<Protected auth={auth} roles={[ROLE.admin]}><NlpTrainingPage /></Protected>} />
+        <Route path="/nlp" element={<Protected auth={auth} roles={[ROLE.admin]}><Navigate to="/semakan" replace /></Protected>} />
         <Route path="/audit" element={<Protected auth={auth} roles={[ROLE.admin]}><AuditTrail /></Protected>} />
         <Route path="/pengguna" element={<Protected auth={auth} roles={[ROLE.admin]}><UsersPage auth={auth} /></Protected>} />
         <Route path="/pos" element={<Protected auth={auth} roles={[ROLE.admin]}><PostsPage /></Protected>} />

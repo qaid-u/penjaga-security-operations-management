@@ -83,7 +83,7 @@ test('password form submits current and new password and clears on success',asyn
   await expect(page.getByLabel('Kata laluan semasa',{exact:true})).toHaveValue('');
 });
 
-test('completed local analysis keeps polling until independent review finishes',async({page})=>{
+test('completed classification is shown without exposing the optional AI reviewer',async({page})=>{
   let polls=0;
   const report={id_laporan:66,tajuk_laporan:'Local result available',kandungan_laporan:'Routine patrol',status_laporan:'Dihantar',nama_pos:'Post A',tarikh_laporan:'2026-10-29'};
   const analysis={id_nlp:7,id_laporan:66,kategori_dikesan:'Rondaan Biasa',tahap_risiko:'Low',skor_risiko:10,metadata:{review:{status:'pending'}}};
@@ -96,7 +96,8 @@ test('completed local analysis keeps polling until independent review finishes',
     return false;
   });
   await page.goto('/semakan?report=66');
-  await expect(page.getByText('Semakan AI sedang diproses',{exact:true})).toBeVisible();
-  await expect(page.getByText('Tiada percanggahan dikesan',{exact:true}).first()).toBeVisible({timeout:10000});
-  expect(polls).toBeGreaterThanOrEqual(2);
+  await expect(page.getByRole('region',{name:'Klasifikasi automatik'})).toBeVisible();
+  await expect(page.getByRole('region',{name:'Klasifikasi automatik'}).getByText('Rondaan Biasa',{exact:true})).toBeVisible();
+  await expect(page.getByText('Semakan AI sedang diproses',{exact:true})).toHaveCount(0);
+  expect(polls).toBeGreaterThanOrEqual(1);
 });

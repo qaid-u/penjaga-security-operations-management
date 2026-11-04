@@ -1,0 +1,779 @@
+{
+  "modelVersion": "nb-v2-8372800163d5",
+  "scope": "Synthetic development evaluation only",
+  "trainingSet": {
+    "source": "data/classification-corpus.json",
+    "scope": "synthetic_only",
+    "corpusSha256": "b5c61f544d2cde3ecd8e871eff2a6a6930651bf7c709c5bc5225e48837f60a4e",
+    "authoredScenarios": 80,
+    "additionalAuthoredScenarios": 168,
+    "corpusSamples": 2000,
+    "examplesPerCategory": 250,
+    "seedSamples": 64,
+    "syntheticSamples": 1936,
+    "trainSamples": 1576,
+    "testSamples": 424,
+    "split": "deterministic_category_stratified_event_source_groups",
+    "trainGroups": [
+      "authored:Kebakaran:0",
+      "authored:Kebakaran:1",
+      "authored:Kebakaran:2",
+      "authored:Kebakaran:3",
+      "authored:Kebakaran:5",
+      "authored:Kebakaran:7",
+      "authored:Kebakaran:8",
+      "authored:Kebakaran:9",
+      "authored:Kehilangan Aset:0",
+      "authored:Kehilangan Aset:2",
+      "authored:Kehilangan Aset:3",
+      "authored:Kehilangan Aset:4",
+      "authored:Kehilangan Aset:5",
+      "authored:Kehilangan Aset:6",
+      "authored:Kehilangan Aset:7",
+      "authored:Kehilangan Aset:8",
+      "authored:Kehilangan Aset:9",
+      "authored:Kerosakan Kemudahan:0",
+      "authored:Kerosakan Kemudahan:2",
+      "authored:Kerosakan Kemudahan:4",
+      "authored:Kerosakan Kemudahan:5",
+      "authored:Kerosakan Kemudahan:6",
+      "authored:Kerosakan Kemudahan:7",
+      "authored:Kerosakan Kemudahan:8",
+      "authored:Kerosakan Kemudahan:9",
+      "authored:Keselamatan Fizikal:0",
+      "authored:Keselamatan Fizikal:1",
+      "authored:Keselamatan Fizikal:3",
+      "authored:Keselamatan Fizikal:4",
+      "authored:Keselamatan Fizikal:5",
+      "authored:Keselamatan Fizikal:7",
+      "authored:Keselamatan Fizikal:8",
+      "authored:Keselamatan Fizikal:9",
+      "authored:Pencerobohan:0",
+      "authored:Pencerobohan:1",
+      "authored:Pencerobohan:4",
+      "authored:Pencerobohan:6",
+      "authored:Pencerobohan:7",
+      "authored:Pencerobohan:9",
+      "authored:Pergaduhan:0",
+      "authored:Pergaduhan:1",
+      "authored:Pergaduhan:2",
+      "authored:Pergaduhan:3",
+      "authored:Pergaduhan:4",
+      "authored:Pergaduhan:5",
+      "authored:Pergaduhan:7",
+      "authored:Pergaduhan:8",
+      "authored:Rondaan Biasa:0",
+      "authored:Rondaan Biasa:1",
+      "authored:Rondaan Biasa:2",
+      "authored:Rondaan Biasa:4",
+      "authored:Rondaan Biasa:5",
+      "authored:Rondaan Biasa:6",
+      "authored:Rondaan Biasa:7",
+      "authored:Rondaan Biasa:8",
+      "authored:Rondaan Biasa:9",
+      "authored:Vandalisme:0",
+      "authored:Vandalisme:1",
+      "authored:Vandalisme:2",
+      "authored:Vandalisme:5",
+      "authored:Vandalisme:6",
+      "authored:Vandalisme:7",
+      "authored:Vandalisme:8",
+      "authored:Vandalisme:9",
+      "event:Kebakaran:0",
+      "event:Kebakaran:1",
+      "event:Kebakaran:3",
+      "event:Kehilangan Aset:0",
+      "event:Kehilangan Aset:1",
+      "event:Kehilangan Aset:2",
+      "event:Kehilangan Aset:3",
+      "event:Kehilangan Aset:4",
+      "event:Kehilangan Aset:5",
+      "event:Kerosakan Kemudahan:1",
+      "event:Kerosakan Kemudahan:2",
+      "event:Kerosakan Kemudahan:3",
+      "event:Kerosakan Kemudahan:4",
+      "event:Kerosakan Kemudahan:5",
+      "event:Keselamatan Fizikal:2",
+      "event:Keselamatan Fizikal:3",
+      "event:Keselamatan Fizikal:4",
+      "event:Keselamatan Fizikal:5",
+      "event:Pencerobohan:0",
+      "event:Pencerobohan:1",
+      "event:Pencerobohan:2",
+      "event:Pencerobohan:3",
+      "event:Pencerobohan:4",
+      "event:Pencerobohan:5",
+      "event:Pergaduhan:0",
+      "event:Pergaduhan:2",
+      "event:Pergaduhan:4",
+      "event:Rondaan Biasa:1",
+      "event:Rondaan Biasa:3",
+      "event:Rondaan Biasa:4",
+      "event:Rondaan Biasa:5",
+      "event:Vandalisme:0",
+      "event:Vandalisme:2",
+      "event:Vandalisme:3",
+      "event:Vandalisme:5",
+      "expanded:Kebakaran:0",
+      "expanded:Kebakaran:1",
+      "expanded:Kebakaran:10",
+      "expanded:Kebakaran:11",
+      "expanded:Kebakaran:12",
+      "expanded:Kebakaran:13",
+      "expanded:Kebakaran:15",
+      "expanded:Kebakaran:16",
+      "expanded:Kebakaran:17",
+      "expanded:Kebakaran:18",
+      "expanded:Kebakaran:2",
+      "expanded:Kebakaran:3",
+      "expanded:Kebakaran:4",
+      "expanded:Kebakaran:5",
+      "expanded:Kebakaran:6",
+      "expanded:Kebakaran:7",
+      "expanded:Kebakaran:8",
+      "expanded:Kebakaran:9",
+      "expanded:Kehilangan Aset:0",
+      "expanded:Kehilangan Aset:1",
+      "expanded:Kehilangan Aset:11",
+      "expanded:Kehilangan Aset:12",
+      "expanded:Kehilangan Aset:15",
+      "expanded:Kehilangan Aset:17",
+      "expanded:Kehilangan Aset:18",
+      "expanded:Kehilangan Aset:19",
+      "expanded:Kehilangan Aset:2",
+      "expanded:Kehilangan Aset:20",
+      "expanded:Kehilangan Aset:3",
+      "expanded:Kehilangan Aset:4",
+      "expanded:Kehilangan Aset:8",
+      "expanded:Kehilangan Aset:9",
+      "expanded:Kerosakan Kemudahan:0",
+      "expanded:Kerosakan Kemudahan:1",
+      "expanded:Kerosakan Kemudahan:10",
+      "expanded:Kerosakan Kemudahan:12",
+      "expanded:Kerosakan Kemudahan:13",
+      "expanded:Kerosakan Kemudahan:17",
+      "expanded:Kerosakan Kemudahan:18",
+      "expanded:Kerosakan Kemudahan:19",
+      "expanded:Kerosakan Kemudahan:2",
+      "expanded:Kerosakan Kemudahan:20",
+      "expanded:Kerosakan Kemudahan:3",
+      "expanded:Kerosakan Kemudahan:4",
+      "expanded:Kerosakan Kemudahan:6",
+      "expanded:Kerosakan Kemudahan:7",
+      "expanded:Kerosakan Kemudahan:8",
+      "expanded:Kerosakan Kemudahan:9",
+      "expanded:Keselamatan Fizikal:0",
+      "expanded:Keselamatan Fizikal:1",
+      "expanded:Keselamatan Fizikal:10",
+      "expanded:Keselamatan Fizikal:11",
+      "expanded:Keselamatan Fizikal:12",
+      "expanded:Keselamatan Fizikal:13",
+      "expanded:Keselamatan Fizikal:14",
+      "expanded:Keselamatan Fizikal:15",
+      "expanded:Keselamatan Fizikal:16",
+      "expanded:Keselamatan Fizikal:19",
+      "expanded:Keselamatan Fizikal:2",
+      "expanded:Keselamatan Fizikal:20",
+      "expanded:Keselamatan Fizikal:3",
+      "expanded:Keselamatan Fizikal:4",
+      "expanded:Keselamatan Fizikal:5",
+      "expanded:Keselamatan Fizikal:6",
+      "expanded:Keselamatan Fizikal:8",
+      "expanded:Pencerobohan:0",
+      "expanded:Pencerobohan:1",
+      "expanded:Pencerobohan:10",
+      "expanded:Pencerobohan:12",
+      "expanded:Pencerobohan:13",
+      "expanded:Pencerobohan:14",
+      "expanded:Pencerobohan:15",
+      "expanded:Pencerobohan:16",
+      "expanded:Pencerobohan:18",
+      "expanded:Pencerobohan:2",
+      "expanded:Pencerobohan:20",
+      "expanded:Pencerobohan:3",
+      "expanded:Pencerobohan:4",
+      "expanded:Pencerobohan:5",
+      "expanded:Pencerobohan:6",
+      "expanded:Pencerobohan:8",
+      "expanded:Pencerobohan:9",
+      "expanded:Pergaduhan:1",
+      "expanded:Pergaduhan:10",
+      "expanded:Pergaduhan:11",
+      "expanded:Pergaduhan:12",
+      "expanded:Pergaduhan:13",
+      "expanded:Pergaduhan:14",
+      "expanded:Pergaduhan:15",
+      "expanded:Pergaduhan:16",
+      "expanded:Pergaduhan:17",
+      "expanded:Pergaduhan:18",
+      "expanded:Pergaduhan:19",
+      "expanded:Pergaduhan:2",
+      "expanded:Pergaduhan:3",
+      "expanded:Pergaduhan:4",
+      "expanded:Pergaduhan:5",
+      "expanded:Pergaduhan:6",
+      "expanded:Pergaduhan:7",
+      "expanded:Pergaduhan:8",
+      "expanded:Rondaan Biasa:11",
+      "expanded:Rondaan Biasa:12",
+      "expanded:Rondaan Biasa:13",
+      "expanded:Rondaan Biasa:14",
+      "expanded:Rondaan Biasa:15",
+      "expanded:Rondaan Biasa:16",
+      "expanded:Rondaan Biasa:18",
+      "expanded:Rondaan Biasa:2",
+      "expanded:Rondaan Biasa:20",
+      "expanded:Rondaan Biasa:3",
+      "expanded:Rondaan Biasa:4",
+      "expanded:Rondaan Biasa:5",
+      "expanded:Rondaan Biasa:6",
+      "expanded:Rondaan Biasa:7",
+      "expanded:Rondaan Biasa:8",
+      "expanded:Rondaan Biasa:9",
+      "expanded:Vandalisme:1",
+      "expanded:Vandalisme:10",
+      "expanded:Vandalisme:11",
+      "expanded:Vandalisme:12",
+      "expanded:Vandalisme:13",
+      "expanded:Vandalisme:14",
+      "expanded:Vandalisme:15",
+      "expanded:Vandalisme:16",
+      "expanded:Vandalisme:17",
+      "expanded:Vandalisme:19",
+      "expanded:Vandalisme:2",
+      "expanded:Vandalisme:20",
+      "expanded:Vandalisme:3",
+      "expanded:Vandalisme:6",
+      "expanded:Vandalisme:7",
+      "expanded:Vandalisme:8",
+      "expanded:Vandalisme:9",
+      "source:Kebakaran:authored-seeds",
+      "source:Kehilangan Aset:authored-seeds",
+      "source:Kerosakan Kemudahan:authored-seeds",
+      "source:Keselamatan Fizikal:authored-seeds",
+      "source:Pencerobohan:authored-seeds",
+      "source:Pergaduhan:authored-seeds",
+      "source:Rondaan Biasa:authored-seeds",
+      "source:Vandalisme:authored-seeds"
+    ],
+    "testGroups": [
+      "authored:Kebakaran:4",
+      "authored:Kebakaran:6",
+      "authored:Kehilangan Aset:1",
+      "authored:Kerosakan Kemudahan:1",
+      "authored:Kerosakan Kemudahan:3",
+      "authored:Keselamatan Fizikal:2",
+      "authored:Keselamatan Fizikal:6",
+      "authored:Pencerobohan:2",
+      "authored:Pencerobohan:3",
+      "authored:Pencerobohan:5",
+      "authored:Pencerobohan:8",
+      "authored:Pergaduhan:6",
+      "authored:Pergaduhan:9",
+      "authored:Rondaan Biasa:3",
+      "authored:Vandalisme:3",
+      "authored:Vandalisme:4",
+      "event:Kebakaran:2",
+      "event:Kebakaran:4",
+      "event:Kebakaran:5",
+      "event:Kerosakan Kemudahan:0",
+      "event:Keselamatan Fizikal:0",
+      "event:Keselamatan Fizikal:1",
+      "event:Pergaduhan:1",
+      "event:Pergaduhan:3",
+      "event:Pergaduhan:5",
+      "event:Rondaan Biasa:0",
+      "event:Rondaan Biasa:2",
+      "event:Vandalisme:1",
+      "event:Vandalisme:4",
+      "expanded:Kebakaran:14",
+      "expanded:Kebakaran:19",
+      "expanded:Kebakaran:20",
+      "expanded:Kehilangan Aset:10",
+      "expanded:Kehilangan Aset:13",
+      "expanded:Kehilangan Aset:14",
+      "expanded:Kehilangan Aset:16",
+      "expanded:Kehilangan Aset:5",
+      "expanded:Kehilangan Aset:6",
+      "expanded:Kehilangan Aset:7",
+      "expanded:Kerosakan Kemudahan:11",
+      "expanded:Kerosakan Kemudahan:14",
+      "expanded:Kerosakan Kemudahan:15",
+      "expanded:Kerosakan Kemudahan:16",
+      "expanded:Kerosakan Kemudahan:5",
+      "expanded:Keselamatan Fizikal:17",
+      "expanded:Keselamatan Fizikal:18",
+      "expanded:Keselamatan Fizikal:7",
+      "expanded:Keselamatan Fizikal:9",
+      "expanded:Pencerobohan:11",
+      "expanded:Pencerobohan:17",
+      "expanded:Pencerobohan:19",
+      "expanded:Pencerobohan:7",
+      "expanded:Pergaduhan:0",
+      "expanded:Pergaduhan:20",
+      "expanded:Pergaduhan:9",
+      "expanded:Rondaan Biasa:0",
+      "expanded:Rondaan Biasa:1",
+      "expanded:Rondaan Biasa:10",
+      "expanded:Rondaan Biasa:17",
+      "expanded:Rondaan Biasa:19",
+      "expanded:Vandalisme:0",
+      "expanded:Vandalisme:18",
+      "expanded:Vandalisme:4",
+      "expanded:Vandalisme:5"
+    ],
+    "limitations": [
+      "Generated variants sharing an event family stay in one split.",
+      "Authored seeds without a recognized generated event are kept together by category.",
+      "Variants are not independent incidents; a larger synthetic corpus does not establish operational accuracy.",
+      "This is an internal synthetic benchmark, not an independent operational holdout.",
+      "No risk accuracy is reported: urgency is a separate contextual policy."
+    ]
+  },
+  "selection": {
+    "scope": "Development-only hyperparameter selection; metrics are not an unbiased holdout estimate.",
+    "selected": {
+      "alpha": 0.05,
+      "bigramWeight": 0,
+      "classPrior": "empirical"
+    },
+    "candidates": [
+      {
+        "inference": {
+          "alpha": 1,
+          "bigramWeight": 1,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7065385278758898,
+        "categoryAccuracy": 0.7075471698113207
+      },
+      {
+        "inference": {
+          "alpha": 1,
+          "bigramWeight": 1,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.7065385278758898,
+        "categoryAccuracy": 0.7075471698113207
+      },
+      {
+        "inference": {
+          "alpha": 1,
+          "bigramWeight": 0.5,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7258701256796964,
+        "categoryAccuracy": 0.7264150943396226
+      },
+      {
+        "inference": {
+          "alpha": 1,
+          "bigramWeight": 0.5,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.7258701256796964,
+        "categoryAccuracy": 0.7264150943396226
+      },
+      {
+        "inference": {
+          "alpha": 1,
+          "bigramWeight": 0,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7572441839746737,
+        "categoryAccuracy": 0.7570754716981132
+      },
+      {
+        "inference": {
+          "alpha": 1,
+          "bigramWeight": 0,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.7595268545133712,
+        "categoryAccuracy": 0.7594339622641509
+      },
+      {
+        "inference": {
+          "alpha": 0.05,
+          "bigramWeight": 1,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7556124862192823,
+        "categoryAccuracy": 0.7570754716981132
+      },
+      {
+        "inference": {
+          "alpha": 0.05,
+          "bigramWeight": 1,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.7556124862192823,
+        "categoryAccuracy": 0.7570754716981132
+      },
+      {
+        "inference": {
+          "alpha": 0.05,
+          "bigramWeight": 0.5,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7695001925985517,
+        "categoryAccuracy": 0.7712264150943396
+      },
+      {
+        "inference": {
+          "alpha": 0.05,
+          "bigramWeight": 0.5,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.7695001925985517,
+        "categoryAccuracy": 0.7712264150943396
+      },
+      {
+        "inference": {
+          "alpha": 0.05,
+          "bigramWeight": 0,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7824439078310467,
+        "categoryAccuracy": 0.7830188679245284
+      },
+      {
+        "inference": {
+          "alpha": 0.05,
+          "bigramWeight": 0,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.779756094077554,
+        "categoryAccuracy": 0.7806603773584906
+      },
+      {
+        "inference": {
+          "alpha": 0.1,
+          "bigramWeight": 1,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7532467963535924,
+        "categoryAccuracy": 0.7547169811320755
+      },
+      {
+        "inference": {
+          "alpha": 0.1,
+          "bigramWeight": 1,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.7532467963535924,
+        "categoryAccuracy": 0.7547169811320755
+      },
+      {
+        "inference": {
+          "alpha": 0.1,
+          "bigramWeight": 0.5,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7695001925985517,
+        "categoryAccuracy": 0.7712264150943396
+      },
+      {
+        "inference": {
+          "alpha": 0.1,
+          "bigramWeight": 0.5,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.7695001925985517,
+        "categoryAccuracy": 0.7712264150943396
+      },
+      {
+        "inference": {
+          "alpha": 0.1,
+          "bigramWeight": 0,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7728442613496689,
+        "categoryAccuracy": 0.7735849056603774
+      },
+      {
+        "inference": {
+          "alpha": 0.1,
+          "bigramWeight": 0,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.7728442613496689,
+        "categoryAccuracy": 0.7735849056603774
+      },
+      {
+        "inference": {
+          "alpha": 0.5,
+          "bigramWeight": 1,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7350283893684665,
+        "categoryAccuracy": 0.7358490566037735
+      },
+      {
+        "inference": {
+          "alpha": 0.5,
+          "bigramWeight": 1,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.7417223013255364,
+        "categoryAccuracy": 0.7429245283018868
+      },
+      {
+        "inference": {
+          "alpha": 0.5,
+          "bigramWeight": 0.5,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7630002580349392,
+        "categoryAccuracy": 0.7641509433962265
+      },
+      {
+        "inference": {
+          "alpha": 0.5,
+          "bigramWeight": 0.5,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.7652643739974517,
+        "categoryAccuracy": 0.7665094339622641
+      },
+      {
+        "inference": {
+          "alpha": 0.5,
+          "bigramWeight": 0,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7709571938422691,
+        "categoryAccuracy": 0.7712264150943396
+      },
+      {
+        "inference": {
+          "alpha": 0.5,
+          "bigramWeight": 0,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.7709571938422691,
+        "categoryAccuracy": 0.7712264150943396
+      },
+      {
+        "inference": {
+          "alpha": 2,
+          "bigramWeight": 1,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7048343234653083,
+        "categoryAccuracy": 0.7051886792452831
+      },
+      {
+        "inference": {
+          "alpha": 2,
+          "bigramWeight": 1,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.70712082486826,
+        "categoryAccuracy": 0.7075471698113207
+      },
+      {
+        "inference": {
+          "alpha": 2,
+          "bigramWeight": 0.5,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.7121866477439203,
+        "categoryAccuracy": 0.7122641509433962
+      },
+      {
+        "inference": {
+          "alpha": 2,
+          "bigramWeight": 0.5,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.7120399123386353,
+        "categoryAccuracy": 0.7122641509433962
+      },
+      {
+        "inference": {
+          "alpha": 2,
+          "bigramWeight": 0,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.734518747851848,
+        "categoryAccuracy": 0.7334905660377359
+      },
+      {
+        "inference": {
+          "alpha": 2,
+          "bigramWeight": 0,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.7368159084928871,
+        "categoryAccuracy": 0.7358490566037735
+      },
+      {
+        "inference": {
+          "alpha": 5,
+          "bigramWeight": 1,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.6922089514232982,
+        "categoryAccuracy": 0.6933962264150944
+      },
+      {
+        "inference": {
+          "alpha": 5,
+          "bigramWeight": 1,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.6920407427368035,
+        "categoryAccuracy": 0.6933962264150944
+      },
+      {
+        "inference": {
+          "alpha": 5,
+          "bigramWeight": 0.5,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.6862600423774186,
+        "categoryAccuracy": 0.6886792452830188
+      },
+      {
+        "inference": {
+          "alpha": 5,
+          "bigramWeight": 0.5,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.6810175538136087,
+        "categoryAccuracy": 0.6839622641509434
+      },
+      {
+        "inference": {
+          "alpha": 5,
+          "bigramWeight": 0,
+          "classPrior": "empirical"
+        },
+        "macroF1": 0.6965081317927587,
+        "categoryAccuracy": 0.6957547169811321
+      },
+      {
+        "inference": {
+          "alpha": 5,
+          "bigramWeight": 0,
+          "classPrior": "uniform"
+        },
+        "macroF1": 0.700466104677736,
+        "categoryAccuracy": 0.7004716981132075
+      }
+    ]
+  },
+  "categoryMetrics": {
+    "scope": "synthetic_group_development_only",
+    "samples": 424,
+    "categoryAccuracy": 0.7830188679245284,
+    "macroF1": 0.7824439078310467,
+    "perCategory": [
+      {
+        "category": "Kebakaran",
+        "support": 51,
+        "precision": 0.8095238095238095,
+        "recall": 1,
+        "f1": 0.8947368421052632
+      },
+      {
+        "category": "Kehilangan Aset",
+        "support": 60,
+        "precision": 0.8571428571428571,
+        "recall": 0.8,
+        "f1": 0.8275862068965518
+      },
+      {
+        "category": "Kerosakan Kemudahan",
+        "support": 54,
+        "precision": 0.9787234042553191,
+        "recall": 0.8518518518518519,
+        "f1": 0.9108910891089108
+      },
+      {
+        "category": "Keselamatan Fizikal",
+        "support": 52,
+        "precision": 0.7073170731707317,
+        "recall": 0.5576923076923077,
+        "f1": 0.6236559139784946
+      },
+      {
+        "category": "Pencerobohan",
+        "support": 48,
+        "precision": 0.5737704918032787,
+        "recall": 0.7291666666666666,
+        "f1": 0.6422018348623854
+      },
+      {
+        "category": "Pergaduhan",
+        "support": 50,
+        "precision": 0.7037037037037037,
+        "recall": 0.76,
+        "f1": 0.7307692307692308
+      },
+      {
+        "category": "Rondaan Biasa",
+        "support": 57,
+        "precision": 0.7068965517241379,
+        "recall": 0.7192982456140351,
+        "f1": 0.7130434782608696
+      },
+      {
+        "category": "Vandalisme",
+        "support": 52,
+        "precision": 1,
+        "recall": 0.8461538461538461,
+        "f1": 0.9166666666666666
+      }
+    ],
+    "confusion": {
+      "Kebakaran": {
+        "Kebakaran": 51
+      },
+      "Kehilangan Aset": {
+        "Kehilangan Aset": 48,
+        "Kebakaran": 3,
+        "Rondaan Biasa": 9
+      },
+      "Kerosakan Kemudahan": {
+        "Kerosakan Kemudahan": 46,
+        "Pencerobohan": 8
+      },
+      "Keselamatan Fizikal": {
+        "Rondaan Biasa": 8,
+        "Keselamatan Fizikal": 29,
+        "Pencerobohan": 8,
+        "Kehilangan Aset": 7
+      },
+      "Pencerobohan": {
+        "Pencerobohan": 35,
+        "Keselamatan Fizikal": 12,
+        "Kerosakan Kemudahan": 1
+      },
+      "Pergaduhan": {
+        "Pergaduhan": 38,
+        "Pencerobohan": 2,
+        "Kehilangan Aset": 1,
+        "Kebakaran": 9
+      },
+      "Rondaan Biasa": {
+        "Rondaan Biasa": 41,
+        "Pergaduhan": 8,
+        "Pencerobohan": 8
+      },
+      "Vandalisme": {
+        "Vandalisme": 44,
+        "Pergaduhan": 8
+      }
+    },
+    "operationalAccuracy": null
+  },
+  "limitations": [
+    "Generated variants sharing an event family stay in one split.",
+    "Authored seeds without a recognized generated event are kept together by category.",
+    "Variants are not independent incidents; a larger synthetic corpus does not establish operational accuracy.",
+    "This is an internal synthetic benchmark, not an independent operational holdout.",
+    "No risk accuracy is reported: urgency is a separate contextual policy."
+  ]
+}

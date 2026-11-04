@@ -168,6 +168,49 @@ test('workflow regressions use disposable schema and real authenticated APIs',as
       assert.equal((await request(url,3,'POST',{currentPassword:next,newPassword:password})).status,429);
       assert.equal((await request('/auth/login',null,'POST',{username:'guard',password:next})).status,200);
     });
+    await t.test('copy previews a draft, rechecks overlaps and notifies only affected guards after publication', async () => {
+      await pool.query(`
+        select setval('tbl_jadual_mingguan_id_jadual_mingguan_seq', 100);
+        select setval('tbl_jadual_bertugas_id_jadual_seq', 100);
+        insert into tbl_jadual_mingguan(id_jadual_mingguan,tarikh_mula,tarikh_tamat)
+        values(90,current_date+20,current_date+26);
+        insert into tbl_jadual_bertugas(id_jadual,id_jadual_mingguan,id_pengguna,id_pos,tarikh_tugas,syif,masa_mula,masa_tamat)
+        values(90,90,3,1,current_date+20,'Pagi','07:00','16:00'),
+              (91,90,4,2,current_date+20,'Malam','23:00','08:00');
+      `);
+      const url = '/jadual/mingguan/90/copy-next';
+      assert.equal((await request(url, 3)).status, 403);
+      const overview = await request('/jadual/mingguan/90/coverage-summary?overview=week', 2);
+      assert.equal(overview.status, 200);
+      assert.equal(overview.data.days.length, 7);
+      assert.equal(overview.data.days[0].shortage, overview.data.days[1].shortage - 1);
+
+      const preview = await request(url, 2);
+      assert.equal(preview.status, 200);
+      assert.equal(preview.data.rows.length, 2);
+      assert.equal((await request(url, 2, 'POST', { ids: [90], version: 'stale' })).status, 409);
+      const copy = await request(url, 2, 'POST', { ids: [90], version: preview.data.version });
+      assert.equal(copy.status, 201);
+      const target = '/jadual/mingguan/' + copy.data.id;
+      const previewAgain = await request(url, 2);
+      assert.equal(previewAgain.data.rows[0].conflict.nama_pos, 'Post A');
+      assert.equal((await request(url, 2, 'POST', { ids: [91, 90], version: previewAgain.data.version })).status, 409);
+      const remaining = (await pool.query('select id_jadual from tbl_jadual_bertugas where id_jadual_mingguan=$1', [copy.data.id])).rows;
+      assert.equal(remaining.length, 1);
+      const notices = async () => (await pool.query("select id_pengguna, tajuk_notifikasi from tbl_notifikasi where jenis_notifikasi='Jadual Bertugas' order by id_notifikasi")).rows;
+      assert.deepEqual(await notices(), []);
+      assert.equal((await request(target + '/confirm', 1, 'POST')).status, 200);
+      const assignment = { ...preview.data.rows[0], id_pos: 2 };
+      const edit = await request('/jadual/assignments/' + remaining[0].id_jadual, 2, 'PUT', assignment);
+      assert.equal(edit.status, 200);
+      assert.equal((await request('/jadual/assignments/' + remaining[0].id_jadual, 2, 'DELETE')).status, 200);
+      assert.deepEqual(await notices(), [
+        { id_pengguna: 3, tajuk_notifikasi: 'Jadual bertugas tersedia' },
+        { id_pengguna: 3, tajuk_notifikasi: 'Tugasan dikemas kini' },
+        { id_pengguna: 3, tajuk_notifikasi: 'Tugasan dibatalkan' },
+      ]);
+      assert.equal((await request(url, 2)).status, 409);
+    });
   }finally{
     if(server)await new Promise(resolve=>server.close(resolve));
     await pool.end();

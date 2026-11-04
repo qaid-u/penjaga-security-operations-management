@@ -44,7 +44,7 @@ export function DashboardIntelligence({data,metrics,filters}) {
       <article className="ds-panel ds-quality"><div className="ds-panel-heading"><div><span className="ds-eyebrow">KEBOLEHGUNAAN DATA</span><h2>Sejauh mana data lengkap?</h2></div><ScanLine size={20}/></div>
         <div className="ds-quality-ring" style={{'--quality':(quality||0)+'%'}}><div><strong>{showRate(quality)}</strong><span>telah dikelaskan</span></div></div>
         <div className="ds-quality-detail"><span><i className="ds-dot teal"/>Dikelaskan</span><strong>{current.classified}</strong></div><div className="ds-quality-detail"><span><i className="ds-dot gray"/>Belum dikelaskan</span><strong>{missing}</strong></div>
-        <p className="ds-method-note">Risiko ialah klasifikasi NLP tersimpan. Laporan tanpa klasifikasi tidak dianggap Low.</p>
+        <p className="ds-method-note">Risiko ialah cadangan klasifikasi automatik. Laporan tanpa klasifikasi tidak dianggap Low.</p>
       </article>
     </div>
     <div className="ds-insight"><span className="ds-insight-icon"><Sparkles size={19}/></span><div><strong>{missing>0?'Lengkapkan data sebelum mentafsir corak':current.total?'Konteks di sebalik angka':'Belum cukup data untuk dibandingkan'}</strong><p>{missing>0?`${missing} daripada ${current.total} laporan belum mempunyai klasifikasi. Bahagian risiko menggunakan ${current.classified} laporan yang dikelaskan sahaja.`:current.total?`${current.high} laporan diklasifikasikan High/Critical. Bilangan laporan menggambarkan aktiviti pelaporan; ia bukan kadar kejadian sebenar.`:'Pilih tempoh lain atau tunggu laporan baharu. Tiada skor atau ramalan dibuat daripada data kosong.'}</p></div></div>

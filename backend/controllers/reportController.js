@@ -98,7 +98,8 @@ const getReport = async (req, res) => {
       await client.query('select * from tbl_tindakan_susulan where id_laporan = $1 order by id_tindakan', [req.params.id]),
     ];
     const analysis = report.id_nlp ? (await client.query('select * from tbl_hasil_nlp where id_nlp=$1',[report.id_nlp])).rows[0] : null;
-    res.json({ report, reviews: reviews.rows, checklist: checklist.rows, actions: actions.rows, analysis, analysisJob:report.analysis_job });
+    const confirmedCategory=await require('../services/automaticLearning').confirmedCategory(client,report.id_laporan);
+    res.json({ report, reviews: reviews.rows, checklist: checklist.rows, actions: actions.rows, analysis, analysisJob:report.analysis_job,confirmedCategory });
   } catch (error) {
     console.error('Get report detail error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan butiran laporan' });
@@ -191,7 +192,7 @@ const createReport = async (req, res) => {
 
 const reviewReport = async (req, res) => {
   const { id } = req.params;
-  const { status, comment = '', requiresFollowUp = false } = req.body;
+  const { status, comment = '', requiresFollowUp = false, confirmedCategory } = req.body;
   const normalizedStatus = status === 'approved' || status === 'Disahkan'
     ? 'Diluluskan'
     : status === 'rejected' || status === 'Ditolak' ? 'Ditolak' : null;
@@ -199,6 +200,7 @@ const reviewReport = async (req, res) => {
   if (typeof comment !== 'string' || typeof requiresFollowUp !== 'boolean') {
     return res.status(400).json({ message: 'Maklumat semakan tidak sah' });
   }
+  if(confirmedCategory!==undefined&&(typeof confirmedCategory!=='string'||confirmedCategory.length>100||(confirmedCategory&&normalizedStatus!=='Diluluskan')))return res.status(400).json({message:'Kategori hanya boleh disahkan bersama kelulusan laporan.'});
 
   let client;
   try {
@@ -243,33 +245,23 @@ const reviewReport = async (req, res) => {
       ]
     );
     if (normalizedStatus === 'Diluluskan' && requiresFollowUp) {
-      const existing = await client.query('select 1 from tbl_tindakan_susulan where id_laporan = $1', [id]);
-      if (!existing.rowCount) {
-        await client.query(
-          `insert into tbl_tindakan_susulan
-             (id_laporan, pegawai_bertanggungjawab, tindakan_diambil, tahap_keutamaan, tarikh_mula)
-           values ($1, $2, $3, $4, current_date)`,
-          [id, req.user.nama_penuh, 'Tindakan susulan diperlukan berdasarkan semakan laporan.', report.tahap_risiko || 'Medium']
-        );
-      }
-    }
-    if (normalizedStatus === 'Diluluskan' && requiresFollowUp) {
       await client.query(
         `insert into tbl_notifikasi(id_pengguna,id_laporan,id_tindakan,tajuk_notifikasi,mesej_notifikasi,jenis_notifikasi,tahap_keutamaan)
-         select u.id_pengguna,$1,a.id_tindakan,'Tindakan susulan diperlukan',$2,'Tindakan Susulan','Medium'
+         select u.id_pengguna,$1,null,'Tindakan susulan diperlukan',$2,'Tindakan Susulan','Medium'
          from tbl_pengguna u join tbl_peranan r on r.id_peranan=u.id_peranan
-         join tbl_tindakan_susulan a on a.id_laporan=$1
          where u.status_akaun='Aktif' and r.nama_peranan='Pentadbir Sistem'`,
         [id, `Laporan #${id} diluluskan dan memerlukan tindakan susulan.`]
       );
     }
+    const learning=confirmedCategory?await require('../services/automaticLearning').captureLabel(client,report,confirmedCategory,req.user.id_pengguna):null;
     await logAudit(client, req.user.id_pengguna, 'REVIEW_REPORT', `Laporan #${id}`, `Status: ${normalizedStatus}`);
     await client.query('commit');
-    res.json({ message: `Laporan ${normalizedStatus}` });
+    if(learning?.eligible)require('../services/automaticLearning').wakeAutoTrainer(pool);
+    res.json({ message: `Laporan ${normalizedStatus}`,learning });
   } catch (error) {
     if (client) await client.query('rollback');
-    console.error('Review report error:', error.code || error.name);
-    res.status(500).json({ message: 'Gagal menyemak laporan' });
+    if(!error.status||error.status>=500)console.error('Review report error:', error.code || error.name);
+    res.status(error.status||500).json({ message:error.status?error.message:'Gagal menyemak laporan' });
   } finally {
     client?.release();
   }

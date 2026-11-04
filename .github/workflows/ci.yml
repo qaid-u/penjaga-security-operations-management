@@ -18,7 +18,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
 
       - name: Install root dependencies
@@ -29,3 +29,30 @@ jobs:
 
       - name: Run code validation & build test
         run: npm run check
+
+      - name: Verify the Vercel build with sign-in enabled
+        env:
+          VITE_API_URL: https://api.example.com/api
+        run: npm run build:vercel
+
+      - name: Verify production sign-in through Docker Compose
+        env:
+          POSTGRES_PASSWORD: ci-database-fixture-only
+          JWT_SECRET: ci-fixture-just-for-production-auth-smoke-2026
+          FRONTEND_URL: http://localhost
+        run: |
+          set -e
+          trap 'docker compose down -v' EXIT
+          docker compose up -d --build
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://localhost/api/ready > /dev/null; then break; fi
+            sleep 2
+          done
+          docker compose exec -T \
+            -e BOOTSTRAP_USERNAME=ci-admin \
+            -e BOOTSTRAP_PASSWORD=ci-admin-fixture-only \
+            -e BOOTSTRAP_EMAIL=ci-admin@example.invalid \
+            -e BOOTSTRAP_NAME='CI Administrator' \
+            backend node scripts/bootstrap-admin.js
+          API_BASE_URL=http://localhost/api SMOKE_USERNAME=ci-admin SMOKE_PASSWORD=ci-admin-fixture-only \
+            node backend/scripts/smoke-test.js

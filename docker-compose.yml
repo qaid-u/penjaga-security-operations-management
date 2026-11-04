@@ -39,6 +39,8 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_REVIEW_MODEL: ${GEMINI_REVIEW_MODEL:-gemini-3.5-flash-lite}
       NLP_AI_REVIEW_ENABLED: ${NLP_AI_REVIEW_ENABLED:-false}
+      NLP_AUTO_TRAIN_ENABLED: ${NLP_AUTO_TRAIN_ENABLED:-true}
+      NLP_RETRAIN_MIN_LABELS: ${NLP_RETRAIN_MIN_LABELS:-20}
     volumes:
       - backend_uploads:/app/uploads
 

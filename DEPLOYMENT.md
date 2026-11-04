@@ -15,6 +15,14 @@ Compose runs PostgreSQL, the Express API, and Nginx serving the React build. Onl
 
 Create the first administrator using `backend/scripts/bootstrap-admin.js` and private `BOOTSTRAP_*` environment values. Configure users and operational records through the application.
 
+## Vercel frontend with a hosted API
+
+1. Deploy the Express service and PostgreSQL using the Compose setup above on a server with HTTPS and persistent storage. The Nginx service can serve the API at `https://api.example.com/api` through the server's HTTPS proxy. Set `FRONTEND_URL` on that server to the exact Vercel frontend origin, then create the first admin.
+2. Import the GitHub repository into Vercel with its root directory at the repository root. Set `VITE_API_URL` to the hosted API base, for example `https://api.example.com/api`. The repository's Vercel build validates this setting. Reserve `VITE_PREVIEW_ONLY=true` for previews with sign-in disabled.
+3. Deploy or redeploy the Vercel frontend after setting the build variables. Verify the API's `/api/ready` endpoint, sign in with the new admin, and confirm the dashboard and evidence uploads work.
+
+Keep the database URL, JWT secret and admin credentials on the API host. Vercel's frontend only needs the public HTTPS API URL. Express stays on a long-running service so evidence and classification jobs retain their existing storage and execution model.
+
 ## PostgreSQL on a separate host
 
 Express accepts either `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`, or a private `DATABASE_URL`. Use verified TLS for remote database connections. URL connections in production verify certificates by default; provide `PGSSL_CA` when your database requires a private CA. `PGSSLMODE=disable` is for an explicitly trusted internal connection. No hostname-specific connection rules are used.

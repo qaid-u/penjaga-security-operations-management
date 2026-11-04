@@ -34,7 +34,8 @@ async function processNLP(text,options={}){
   const input=parseClarificationInput({...(options.sourceHash?{draftHash:options.sourceHash}:{}),...(options.clarifications?{clarifications:options.clarifications}:{})});
   const expectedHash=draftHashFor(text,options.selectedPostId);
   if(options.sourceHash&&options.sourceHash!==expectedHash)throw invalid();
-  const analysis=analyzeText({text,...refs,model:loadModel()});
+  const model=await require('../services/automaticLearning').activeModel(options.db||pool,loadModel());
+  const analysis=analyzeText({text,...refs,model});
   const resolved=buildDialogue({text,analysis,locations:refs.locations,selectedPostId:options.selectedPostId,clarifications:input.clarifications||[]});
   if(resolved.errors?.length)throw invalid();
   const {events,candidateQuestions:_candidates,errors:_errors,...dialogue}=resolved;

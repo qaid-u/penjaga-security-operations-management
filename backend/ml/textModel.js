@@ -16,6 +16,7 @@ function tokenize(text = '') {
 function validateModel(model) {
   const fail = () => { throw new Error('Format model NLP tidak serasi'); };
   if (!model || model.modelType !== 'multinomial_naive_bayes' || model.formatVersion !== FORMAT_VERSION || model.preprocessingVersion !== PREPROCESSING_VERSION) fail();
+  if(model.inference&&(!Number.isFinite(model.inference.alpha)||model.inference.alpha<=0||!Number.isFinite(model.inference.bigramWeight)||model.inference.bigramWeight<0||model.inference.bigramWeight>1||!['empirical','uniform'].includes(model.inference.classPrior)))fail();
   if (!Number.isSafeInteger(model.totalDocuments) || model.totalDocuments < 1 || !Array.isArray(model.vocabulary) || !model.vocabulary.length || model.vocabulary.some(token => typeof token !== 'string')) fail();
   if (new Set(model.vocabulary).size !== model.vocabulary.length || !model.categories || Array.isArray(model.categories) || typeof model.categories !== 'object') fail();
   const entries = Object.entries(model.categories);
@@ -36,9 +37,10 @@ function trainModel(samples, metadata = {}) {
   const categories = Object.create(null);
   const vocabulary = new Set();
   const source = [];
+  const excluded=new Set(metadata.excludedWords||[]);
   for (const sample of samples) {
     if (typeof sample.text !== 'string' || !sample.text.trim() || typeof sample.category !== 'string' || !sample.category.trim()) throw new Error('Every sample requires text and category');
-    const tokens = tokenize(sample.text);
+    const tokens = tokenize(sample.text).filter(token=>!token.split('_').some(word=>excluded.has(word)));
     if (!tokens.length) throw new Error('Training sample contains no usable tokens');
     const category = sample.category.trim();
     const data = categories[category] || (categories[category] = { documentCount: 0, tokenCount: 0, tokens: Object.create(null) });
@@ -68,9 +70,11 @@ function predict(model, text) {
   const tokens = allTokens.filter(token => vocabulary.has(token));
   // An all-unknown sentence must not turn into the largest class's prior prediction.
   if (!tokens.length) return [];
+  const alpha=model.inference?.alpha??1;
+  const bigramWeight=model.inference?.bigramWeight??1;
   const scores = Object.entries(model.categories).map(([category, data]) => {
-    let logScore = Math.log(data.documentCount / model.totalDocuments);
-    for (const token of tokens) logScore += Math.log(((Object.hasOwn(data.tokens, token) ? data.tokens[token] : 0) + 1) / (data.tokenCount + vocabulary.size));
+    let logScore = model.inference?.classPrior==='uniform'?-Math.log(Object.keys(model.categories).length):Math.log(data.documentCount / model.totalDocuments);
+    for (const token of tokens) logScore += (token.includes('_')?bigramWeight:1)*Math.log(((Object.hasOwn(data.tokens, token) ? data.tokens[token] : 0) + alpha) / (data.tokenCount + alpha*vocabulary.size));
     return { category, logScore };
   }).sort((a, b) => b.logScore - a.logScore || a.category.localeCompare(b.category));
   const max = scores[0].logScore;
@@ -96,7 +100,7 @@ function evaluate(model, samples) {
     const recall = support ? tp / support : 0;
     return { category: label, support, precision, recall, f1: precision + recall ? 2 * precision * recall / (precision + recall) : 0 };
   });
-  return { scope: 'synthetic_group_holdout_only', samples: samples.length, categoryAccuracy: samples.length ? correct / samples.length : null, macroF1: samples.length ? perCategory.reduce((sum, row) => sum + row.f1, 0) / labels.length : null, perCategory, confusion, operationalAccuracy: null };
+  return { scope: 'synthetic_group_development_only', samples: samples.length, categoryAccuracy: samples.length ? correct / samples.length : null, macroF1: samples.length ? perCategory.reduce((sum, row) => sum + row.f1, 0) / labels.length : null, perCategory, confusion, operationalAccuracy: null };
 }
 
 module.exports = { FORMAT_VERSION, PREPROCESSING_VERSION, cleanText, tokenize, trainModel, predict, validateModel, evaluate };

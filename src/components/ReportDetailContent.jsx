@@ -1,9 +1,9 @@
 import { Badge, AttachmentLinks, EvidencePreview } from './ui';
 import { ReportLifecycle } from './ReportLifecycle';
 import { statusTone } from '../utils/helpers';
-import { NlpReviewPanel } from './NlpReviewPanel';
+import { ClassificationSummary } from './ClassificationSummary';
 
-export function ReportDetailContent({ detail, canGiveNlpFeedback = false, reportRoute }) {
+export function ReportDetailContent({ detail }) {
   if (!detail) return null;
 
   const renderHighlightedContent = (text, keywords = []) => {
@@ -31,10 +31,12 @@ export function ReportDetailContent({ detail, canGiveNlpFeedback = false, report
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge tone={statusTone(detail.report.status_laporan)}>{detail.report.status_laporan}</Badge>
-            <Badge tone={detail.report.tahap_risiko}>{detail.report.tahap_risiko}</Badge>
           </div>
         </div>
       </div>
+
+      <ClassificationSummary key={detail.report.id_laporan} report={detail.report} analysis={detail.analysis} job={detail.analysisJob}/>
+      {detail.confirmedCategory?.category&&<p className="workspace-note">Kategori disahkan Ketua Pengawal: <strong>{detail.confirmedCategory.category}</strong></p>}
 
       <div className="grid gap-3 md:grid-cols-2">
         <div className="document-field"><span>Pengawal</span><strong>{detail.report.nama_penuh || '-'}</strong></div>
@@ -54,15 +56,6 @@ export function ReportDetailContent({ detail, canGiveNlpFeedback = false, report
       <EvidencePreview value={detail.report.lampiran_fail} />
 
       <ReportLifecycle report={detail.report} actions={detail.actions} />
-
-      <NlpReviewPanel
-        key={detail.report.id_laporan}
-        report={detail.report}
-        analysis={detail.analysis}
-        job={detail.analysisJob}
-        canGiveFeedback={canGiveNlpFeedback}
-        reportRoute={reportRoute}
-      />
 
       <section>
         <p className="document-section-title">Checklist Pemeriksaan</p>

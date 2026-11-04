@@ -1,0 +1,227 @@
+{
+  "scope": "Fixed additional held-out synthetic scenario families excluded from both models training. Development-only comparison; not independent model selection evidence.",
+  "previousModel": "nb-v2-cf98c9a6176b",
+  "currentModel": "nb-v2-8372800163d5",
+  "samples": 276,
+  "previous": {
+    "scope": "synthetic_group_holdout_only",
+    "samples": 276,
+    "categoryAccuracy": 0.7391304347826086,
+    "macroF1": 0.7523342744385078,
+    "perCategory": [
+      {
+        "category": "Kebakaran",
+        "support": 22,
+        "precision": 0.9166666666666666,
+        "recall": 1,
+        "f1": 0.9565217391304348
+      },
+      {
+        "category": "Kehilangan Aset",
+        "support": 56,
+        "precision": 0.7931034482758621,
+        "recall": 0.8214285714285714,
+        "f1": 0.8070175438596492
+      },
+      {
+        "category": "Kerosakan Kemudahan",
+        "support": 40,
+        "precision": 1,
+        "recall": 0.95,
+        "f1": 0.9743589743589743
+      },
+      {
+        "category": "Keselamatan Fizikal",
+        "support": 32,
+        "precision": 0.48,
+        "recall": 0.375,
+        "f1": 0.42105263157894735
+      },
+      {
+        "category": "Pencerobohan",
+        "support": 32,
+        "precision": 0.8205128205128205,
+        "recall": 1,
+        "f1": 0.9014084507042254
+      },
+      {
+        "category": "Pergaduhan",
+        "support": 22,
+        "precision": 0.7894736842105263,
+        "recall": 0.6818181818181818,
+        "f1": 0.7317073170731707
+      },
+      {
+        "category": "Rondaan Biasa",
+        "support": 40,
+        "precision": 0.38095238095238093,
+        "recall": 0.4,
+        "f1": 0.3902439024390244
+      },
+      {
+        "category": "Vandalisme",
+        "support": 32,
+        "precision": 1,
+        "recall": 0.71875,
+        "f1": 0.8363636363636363
+      }
+    ],
+    "confusion": {
+      "Kebakaran": {
+        "Kebakaran": 22
+      },
+      "Kehilangan Aset": {
+        "Kehilangan Aset": 46,
+        "Rondaan Biasa": 10
+      },
+      "Kerosakan Kemudahan": {
+        "Kerosakan Kemudahan": 38,
+        "Kehilangan Aset": 1,
+        "Rondaan Biasa": 1
+      },
+      "Keselamatan Fizikal": {
+        "Unknown": 2,
+        "Keselamatan Fizikal": 12,
+        "Rondaan Biasa": 10,
+        "Kehilangan Aset": 7,
+        "Pergaduhan": 1
+      },
+      "Pencerobohan": {
+        "Pencerobohan": 32
+      },
+      "Pergaduhan": {
+        "Pergaduhan": 15,
+        "Unknown": 2,
+        "Keselamatan Fizikal": 1,
+        "Rondaan Biasa": 3,
+        "Kehilangan Aset": 1
+      },
+      "Rondaan Biasa": {
+        "Unknown": 2,
+        "Keselamatan Fizikal": 11,
+        "Pergaduhan": 1,
+        "Rondaan Biasa": 16,
+        "Kehilangan Aset": 2,
+        "Kebakaran": 1,
+        "Pencerobohan": 7
+      },
+      "Vandalisme": {
+        "Unknown": 2,
+        "Keselamatan Fizikal": 1,
+        "Pergaduhan": 2,
+        "Rondaan Biasa": 2,
+        "Kehilangan Aset": 1,
+        "Kebakaran": 1,
+        "Vandalisme": 23
+      }
+    },
+    "operationalAccuracy": null
+  },
+  "current": {
+    "scope": "synthetic_group_holdout_only",
+    "samples": 276,
+    "categoryAccuracy": 0.7028985507246377,
+    "macroF1": 0.685646694575266,
+    "perCategory": [
+      {
+        "category": "Kebakaran",
+        "support": 22,
+        "precision": 0.6666666666666666,
+        "recall": 1,
+        "f1": 0.8
+      },
+      {
+        "category": "Kehilangan Aset",
+        "support": 56,
+        "precision": 0.8653846153846154,
+        "recall": 0.8035714285714286,
+        "f1": 0.8333333333333334
+      },
+      {
+        "category": "Kerosakan Kemudahan",
+        "support": 40,
+        "precision": 1,
+        "recall": 0.8,
+        "f1": 0.888888888888889
+      },
+      {
+        "category": "Keselamatan Fizikal",
+        "support": 32,
+        "precision": 0.5294117647058824,
+        "recall": 0.28125,
+        "f1": 0.3673469387755102
+      },
+      {
+        "category": "Pencerobohan",
+        "support": 32,
+        "precision": 0.5,
+        "recall": 0.75,
+        "f1": 0.6
+      },
+      {
+        "category": "Pergaduhan",
+        "support": 22,
+        "precision": 0.4666666666666667,
+        "recall": 0.6363636363636364,
+        "f1": 0.5384615384615385
+      },
+      {
+        "category": "Rondaan Biasa",
+        "support": 40,
+        "precision": 0.6,
+        "recall": 0.6,
+        "f1": 0.6
+      },
+      {
+        "category": "Vandalisme",
+        "support": 32,
+        "precision": 1,
+        "recall": 0.75,
+        "f1": 0.8571428571428571
+      }
+    ],
+    "confusion": {
+      "Kebakaran": {
+        "Kebakaran": 22
+      },
+      "Kehilangan Aset": {
+        "Kehilangan Aset": 45,
+        "Kebakaran": 3,
+        "Rondaan Biasa": 8
+      },
+      "Kerosakan Kemudahan": {
+        "Kerosakan Kemudahan": 32,
+        "Pencerobohan": 8
+      },
+      "Keselamatan Fizikal": {
+        "Rondaan Biasa": 8,
+        "Pencerobohan": 8,
+        "Keselamatan Fizikal": 9,
+        "Kehilangan Aset": 7
+      },
+      "Pencerobohan": {
+        "Pencerobohan": 24,
+        "Keselamatan Fizikal": 8
+      },
+      "Pergaduhan": {
+        "Pergaduhan": 14,
+        "Kebakaran": 8
+      },
+      "Rondaan Biasa": {
+        "Pergaduhan": 8,
+        "Rondaan Biasa": 24,
+        "Pencerobohan": 8
+      },
+      "Vandalisme": {
+        "Pergaduhan": 8,
+        "Vandalisme": 24
+      }
+    },
+    "operationalAccuracy": null
+  },
+  "notes": [
+    "The overall development split changed; its score is not directly comparable with the earlier 158-case score.",
+    "Current feature/inference settings were selected on this development partition.",
+    "The new pure classifier has lower macro-F1 than the previous classifier on this particular subset; do not claim universal improvement from corpus size."
+  ]
+}

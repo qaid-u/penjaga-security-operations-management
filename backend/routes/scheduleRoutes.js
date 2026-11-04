@@ -7,6 +7,7 @@ const {
   getPosReqs,
   addPosReq,
   checkConflict,
+  copyWeek,
   saveAssignment,
   deleteAssignment,
   importSchedules,
@@ -24,6 +25,8 @@ router.use(cleanupFailedUploads);
 router.get('/mingguan', auth, requireRole(roles.admin, roles.chief), getWeeks);
 router.get('/mingguan/:id', auth, requireRole(roles.admin, roles.chief), getWeek);
 router.get('/mingguan/:id/coverage-summary', auth, requireRole(roles.admin, roles.chief), getCoverage);
+router.get('/mingguan/:id/copy-next', auth, requireRole(roles.admin, roles.chief), copyWeek);
+router.post('/mingguan/:id/copy-next', auth, requireRole(roles.admin, roles.chief), copyWeek);
 router.get('/my-schedule', auth, requireRole(roles.guard), getMySchedule);
 router.get('/keperluan-pos', auth, requireRole(roles.admin, roles.chief), getPosReqs);
 router.post('/keperluan-pos', auth, requireRole(roles.admin, roles.chief), addPosReq);

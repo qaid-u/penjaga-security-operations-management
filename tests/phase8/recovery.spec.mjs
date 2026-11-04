@@ -38,11 +38,11 @@ test('daily schedule shows actual assigned guards, refreshes dates and confirms 
   await page.getByLabel('Tarikh tugasan').fill('2026-10-26');
   await page.locator('.ops-post-record > summary').first().click();
   await expect(page.getByText('Assigned Guard',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Padam',exact:true}).click();
+  await page.getByRole('button',{name:'Padam Assigned Guard',exact:true}).click();
   expect(deletes).toBe(0);
   await page.getByRole('dialog',{name:'Padam tugasan?'}).getByRole('button',{name:'Batal'}).click();
   expect(deletes).toBe(0);
-  await page.getByRole('button',{name:'Padam',exact:true}).click();
+  await page.getByRole('button',{name:'Padam Assigned Guard',exact:true}).click();
   await page.getByRole('dialog',{name:'Padam tugasan?'}).getByRole('button',{name:'Padam tugasan',exact:true}).click();
   await expect.poll(()=>deletes).toBe(1);
   await expect(page.getByText('Assigned Guard',{exact:true})).toHaveCount(0);
@@ -122,8 +122,8 @@ test('failed conflict checks keep the assignment form usable',async({page})=>{
     if(url.pathname==='/api/jadual/check-conflict'){await route.fulfill({status:503,json:{message:'Semakan sementara gagal'}});return true;}
     return false;
   });
-  await page.goto('/jadual');await page.locator('.ops-post-record > summary').first().click();await page.getByRole('button',{name:'Tugaskan pengawal sekarang'}).click();
-  await page.getByRole('combobox',{name:'Pengawal',exact:true}).selectOption('3');
+  await page.goto('/jadual');await page.locator('.ops-post-record > summary').first().click();await page.getByRole('button',{name:'Tugaskan pengawal',exact:true}).click();
+  await page.getByRole('radio',{name:'Guard A',exact:true}).check();
   await page.getByRole('button',{name:'Simpan tugasan',exact:true}).click();
   await expect(page.getByText('Semakan sementara gagal',{exact:false})).toBeVisible();
   await expect(page.getByRole('button',{name:'Simpan tugasan',exact:true})).toBeEnabled();

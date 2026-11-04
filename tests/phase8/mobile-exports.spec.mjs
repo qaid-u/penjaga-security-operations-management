@@ -26,11 +26,11 @@ const noOverflow=async page=>expect(await page.evaluate(()=>document.documentEle
 test('phone post browser searches all records, narrows buildings and opens one post',async({page},info)=>{
   await page.setViewportSize({width:390,height:844});const api=await setup(page);await page.goto('/jadual');
   await expect(page.locator('.ops-post-record')).toHaveCount(6);
-  await expect(page.getByRole('button',{name:'Tugaskan pengawal sekarang'}).first()).toBeHidden();
+  await expect(page.getByRole('button',{name:'Tugaskan pengawal',exact:true}).first()).toBeHidden();
   await page.getByLabel('Cari pos atau bangunan').fill('Pos 25');
   await expect(page.locator('.ops-post-record')).toHaveCount(1);
-  await page.locator('.ops-post-record > summary').click();await expect(page.getByRole('button',{name:'Tugaskan pengawal sekarang'})).toBeVisible();
-  await page.getByLabel('Cari pos atau bangunan').fill('');await page.getByRole('combobox',{name:'Bangunan',exact:true}).selectOption('Bangunan B');
+  await page.locator('.ops-post-record > summary').click();await expect(page.getByRole('button',{name:'Tugaskan pengawal',exact:true})).toBeVisible();
+  await page.getByLabel('Cari pos atau bangunan').fill('');await page.locator('.schedule-filters > summary').click();await page.getByRole('combobox',{name:'Bangunan',exact:true}).selectOption('Bangunan B');await page.locator('.schedule-filters > summary').click();
   await expect(page.locator('.ops-post-record > summary').first()).toContainText('Pos 13');
   await page.getByRole('button',{name:'Seterusnya',exact:true}).click();await expect(page.locator('.ops-post-record > summary').first()).toContainText('Pos 19');
   for(const width of [320,768,390]){await page.setViewportSize({width,height:844});await noOverflow(page);}

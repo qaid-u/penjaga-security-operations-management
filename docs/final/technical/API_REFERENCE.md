@@ -91,6 +91,10 @@ A successful API result records a database event, not physical guard location. I
 
 Daily coverage uses one day of post requirements and returns assigned guards in `coverageByPost[].assignments`. Shortage is summed per post/shift; excess staffing at one post cannot offset a shortage elsewhere. Calendar dates remain `YYYY-MM-DD`.
 
+Chief approval with `requiresFollowUp=true` records the decision and notifies administrators; it does not create a placeholder action. Approved reports requiring follow-up appear in `/reports?follow_up=pending` until an administrator creates the action through `POST /actions`. Classification availability/risk does not prevent the chief from requesting follow-up. Existing action records are retained.
+
+The review body also accepts optional `confirmedCategory` (an active, supported category name) only with approval. An omitted/blank value creates no learning label. Demo records are excluded. The response includes optional `learning: {eligible,reason?}`; report detail includes `confirmedCategory: {category,confirmed_at}` when one was saved. `/meta` advertises `automaticLearning.ready/enabled` so older or unmigrated servers do not expose a nonfunctional confirmation field. Label collection remains chief-only. See [automatic learning](../../testing/AUTOMATIC_LEARNING.md).
+
 The notification centre refreshes every 30 seconds while active. Follow-up requests notify active chief guards; chief progress updates notify active administrators. Report review notifies the submitting guard, and approval requiring follow-up also notifies administrators. Unread counts include older records beyond the first 50.
 
 ## Calendar exports and compact operation views

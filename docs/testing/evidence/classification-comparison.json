@@ -1,0 +1,18 @@
+{
+  "scope": "Same previously inspected synthetic development challenge; not operational accuracy or model-selection ground truth.",
+  "challengeSha256": "691ab11294a1eddcea57e22dbe5f7a009208668fc183ac90f5ed72f0b2e465e7",
+  "sameChallenge": true,
+  "before": {
+    "model": "nb-v2-48653bf03ee1",
+    "modelSha256": "9707aacee0b4f2b31fed8caceed3a7dacf76a8642675a255720212d22f07bbe1",
+    "hybridCategoryMacroF1": 0.9111111111111111,
+    "eventStatusAccuracy": 0.9
+  },
+  "after": {
+    "model": "nb-v2-cf98c9a6176b",
+    "modelSha256": "a4d2a8e1126d4da67f711cc69bc3f1d18b0e25d60ddf14607204b3f6ddef9cf5",
+    "hybridCategoryMacroF1": 0.95,
+    "eventStatusAccuracy": 0.9
+  },
+  "trainingDecision": "Training expansion and grouped split were fixed before examining after-run challenge results; no challenge cases were added to the corpus."
+}

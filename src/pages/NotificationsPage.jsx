@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, CheckCheck, ClipboardCheck, Eye } from 'lucide-react';
+import { Bell, CalendarDays, CheckCheck, ClipboardCheck, Eye } from 'lucide-react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { ROLE, notifyError, notifySuccess } from '../utils/helpers';
@@ -40,6 +40,8 @@ export function NotificationsPage() {
       {query.isPending ? <LoadingState message="Memuatkan notifikasi..." /> : query.isError ? <AlertMessage>Notifikasi belum dapat dimuatkan. <button className="underline" onClick={() => query.refetch()}>Cuba lagi</button></AlertMessage> : rows.length ? rows.map(n => <article key={n.id_notifikasi} className={`workspace-record ${n.status_bacaan !== 'Dibaca' ? 'workspace-notification-unread' : ''}`}>
         <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0 flex-1"><h3 className="flex items-center gap-2">{n.status_bacaan !== 'Dibaca' && <Bell size={15} aria-label="Belum dibaca" />}{n.tajuk_notifikasi}</h3><p className="mt-2 text-sm">{n.mesej_notifikasi}</p><p className="text-data mt-2">{new Date(n.tarikh_hantar).toLocaleString('ms-MY', {timeZone:'Asia/Kuala_Lumpur'})} · {n.status_bacaan}</p></div><Badge tone={n.tahap_keutamaan}>{n.tahap_keutamaan}</Badge></div>
         <div className="mt-4 flex flex-wrap gap-2">
+          {n.jenis_notifikasi === 'Jadual Bertugas' && <Button variant="ghost" disabled={mutation.isPending}
+            onClick={() => mutation.mutate({ item: n, target: '/jadual' })}><CalendarDays size={16} />Buka jadual</Button>}
           {n.id_laporan && <Button variant="ghost" disabled={mutation.isPending} onClick={() => mutation.mutate({item:n,target:reportPath(n.id_laporan)})}><Eye size={16} />Buka laporan</Button>}
           {n.id_tindakan && user?.nama_peranan !== ROLE.guard && <Button variant="ghost" disabled={mutation.isPending} onClick={() => mutation.mutate({item:n,target:'/tindakan'})}><ClipboardCheck size={16} />Buka tindakan</Button>}
           {n.status_bacaan !== 'Dibaca' && <Button variant="ghost" disabled={mutation.isPending} onClick={() => mutation.mutate({item:n})}>Tanda dibaca</Button>}

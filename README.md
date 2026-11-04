@@ -4,7 +4,9 @@ Functional full-stack prototype for:
 
 **Sistem Pengurusan Operasi Keselamatan Berasaskan Kepintaran Buatan (PENJAGA)**
 
-The "AI" scope in this prototype is intentionally limited to local, rule-based NLP. It does not use external AI APIs, automated scheduling, forecasting, or machine-learning prediction.
+Report classification uses a locally trained Multinomial Naive Bayes model with contextual rules. Administrators read category/risk suggestions directly in reports; there is no separate NLP management screen. Training is a maintainer task using disclosed synthetic examples. See [classification model and data](docs/testing/AUTOMATIC_CLASSIFICATION.md). Optional external review remains a separate, explicitly configured backend feature; it is not required for local classification. Scheduling and forecasts are not predicted by this model.
+
+New reports can also support automatic retraining after the chief explicitly confirms a category during approval. Batches start at 20 eligible new families, exclude demo data and activate a candidate only after regression checks. See [automatic learning](docs/testing/AUTOMATIC_LEARNING.md). Ordinary insertion/approval never trains on the model's own guesses.
 It also does not include CCTV integration, IoT sensor integration, or door access control integration.
 
 ## Tech Stack
@@ -55,6 +57,8 @@ PGPASSWORD=your_private_database_password
 You can also use `DATABASE_URL=postgres://user:password@localhost:5432/penjaga_db`.
 
 ## Run Backend
+
+To start or reuse both local services with database/model readiness checks, run `npm run dev:system` from the repository root. Open `http://127.0.0.1:5173/login`. This requires configured PostgreSQL credentials and an initialized schema. It does not seed incidents, reset accounts or apply migrations automatically. See [working report flow](docs/testing/OPERATIONAL_FLOW.md).
 
 ```bash
 cd backend

@@ -1,0 +1,98 @@
+{
+  "Rondaan Biasa": [
+    "Pemeriksaan perimeter telah lengkap. Semua akses ditutup dengan baik dan tiada gangguan dilihat.",
+    "Serahan tugas berjalan lancar. Rekod pelawat dan peralatan pos telah disemak bersama petugas pengganti.",
+    "Lawatan pemeriksaan ke setiap aras selesai. Keadaan bangunan normal sepanjang tempoh pemantauan.",
+    "Semua pelawat berdaftar telah meninggalkan kawasan sebelum pejabat ditutup. Pengawal mengesahkan keadaan terkawal.",
+    "Ujian komunikasi radio antara petugas berjaya. Semua pos memberikan maklum balas seperti biasa.",
+    "Pemeriksaan akhir selepas acara mendapati ruang menunggu kosong dan semua barangan berada di tempat asal.",
+    "Pemantauan kamera bagi seluruh kawasan selesai tanpa penemuan luar biasa. Buku catatan telah dilengkapkan.",
+    "Petugas mengiringi kontraktor berdaftar sepanjang kerja penyelenggaraan. Kontraktor keluar mengikut prosedur.",
+    "Pengesahan laluan keluar dan pintu pejabat telah dibuat sebelum pertukaran syif. Semuanya dalam keadaan baik.",
+    "Pasukan melengkapkan pusingan pemeriksaan yang dijadualkan. Tiada aduan keselamatan diterima daripada penghuni."
+  ],
+  "Pencerobohan": [
+    "Seorang individu melompat melepasi sempadan pagar dan cuba menuju ke ruang pejabat tanpa kebenaran.",
+    "Pelawat menyelinap di belakang pekerja melalui pintu akses walaupun tidak mempunyai kad yang sah.",
+    "Sebuah kenderaan meneruskan perjalanan melintasi pondok pemeriksaan walaupun diarahkan berhenti.",
+    "Pengawal menemui orang tidak dikenali bersembunyi di ruang stor yang hanya boleh dimasuki kakitangan.",
+    "Rakaman menunjukkan seseorang menggunakan laluan servis untuk memasuki zon larangan selepas waktu operasi.",
+    "Individu yang telah ditolak kemasukan cuba masuk sekali lagi melalui pintu kecemasan di bahagian lain.",
+    "Seorang pelawat menunjukkan pas milik orang lain untuk mendapatkan akses ke pejabat terkawal.",
+    "Petugas mengesan dua individu menyusup melalui celah pagar sebelum bergerak ke bangunan pentadbiran.",
+    "Orang awam membuka pintu penghadang dan memasuki ruang kakitangan walaupun papan larangan jelas dipamerkan.",
+    "Pengawal menahan seseorang yang cuba mengikut kereta kakitangan melepasi palang tanpa menjalani pemeriksaan."
+  ],
+  "Kebakaran": [
+    "Nyalaan kelihatan pada soket dinding dan asap keluar daripada penebat kabel. Petugas mengarahkan orang ramai beredar.",
+    "Api merebak pada kotak pembungkusan yang disimpan berhampiran ruang servis. Pengawal meminta bantuan bomba.",
+    "Sebuah tong sampah terbakar dan mengeluarkan asap hitam. Petugas menggunakan alat pemadam untuk mengawal api.",
+    "Panel agihan elektrik mengeluarkan percikan bersama bau hangit yang kuat. Kawasan dikosongkan serta-merta.",
+    "Penghuni melaporkan nyalaan pada peralatan dapur dan pengawal melihat asap memenuhi ruang bersebelahan.",
+    "Api dikesan pada bahagian enjin sebuah kenderaan. Petugas menghalang orang ramai menghampiri kenderaan itu.",
+    "Bahan kertas di dalam bilik rekod mula menyala selepas berlaku litar pintas. Pengungsian dilaksanakan.",
+    "Pengawal melihat kepulan asap dari siling sebelum mendapati kabel sedang terbakar. Bekalan kuasa diasingkan.",
+    "Tilam di bilik rehat terbakar dengan nyalaan terbuka. Pasukan kecemasan telah dimaklumkan.",
+    "Bau terbakar disusuli asap pekat keluar dari mesin pejabat. Petugas menjauhkan kakitangan dari ruang tersebut."
+  ],
+  "Pergaduhan": [
+    "Dua pelawat saling menumbuk selepas bertengkar mengenai tempat letak kereta. Pengawal memisahkan mereka.",
+    "Seorang individu menolak petugas kaunter dan mengancam untuk memukulnya. Bantuan keselamatan dipanggil.",
+    "Pertelingkahan mengenai giliran bertukar menjadi pergelutan fizikal antara beberapa orang awam.",
+    "Pengawal menemui seorang lelaki sedang menarik baju individu lain sambil mengeluarkan ugutan.",
+    "Dua kumpulan bertolak-tolakan dan menendang kerusi ketika bertengkar. Petugas mengosongkan ruang sekitar.",
+    "Seorang pelawat cuba menyerang pekerja selepas permohonannya ditolak. Pengawal menghalang serangan tersebut.",
+    "Kakitangan meminta bantuan apabila seorang individu mengamuk dan cuba menampar orang di hadapannya.",
+    "Pertengkaran berpanjangan antara pemandu berakhir dengan pukulan pada muka salah seorang yang terlibat.",
+    "Petugas meleraikan pergelutan antara dua individu yang saling mencengkam dan enggan berundur.",
+    "Seorang lelaki mengejar dan menendang pelawat lain. Orang ramai dialihkan sementara pengawal mengawal keadaan."
+  ],
+  "Kehilangan Aset": [
+    "Komputer riba yang direkodkan dalam inventori tidak berada di kabinet selepas kakitangan kembali bekerja.",
+    "Petugas mendapati sebuah radio dua hala tiada semasa semakan serahan peralatan. Lokasi terakhir masih disiasat.",
+    "Pemilik melaporkan beg bersama dokumen rasmi telah hilang selepas ditinggalkan seketika di ruang menunggu.",
+    "Kunci induk yang sepatutnya berada dalam peti simpanan tidak ditemui selepas semakan dibuat.",
+    "Sebuah projektor didapati hilang daripada ruang mesyuarat walaupun tiada rekod pinjaman dibuat.",
+    "Kad akses pejabat tidak dapat ditemukan oleh pemegangnya. Permohonan menyekat kad telah dimaklumkan.",
+    "Semakan rak inventori menunjukkan satu unit kamera mudah alih tiada. Petugas membandingkan rekod keluar masuk.",
+    "Kakitangan melaporkan dompetnya dicuri dari meja ketika beliau berada di ruang lain.",
+    "Sebuah kotak perkakasan milik jabatan tidak dapat dikesan selepas kerja pengubahsuaian selesai.",
+    "Buku daftar kunci dan satu set kunci simpanan dilaporkan hilang daripada ruang petugas."
+  ],
+  "Vandalisme": [
+    "Permukaan dinding dipenuhi tulisan semburan cat yang baru. Petugas mengambil gambar kerosakan tersebut.",
+    "Rakaman menunjukkan seorang individu menendang papan kenyataan sehingga rangkanya tercabut.",
+    "Cermin tingkap telah dibaling batu oleh orang tidak dikenali dan serpihannya bertaburan di laluan.",
+    "Tempat duduk awam mempunyai kesan torehan yang disengajakan. Beberapa bahagian alas telah dikoyakkan.",
+    "Seorang pelawat dilihat mencabut dan membengkokkan papan arah sebelum meninggalkan kawasan.",
+    "Cat pada pintu telah dicakar menggunakan objek tajam. Kesan kerosakan bukan disebabkan penggunaan biasa.",
+    "Kamera luar telah dipukul dengan objek keras oleh individu yang dirakam sebelum gambar terputus.",
+    "Petugas menemui pelekat rasmi dikoyakkan dan kata-kata kesat ditulis pada papan pengumuman.",
+    "Beberapa pasu hiasan dipecahkan dengan sengaja dan pokoknya dicabut. Gambar bukti telah diambil.",
+    "Seorang individu merosakkan suis lampu dengan mengetuknya berulang kali menggunakan alat logam."
+  ],
+  "Keselamatan Fizikal": [
+    "Pintu akses ke ruang terhad dibiarkan terbuka menggunakan penyendal. Kawalan kemasukan tidak dapat dikuatkuasakan.",
+    "Timbunan kotak menutup laluan keluar kecemasan sehingga orang ramai tidak boleh melaluinya dengan selamat.",
+    "Pengawal mendapati gril keselamatan tidak dikunci walaupun bangunan sudah ditutup untuk orang awam.",
+    "Satu bahagian pagar perimeter mempunyai celah besar yang membolehkan orang masuk tanpa melalui pemeriksaan.",
+    "Peti simpanan kunci ditinggalkan terbuka dengan semua kunci terdedah. Tiada petugas berada berdekatan.",
+    "Pintu bilik sulit boleh dibuka terus kerana selak keselamatan tidak dipasang selepas kerja pembersihan.",
+    "Tangga kecemasan digunakan untuk menyimpan perabot sehingga lebar laluan keluar menjadi sangat sempit.",
+    "Penghadang keselamatan dialihkan ke tepi dan laluan ke ruang kakitangan terbuka kepada pelawat.",
+    "Kad akses ditinggalkan pada pembaca pintu sehingga orang lain boleh memasuki kawasan terkawal.",
+    "Pintu keluar kecemasan diikat dengan rantai semasa bangunan masih dihuni. Petugas meminta laluan dibuka."
+  ],
+  "Kerosakan Kemudahan": [
+    "Paparan monitor pengawasan menjadi hitam walaupun bekalan elektrik tersedia. Pemeriksaan teknikal diminta.",
+    "Butang panggilan lif tidak memberikan respons dan kabin tidak bergerak ke aras yang dipilih.",
+    "Pembesar suara interkom mengeluarkan bunyi terputus-putus sehingga komunikasi dengan pelawat tidak jelas.",
+    "Satu lampu limpah tidak menyala selepas suis dihidupkan. Petugas memohon penggantian komponen.",
+    "Motor palang kenderaan tersekat dan tidak dapat dinaikkan menggunakan kawalan biasa.",
+    "Alat pembaca kad gagal membaca beberapa kad yang telah disahkan masih aktif. Pemeriksaan sistem diminta.",
+    "Skrin rakaman kamera berulang kali terputus sambungan. Pemantauan manual dibuat sementara menunggu juruteknik.",
+    "Pintu gelangsar automatik berhenti di tengah laluan dan mengeluarkan bunyi geseran pada relnya.",
+    "Air menitis daripada paip siling dan membasahi ruang petugas. Unit penyelenggaraan telah menerima aduan.",
+    "Unit pendingin udara tidak mengeluarkan udara sejuk selepas dihidupkan. Kerja pemeriksaan dijadualkan."
+  ]
+}
