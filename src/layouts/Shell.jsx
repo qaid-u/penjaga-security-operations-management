@@ -58,7 +58,10 @@ export function Shell({ auth, children }) {
     const Icon = item.icon;
     return <NavLink key={item.to} to={item.to} onClick={() => setOpen(false)} className={({isActive}) => `workspace-nav-link ${isActive ? 'is-active' : ''}`}><Icon size={18} aria-hidden="true" /><span>{item.label}</span>{item.to === '/notifikasi' && <NotificationCount count={unread.data?.unread} />}</NavLink>;
   };
-  const logout = () => { auth.logout(); navigate('/login'); };
+  const logout = () => {
+    if (!window.confirm('Adakah anda pasti mahu log keluar?')) return;
+    auth.logout(); navigate('/login');
+  };
   return <div className="workspace-shell">
     <a href="#main-content" className="workspace-skip">Langkau ke kandungan</a>
     {open && <button className="workspace-backdrop" tabIndex={-1} aria-label="Tutup menu navigasi" onClick={() => setOpen(false)} />}

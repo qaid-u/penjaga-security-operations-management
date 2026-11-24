@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<title>Carta Gantt PSM 2 — PENJAGA</title>
+<style>
+  body { font-family: "Times New Roman", serif; font-size: 11pt; margin: 24px; color: #000; }
+  h1 { font-size: 14pt; text-align: center; margin-bottom: 4px; }
+  p.sub { text-align: center; margin-top: 0; }
+  .cap { font-weight: bold; margin: 20px 0 6px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #555; padding: 3px 5px; vertical-align: top; }
+  th { background: #e8e8e8; }
+  .gantt td.w { width: 4.2%; padding: 0; }
+  .gantt td.on { background: #1f4e79; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .gantt td.plan { background: #8fb4d9; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .gantt tr.grp td { background: #f2f2f2; font-weight: bold; }
+  .gantt th.wk { font-size: 9pt; text-align: center; }
+  #weekly td { font-size: 10pt; }
+  .legend span { display: inline-block; width: 14px; height: 10px; margin: 0 4px 0 12px; vertical-align: middle; }
+  .note { font-size: 9.5pt; margin-top: 8px; }
+  @media print { body { margin: 10mm; } @page { size: A4 landscape; } tr { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+<h1>CARTA GANTT DAN AKTIVITI MINGGUAN PSM 2<br>SISTEM PENGURUSAN OPERASI KESELAMATAN BERASASKAN KEPINTARAN BUATAN (PENJAGA)</h1>
+<p class="sub">21 September 2026 – 31 Disember 2026 (15 minggu)</p>
+
+<div class="cap">Jadual A.1: Carta Gantt pembangunan sistem PENJAGA (PSM 2)</div>
+<table class="gantt" id="gantt"></table>
+<p class="legend"><span style="background:#1f4e79"></span>Selesai / sedang dijalankan<span style="background:#8fb4d9"></span>Dirancang</p>
+
+<div class="cap">Jadual A.2: Aktiviti mingguan PSM 2</div>
+<table id="weekly">
+  <tr><th style="width:6%">Minggu</th><th style="width:9%">Tarikh</th><th style="width:22%">Aktiviti</th><th style="width:23%">Nota / Isu untuk Dibincangkan</th><th style="width:22%">Tindakan Diambil</th><th style="width:18%">Lampiran</th></tr>
+</table>
+<p class="note">Nota: Sesuaikan minggu pembentangan dan penghantaran dengan takwim rasmi FSKTM. Minggu 11–15 ialah perancangan; ruangan bertanda [Isi selepas perbincangan] dilengkapkan selepas perjumpaan dengan penyelia.</p>
+
+<script>
+const weeks = ['21/09','28/09','05/10','12/10','19/10','26/10','02/11','09/11','16/11','23/11','30/11','07/12','14/12','21/12','28/12'];
+const ends  = ['27/09','04/10','11/10','18/10','25/10','01/11','08/11','15/11','22/11','29/11','06/12','13/12','20/12','27/12','31/12'];
+const CURRENT = 10; // weeks after this are planned
+const rows = [
+  ['1. Perancangan semula'],
+  ['Semakan maklum balas PSM 1 dan kemas kini skop',[1]],
+  ['Kemas kini product backlog dan pelan sprint',[1,2]],
+  ['2. Pembangunan (Sprint)'],
+  ['Sprint A: Log masuk, peranan, pengguna dan pos',[1,2]],
+  ['Sprint B: Laporan harian, senarai semak dan lampiran',[2,3]],
+  ['Sprint C: Analisis NLP hibrid dan notifikasi risiko',[3,4,5]],
+  ['Sprint D: Semakan laporan dan tindakan susulan',[4,5]],
+  ['Sprint E: Penjadualan, kehadiran dan import CSV',[5,6,7]],
+  ['Sprint F: Papan pemuka, audit trail dan Pusat Kawalan 3D',[5,6,7]],
+  ['Pembelajaran automatik dan pengesahan kategori',[7,8]],
+  ['3. Pengujian'],
+  ['Ujian unit dan integrasi',[3,4,5,6,7,8,9,10]],
+  ['Ujian pelayar (Playwright) dan prestasi',[5,6,7,8]],
+  ['Ujian keselamatan dan pembaikan',[5,8,9,10]],
+  ['Penilaian model NLP',[5,6]],
+  ['Pengujian penerimaan pengguna (UAT)',[11,12]],
+  ['4. Penyediaan untuk pengehosan',[8,9]],
+  ['5. Dokumentasi'],
+  ['Pembetulan Bab 1–4',[10,11]],
+  ['Penulisan Bab 5 dan Bab 6',[10,11,12]],
+  ['Manual pengguna dan dokumen teknikal',[9,12]],
+  ['Penyediaan artikel AITCS',[12,13]],
+  ['6. Penilaian akhir'],
+  ['Persediaan pembentangan dan demonstrasi',[12,13]],
+  ['Pembentangan PSM 2',[13]],
+  ['Pembetulan dan penghantaran laporan akhir',[14,15]],
+];
+document.getElementById('gantt').innerHTML =
+  '<tr><th>Aktiviti</th>' + weeks.map((d,i)=>`<th class="wk">M${i+1}<br>${d}</th>`).join('') + '</tr>' +
+  rows.map(([name, on]) => {
+    const group = /^\d\./.test(name);
+    const cells = weeks.map((_,i)=> on && on.includes(i+1) ? `<td class="w ${i+1>CURRENT?'plan':'on'}"></td>` : '<td class="w"></td>').join('');
+    return `<tr class="${group?'grp':''}"><td>${name}</td>${cells}</tr>`;
+  }).join('');
+
+// [aktiviti, nota/isu untuk dibincangkan, tindakan diambil, lampiran ('' = tiada)]
+const weekly = [
+  ['Semak maklum balas PSM 1; kemas kini skop dan backlog; sediakan persekitaran pembangunan; bangunkan log masuk JWT dan kawalan peranan',
+   'Maklum balas panel PSM 1 perlu diterjemahkan kepada skop PSM 2; pemilihan teknologi (React, Express, PostgreSQL)',
+   'Backlog dan pelan sprint dikemas kini; modul log masuk dan kawalan peranan dibangunkan',
+   'Product backlog; pelan sprint'],
+  ['Bangunkan pengurusan pengguna dan pos kawalan; borang laporan harian dengan senarai semak dan lampiran',
+   'Pendaftaran akaun: pendaftaran sendiri atau oleh Pentadbir sahaja; had saiz dan jenis lampiran',
+   'Pendaftaran ditetapkan oleh Pentadbir sahaja; lampiran disemak berdasarkan tandatangan fail',
+   'Tangkapan skrin borang laporan harian'],
+  ['Bangunkan analisis NLP: pembersihan teks, kata kunci, skor dan tahap risiko; mula ujian unit',
+   'Analisis kata kunci sahaja tersalah kelas ayat penafian seperti "tiada kebakaran"',
+   'Cadangan menambah model pengelasan dan peraturan konteks dibincangkan bersama penyelia',
+   'Contoh keputusan analisis awal'],
+  ['Latih model Multinomial Naive Bayes; peraturan kontekstual; modul semakan laporan',
+   'Ketiadaan data laporan sebenar untuk latihan; risiko kebocoran data antara set latihan dan ujian',
+   'Korpus sintetik 2,000 contoh dibina; pembahagian latihan/penilaian mengikut kumpulan (1,576 / 424)',
+   'Ringkasan korpus dan pembahagian data'],
+  ['Tindakan susulan; papan pemuka; Pusat Kawalan 3D; ujian prestasi dan keselamatan; penilaian model',
+   'Peranan Ketua Pengawal berbanding Pentadbir dalam tindakan susulan; FPS 3D rendah dalam WebGL perisian',
+   'Pentadbir mengurus status rasmi, Ketua Pengawal merekod kemajuan; pengoptimuman 3D (panggilan lukisan 384 → 192)',
+   'Laporan prestasi; laporan keselamatan; keputusan F1 model'],
+  ['Penjadualan mingguan dan semakan pertindihan syif; audit trail dan eksport CSV; soalan penjelasan laporan',
+   'Pengendalian syif malam yang merentasi tengah malam; risiko suntikan formula dalam eksport CSV',
+   'Semakan pertindihan merangkumi syif malam; eksport CSV dilindungi',
+   'Tangkapan skrin jadual mingguan'],
+  ['Kehadiran (daftar masuk/keluar); isi kekosongan harian dan salin jadual; notifikasi dan pembelajaran automatik',
+   'Latihan semula tidak boleh menggunakan ramalan model sendiri; ambang bilangan label',
+   'Latihan semula hanya menggunakan kategori yang disahkan Ketua Pengawal, minimum 20 kumpulan label, dengan semakan regresi',
+   ''],
+  ['Paparan mudah alih; integriti pangkalan data (migrasi); ujian pelayar; persediaan Docker dan Vercel',
+   'Pilihan pengehosan; keselamatan rahsia dan konfigurasi produksi',
+   'Docker Compose (PostgreSQL, API, Nginx) dan Vercel disediakan; semakan konfigurasi produksi',
+   'Panduan pengehosan'],
+  ['Pengesahan kategori oleh Ketua Pengawal; baiki aliran penjadualan; dokumen gambaran keseluruhan sistem',
+   'Pengesahan kategori perlu diasingkan daripada kelulusan laporan',
+   'Langkah pengesahan kategori berasingan ditambah; dokumen gambaran sistem disediakan',
+   'Dokumen gambaran keseluruhan PENJAGA'],
+  ['Analisis kod; pembaikan keselamatan; semakan Bab 1–4 berbanding sistem; draf Bab 5–6',
+   'Tugasan jadual boleh diberi kepada bukan pengawal; sesi lama kekal selepas tukar kata laluan; Bab 1–4 menyatakan NLP berasaskan peraturan sahaja',
+   'Kedua-dua isu keselamatan dibaiki (147 ujian pelayan lulus); draf pembetulan Bab 1–4 dan Bab 5–6 disediakan',
+   'Draf pembetulan Bab 1–4; draf Bab 5–6'],
+  ['Jalankan UAT dengan pengawal, ketua pengawal dan pentadbir; kumpul soal selidik; kemas kini Bab 1–4',
+   'Bilangan dan ketersediaan responden; persetujuan peserta; penggunaan data sintetik semasa ujian',
+   '[Isi selepas perbincangan]',
+   'Borang soal selidik; senario tugasan UAT'],
+  ['Analisis data UAT; lengkapkan Bab 5–6 dan tangkapan skrin; manual pengguna; mula artikel AITCS',
+   '[Isi selepas perbincangan]',
+   '[Isi selepas perbincangan]',
+   'Draf penuh laporan'],
+  ['Hantar draf kepada penyelia; persediaan slaid dan demonstrasi; pembentangan PSM 2',
+   '[Isi selepas perbincangan]',
+   '[Isi selepas perbincangan]',
+   'Slaid pembentangan'],
+  ['Buat pembetulan berdasarkan ulasan panel dan penyelia',
+   '[Ulasan panel]',
+   '[Isi selepas perbincangan]',
+   'Senarai pembetulan'],
+  ['Semakan akhir format, rujukan dan lampiran; penghantaran laporan akhir, artikel dan kod sumber',
+   '[Isi selepas perbincangan]',
+   '[Isi selepas perbincangan]',
+   'Laporan akhir; artikel AITCS'],
+];
+document.getElementById('weekly').insertAdjacentHTML('beforeend',
+  weekly.map(([a,n,t,l],i)=>`<tr><td>M${i+1}</td><td>${weeks[i]} – ${ends[i]}</td><td>${a}</td><td>${n}</td><td>${t}</td><td>${l || 'Tiada'}</td></tr>`).join(''));
+</script>
+</body>
+</html>

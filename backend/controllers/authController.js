@@ -12,8 +12,8 @@ const login = async (req, res) => {
   try {
     client = await pool.connect();
     const result = await client.query(
-      'select p.*, r.nama_peranan from tbl_pengguna p join tbl_peranan r on p.id_peranan = r.id_peranan where p.nama_pengguna = $1',
-      [username]
+      'select p.*, r.nama_peranan from tbl_pengguna p join tbl_peranan r on p.id_peranan = r.id_peranan where lower(p.nama_pengguna) = lower($1) order by (p.nama_pengguna = $1) desc limit 1',
+      [username.trim()]
     );
     const user = result.rows[0];
     if (!user) {
