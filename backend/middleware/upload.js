@@ -2,6 +2,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const fsPromises = require('fs/promises');
+const { randomUUID } = require('node:crypto');
 
 const uploadDir = path.join(__dirname, '..', 'uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -10,11 +11,11 @@ const upload = multer({
   storage: multer.diskStorage({
     destination: uploadDir,
     filename: (req, file, cb) => {
-      const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-      cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}-${safeName}`);
+      const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-140);
+      cb(null, `${randomUUID()}-${safeName}`);
     },
   }),
-  limits: { fileSize: 8 * 1024 * 1024 },
+  limits: { fileSize: 8 * 1024 * 1024, files: 6, fields: 32, parts: 40, fieldSize: 128 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
     if (!allowed.includes(file.mimetype)) {
@@ -30,11 +31,11 @@ const scheduleUpload = multer({
   storage: multer.diskStorage({
     destination: uploadDir,
     filename: (req, file, cb) => {
-      const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-      cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}-${safeName}`);
+      const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-140);
+      cb(null, `${randomUUID()}-${safeName}`);
     },
   }),
-  limits: { fileSize: 8 * 1024 * 1024 },
+  limits: { fileSize: 8 * 1024 * 1024, files: 1, fields: 8, parts: 10, fieldSize: 16 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ['text/csv', 'application/vnd.ms-excel', 'application/pdf'];
     const isCsv = file.originalname.toLowerCase().endsWith('.csv')

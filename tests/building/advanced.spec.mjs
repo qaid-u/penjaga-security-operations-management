@@ -2,7 +2,11 @@ import { test, expect } from '@playwright/test';
 import { mockOperations, locations, metrics } from './operations-fixture.mjs';
 
 async function setup(page, role = 'Pentadbir Sistem') {
-  await page.addInitScript((nama_peranan) => localStorage.setItem('penjaga_user', JSON.stringify({id_pengguna:1,nama_peranan,nama_penuh:'Ujian Fasa 4'})),role);
+  await page.addInitScript((nama_peranan) => {
+    localStorage.setItem('token', 'synthetic-building-test');
+    localStorage.setItem('penjaga_user', JSON.stringify({id_pengguna:1,nama_peranan,nama_penuh:'Ujian Fasa 4'}));
+  }, role);
+  await page.route('**/api/notifications/unread-count', route => route.fulfill({ json: { unread: 0 } }));
   await page.emulateMedia({reducedMotion:'reduce'});
   const fixture = await mockOperations(page,{linked:true});
   const items = Array.from({length:22},(_,i) => ({id_laporan:500+i,id_pos:i === 1 ? 92 : 91,tajuk_laporan:i === 0 ? 'Sejarah berisiko tinggi' : i === 1 ? 'Sejarah tanpa pautan' : `Sejarah biasa ${i}`,tarikh_laporan:'2026-10-24',masa_laporan:'10:00:00',nama_pos:i === 1 ? 'Pos Tanpa Pautan' : 'Pos Ujian API',tahap_risiko:i === 0 ? 'High' : i === 1 ? 'Unknown' : 'Low',kategori_dikesan:i === 1 ? null : 'Kategori Ujian',status_laporan:'Dihantar',locations:i === 1 ? [] : [{...locations[0],id_pos:91}],open_actions:i === 0 ? 1 : 0,completed_actions:0,action_statuses:i === 0 ? ['Dalam Tindakan'] : []}));
@@ -107,6 +111,10 @@ test('tablet and mobile keyboard controls, sheet close and reduced motion work',
   const button=page.getByRole('button',{name:/01.*Pos Lobi Utama/});await button.focus();await page.keyboard.press('Enter');
   await expect(page.getByRole('button',{name:'Tutup maklumat lokasi'})).toBeVisible();
   await expect(page.getByLabel('Panel lokasi')).toBeFocused();
+  const modelBox = await page.locator('.building-canvas').boundingBox();
+  const detailsBox = await page.getByLabel('Panel lokasi').boundingBox();
+  expect(detailsBox.y).toBeGreaterThanOrEqual(modelBox.y + modelBox.height);
+  expect(await page.getByLabel('Panel lokasi').evaluate(panel => getComputedStyle(panel).position)).toBe('static');
   await page.keyboard.press('Escape');await expect(button).toBeFocused();
   await expect(page.getByRole('button',{name:'Tutup maklumat lokasi'})).toBeHidden();
   await page.getByLabel('Paparan operasi').selectOption('followup');await expect(page.getByLabel('Petunjuk operasi')).toContainText('Selesai');

@@ -1,11 +1,11 @@
 # Automatic learning from newly reviewed reports
 
-New reports are classified immediately using the current model. Raw insertion alone does not train a model: it has no reliable target label yet. The chief can explicitly select **Kategori disahkan (pilihan)** while approving a report. Leaving this blank preserves ordinary approval and contributes no training label. Model suggestions are never silently used as ground truth.
+New reports are classified immediately using the current model. A chief can use **Sahkan kategori** to accept or correct a category independently of report approval. The training checkbox is off by default. A validation saved with this checkbox off stays in the report record and is excluded from training.
 
 ## Eligibility
 
-- The report must be approved, with an explicit category confirmed through the chief-only review endpoint and a matching approval record.
-- Only active categories supported by the existing taxonomy are accepted.
+- The report must be approved, and the same chief must have explicitly confirmed the category and opted into training. Existing explicit confirmations submitted through the legacy approval API keep their training preference.
+- Validation accepts active incident categories. Training uses the subset supported by the current model.
 - Demo/synthetic/example records are excluded by title markers and protected analysis metadata. The 28 seeded demo reports are not training observations.
 - Content hashes must still match the original labelled narrative. Historical approvals are not automatically backfilled as labels.
 - Case/whitespace/punctuation-normalized copies and numeric variants share a family. Conflicting category labels in a family exclude that family. This is basic duplicate detection, not proof of semantic independence.

@@ -121,6 +121,35 @@ test('phone weekly gaps open the shortage filter and copying saves only the sele
   expect(copyRequests).toEqual([{ ids: [10], version: 'reviewed' }]);
 });
 
+test('phone daily fill saves guards from multiple posts without losing filtered selections', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await setup(page, { role: 'Ketua Pengawal' });
+  const requests = [];
+  await page.route('**/jadual/mingguan/1/daily-assignments', route => {
+    requests.push(route.request().postDataJSON());
+    return route.fulfill({ status: 201, json: { created: 2 } });
+  });
+  await page.goto('/jadual');
+  await page.getByRole('button', { name: 'Rabu, 4 November', exact: true }).click();
+  await page.getByRole('button', { name: 'Isi kekosongan harian' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Isi kekosongan harian' });
+  const search = dialog.getByRole('searchbox');
+  await search.fill('Pos 02 Pagi');
+  await dialog.getByRole('region', { name: 'Pos 02 · Pagi' }).getByRole('combobox').selectOption('3');
+  await search.fill('Pos 03 Pagi');
+  await expect(dialog.getByRole('option', { name: /Ahmad bin Ali/ })).toHaveAttribute('disabled', '');
+  await dialog.getByRole('region', { name: 'Pos 03 · Pagi' }).getByRole('combobox').selectOption('4');
+  await dialog.getByRole('button', { name: 'Simpan 2 tugasan' }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(requests).toHaveLength(1);
+  expect(requests[0]).toMatchObject({
+    date: '2026-11-04', assignments: [
+      { id_pos: 2, id_pengguna: 3, syif: 'Pagi' },
+      { id_pos: 3, id_pengguna: 4, syif: 'Pagi' },
+    ],
+  });
+});
+
 test('manual assignments without a minimum requirement remain visible and editable',async({page})=>{
   const api=await setup(page);await page.goto('/jadual');await page.getByRole('button',{name:'Tambah tugasan',exact:true}).click();
   const dialog=page.getByRole('dialog');await dialog.getByRole('combobox',{name:'Pos kawalan',exact:true}).selectOption('25');

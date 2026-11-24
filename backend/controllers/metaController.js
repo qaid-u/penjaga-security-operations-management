@@ -1,23 +1,29 @@
 const pool = require('../config/db');
+const { admin, chief } = require('../config/roles');
+const learning = require('../services/automaticLearning');
 
 const getMeta = async (req, res) => {
   let client;
   try {
+    const canManageRoster = [admin, chief].includes(req.user.nama_peranan);
     client = await pool.connect();
     const [roles, posts, categories, checklist, guards] = [
       await client.query('select id_peranan, nama_peranan from tbl_peranan order by id_peranan'),
       await client.query("select * from tbl_pos_kawalan where status_pos = 'Aktif' order by nama_pos"),
       await client.query("select * from tbl_kategori_insiden where status_kategori = 'Aktif' order by nama_kategori"),
       await client.query('select id_checklist, nama_checklist from tbl_checklist where status_aktif = true order by id_checklist'),
-      await client.query(
+      canManageRoster ? await client.query(
         `select p.id_pengguna, p.nama_penuh, p.nama_pengguna
          from tbl_pengguna p join tbl_peranan r on r.id_peranan = p.id_peranan
          where r.nama_peranan = 'Pengawal Keselamatan' and p.status_akaun = 'Aktif'
          order by p.nama_penuh`
-      ),
+      ) : { rows: [] },
     ];
     res.json({
-      automaticLearning:{ready:await require('../services/automaticLearning').ready(client),enabled:process.env.NLP_AUTO_TRAIN_ENABLED!=='false'},
+      ...(canManageRoster ? {
+        automaticLearning: { ready: await learning.ready(client), enabled: process.env.NLP_AUTO_TRAIN_ENABLED !== 'false' },
+        classificationValidation: await learning.validationReady(client),
+      } : {}),
       roles: roles.rows,
       posts: posts.rows,
       categories: categories.rows,

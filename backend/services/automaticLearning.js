@@ -9,21 +9,36 @@ const synthetic=report=>/\b(DEMO|SYNTHETIC|EKSPO|UJIAN)\b/i.test(report.tajuk_la
 const workers=new WeakMap();
 function usable(text){const excluded=new Set(require('../ml/nlpService').loadModel()?.excludedWords||[]);return tokenize(text).some(token=>!token.split('_').some(word=>excluded.has(word)));}
 async function ready(db){return Boolean((await db.query("select to_regclass('tbl_model_labels') is not null and to_regclass('tbl_model_training_runs') is not null as ready")).rows[0].ready);}
-async function confirmedCategory(db,id){
-  if(!await ready(db))return null;
-  return (await db.query('select category,confirmed_at from tbl_model_labels where id_laporan=$1',[id])).rows[0]||null;
+async function validationReady(db) {
+  const result = await db.query(`select exists(
+    select 1 from pg_attribute where attrelid = to_regclass('tbl_model_labels')
+      and attname = 'training_allowed' and not attisdropped
+  ) as ready`);
+  return result.rows[0].ready;
 }
-async function captureLabel(db,report,category,reviewer){
-  if(!await ready(db))throw Object.assign(new Error('Kemas kini pangkalan data diperlukan untuk menyimpan kategori disahkan.'),{status:503});
+async function confirmedCategory(db,report){
+  if(!await ready(db))return null;
+  return (await db.query(`select l.category, l.confirmed_at, u.nama_penuh as reviewer,
+      coalesce((to_jsonb(l)->>'training_allowed')::boolean, true) as training_allowed
+    from tbl_model_labels l join tbl_pengguna u on u.id_pengguna=l.reviewer_id
+    where l.id_laporan=$1 and l.source_hash=$2`, [report.id_laporan,digest(report.kandungan_laporan)])).rows[0]||null;
+}
+async function captureLabel(db,report,category,reviewer,{trainingAllowed=true}={}){
+  if(!await validationReady(db))throw Object.assign(new Error('Kemas kini pangkalan data diperlukan untuk menyimpan kategori disahkan.'),{status:503});
   const base=require('../ml/nlpService').loadModel();
   const active=await db.query("select 1 from tbl_kategori_insiden where nama_kategori=$1 and status_kategori='Aktif'",[category]);
-  if(!active.rowCount||!base?.categories||!Object.hasOwn(base.categories,category))throw Object.assign(new Error('Kategori disahkan tidak sah.'),{status:400});
+  if(!active.rowCount)throw Object.assign(new Error('Kategori disahkan tidak sah.'),{status:400});
   const demo=await db.query("select 1 from tbl_hasil_nlp where id_laporan=$1 and metadata->>'synthetic'='true' limit 1",[report.id_laporan]);
-  if(synthetic(report)||demo.rowCount)return {eligible:false,reason:'demo'};
-  await db.query(`insert into tbl_model_labels(id_laporan,reviewer_id,category,source_hash,family_hash,partition)
-    values($1,$2,$3,$4,$5,$6) on conflict(id_laporan) do update set reviewer_id=excluded.reviewer_id,category=excluded.category,source_hash=excluded.source_hash,family_hash=excluded.family_hash,partition=excluded.partition,confirmed_at=now()`,
-  [report.id_laporan,reviewer,category,digest(report.kandungan_laporan),family(report.kandungan_laporan),partition(report.kandungan_laporan)]);
-  return usable(report.kandungan_laporan)?{eligible:true}:{eligible:false,reason:'insufficient_text'};
+  const reason = synthetic(report)||demo.rowCount ? 'demo'
+    : !trainingAllowed ? 'validation_only'
+    : !Object.hasOwn(base?.categories || {},category) ? 'unsupported_category'
+    : !usable(report.kandungan_laporan) ? 'insufficient_text'
+    : null;
+  await db.query(`insert into tbl_model_labels(id_laporan,reviewer_id,category,source_hash,family_hash,partition,training_allowed)
+    values($1,$2,$3,$4,$5,$6,$7) on conflict(id_laporan) do update set reviewer_id=excluded.reviewer_id,category=excluded.category,
+    source_hash=excluded.source_hash,family_hash=excluded.family_hash,partition=excluded.partition,training_allowed=excluded.training_allowed,confirmed_at=now()`,
+  [report.id_laporan,reviewer,category,digest(report.kandungan_laporan),family(report.kandungan_laporan),partition(report.kandungan_laporan),!reason]);
+  return reason ? {eligible:false,reason} : {eligible:true};
 }
 async function activeModel(db,fallback){
   if(!await ready(db))return fallback;
@@ -35,6 +50,7 @@ async function eligibleLabels(db){
   const rows=(await db.query(`select l.*,r.kandungan_laporan,r.tajuk_laporan from tbl_model_labels l join tbl_laporan_harian r using(id_laporan)
     join tbl_pengguna u on u.id_pengguna=l.reviewer_id join tbl_peranan p using(id_peranan)
     where r.status_laporan='Diluluskan' and p.nama_peranan='Ketua Pengawal'
+      and coalesce((to_jsonb(l)->>'training_allowed')::boolean, true)
       and exists(select 1 from tbl_pengesahan_laporan v where v.id_laporan=l.id_laporan and v.id_pengguna_pengesah=l.reviewer_id and v.status_pengesahan='Diluluskan')
       and not exists(select 1 from tbl_hasil_nlp n where n.id_laporan=l.id_laporan and n.metadata->>'synthetic'='true')
     order by l.confirmed_at desc,l.id_laporan desc limit 2000`)).rows;
@@ -102,4 +118,4 @@ function startAutoTrainer(pool){
   const timer=setInterval(tick,30000);timer.unref();const stop=()=>{stopped=true;clearInterval(timer);workers.delete(pool);};workers.set(pool,{tick,stop});return stop;
 }
 function wakeAutoTrainer(pool){const worker=workers.get(pool);if(worker)setImmediate(worker.tick);}
-module.exports={ready,confirmedCategory,captureLabel,activeModel,eligibleLabels,runTraining,startAutoTrainer,wakeAutoTrainer,digest,family,partition};
+module.exports={ready,validationReady,confirmedCategory,captureLabel,activeModel,eligibleLabels,runTraining,startAutoTrainer,wakeAutoTrainer,digest,family,partition};

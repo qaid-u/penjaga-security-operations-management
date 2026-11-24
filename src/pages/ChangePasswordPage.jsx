@@ -17,7 +17,9 @@ export function ChangePasswordPage() {
     if (saving) return;
     setSaving(true);
     try {
-      await api.post('/auth/change-password', { currentPassword: form.currentPassword, newPassword: form.newPassword });
+      const { data } = await api.post('/auth/change-password', { currentPassword: form.currentPassword, newPassword: form.newPassword });
+      // The server revokes all earlier sessions; keep this device signed in with the replacement token.
+      if (data?.token) localStorage.setItem('token', data.token);
       setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setMessage('Kata laluan berjaya ditukar');
       notifySuccess('Kata laluan berjaya ditukar');

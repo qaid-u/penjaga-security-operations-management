@@ -10,6 +10,12 @@ const validShifts = ['Pagi', 'Petang', 'Malam', 'Office Hour'];
 
 // PostgreSQL DATE must retain its calendar value, independent of Node's timezone.
 const weekQuery = 'select *, tarikh_mula::text as tarikh_mula, tarikh_tamat::text as tarikh_tamat from tbl_jadual_mingguan where id_jadual_mingguan = $1';
+const latestAssignmentChange = `left join lateral (
+  select a.jenis_aktiviti as change_action, a.nilai_baharu::jsonb->'actor' as changed_by
+  from tbl_audit_trail a where a.modul_sistem = 'Jadual Bertugas'
+    and a.rekod_terlibat = 'Tugasan #' || s.id_jadual
+  order by a.id_audit desc limit 1
+) activity on true`;
 
 const parseWeekId = (value) => Number.parseInt(value, 10);
 const validDate = (value) => {
@@ -57,7 +63,16 @@ const getWeek = async (req, res) => {
       [req.params.id]
     );
     if (!result.rowCount) return res.status(404).json({ message: 'Jadual mingguan tidak ditemui' });
-    res.json(result.rows[0]);
+    const activity = await client.query(
+      `select id_audit, jenis_aktiviti as action, nilai_baharu::jsonb as change,
+              (tarikh_masa_aktiviti at time zone 'Asia/Kuala_Lumpur') as changed_at
+       from tbl_audit_trail
+       where modul_sistem = 'Jadual Bertugas' and
+         (case when modul_sistem = 'Jadual Bertugas' then nilai_baharu::jsonb end)->>'week_id' = $1
+       order by id_audit desc limit 20`,
+      [String(result.rows[0].id_jadual_mingguan)]
+    );
+    res.json({ ...result.rows[0], activity: activity.rows });
   } catch (error) {
     console.error('Get schedule week error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal memuatkan jadual mingguan' });
@@ -89,10 +104,12 @@ const getCoverage = async (req, res) => {
          order by p.nama_pos, k.syif`
       ),
       await client.query(
-        `select s.*, s.tarikh_tugas::text as tarikh_tugas, p.nama_penuh, p.nama_pengguna, pos.nama_pos
+        `select s.*, s.tarikh_tugas::text as tarikh_tugas, p.nama_penuh, p.nama_pengguna, pos.nama_pos,
+                ${req.query.overview === 'week' ? 'null as change_action, null as changed_by' : 'activity.change_action, activity.changed_by'}
          from tbl_jadual_bertugas s
          join tbl_pengguna p on p.id_pengguna = s.id_pengguna
          join tbl_pos_kawalan pos on pos.id_pos = s.id_pos
+         ${req.query.overview === 'week' ? '' : latestAssignmentChange}
          where s.id_jadual_mingguan = $1 and ($2::date is null or s.tarikh_tugas = $2::date)
          order by s.tarikh_tugas, s.syif, pos.nama_pos, p.nama_penuh`,
         [req.params.id, date || null]
@@ -164,12 +181,14 @@ const getMySchedule = async (req, res) => {
               (${checkInSql('s')} and a.masa_check_in is null) as can_check_in,
               (${eligibleSql('s')} and a.masa_check_in is not null and a.masa_check_out is null) as can_check_out,
               coalesce(a.status_kehadiran, 'Belum Hadir') as status_kehadiran,
-              a.masa_check_in, a.masa_check_out, w.status_jadual,
+              a.masa_check_in, a.masa_check_out, w.status_jadual, activity.change_action,
+              activity.changed_by->>'role' as changed_by_role,
               (s.tarikh_tugas + s.masa_tamat + case when s.masa_tamat < s.masa_mula then interval '1 day' else interval '0 days' end
                 > (now() at time zone 'Asia/Kuala_Lumpur')) as upcoming
        from tbl_jadual_bertugas s
        join tbl_pos_kawalan pos on pos.id_pos = s.id_pos
        join tbl_jadual_mingguan w using(id_jadual_mingguan)
+       ${latestAssignmentChange}
        left join tbl_kehadiran_tugas a on a.id_jadual = s.id_jadual
        where s.id_pengguna = $1 and (s.tarikh_tugas >= ${todaySql} or ${eligibleSql('s')})
        order by s.tarikh_tugas, s.masa_mula`,
@@ -218,7 +237,7 @@ const addPosReq = async (req, res) => {
        on conflict (id_pos, syif)
        do update set bilangan_diperlukan = excluded.bilangan_diperlukan, status_aktif = excluded.status_aktif
        returning *`,
-      [id_pos, syif, count, Boolean(status_aktif)]
+      [id_pos, syif, count, status_aktif === true || status_aktif === 'true']
     );
     await logAudit(client, req.user.id_pengguna, 'UPDATE_POST_REQUIREMENT', `Pos #${id_pos}`, `${syif}: ${count}`);
     res.json(result.rows[0]);
@@ -333,12 +352,7 @@ const copyWeek = async (req, res) => {
       if (await assignmentConflict(client, { ...row, id_jadual: null })) {
         fail(409, 'Terdapat pertindihan tugasan. Semak pratonton semula.');
       }
-      await client.query(
-        `insert into tbl_jadual_bertugas
-         (id_jadual_mingguan,id_pengguna,id_pos,tarikh_tugas,syif,masa_mula,masa_tamat,dicipta_oleh)
-         values($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [destinationId,row.id_pengguna,row.id_pos,row.tarikh_tugas,row.syif,row.masa_mula,row.masa_tamat,req.user.id_pengguna]
-      );
+      await insertAssignment(client, destinationId, row, req.user);
     }
     await logAudit(client, req.user.id_pengguna, 'COPY_SCHEDULE_WEEK', `Jadual #${destinationId}`, `${selected.length} tugasan disalin`);
     await client.query('commit');
@@ -352,14 +366,113 @@ const copyWeek = async (req, res) => {
   }
 };
 
-const notifyScheduleChange = (client, assignment, title) => client.query(
+const actorRole = actor => actor.nama_peranan === roles.admin ? 'Admin' : 'Ketua';
+
+const notifyScheduleChange = (client, assignment, title, actor) => client.query(
   `insert into tbl_notifikasi
    (id_pengguna,tajuk_notifikasi,mesej_notifikasi,jenis_notifikasi,tahap_keutamaan)
-   select $1,$2,concat(p.nama_pos,' · ',to_char($3::date,'DD/MM/YYYY'),' · ',left($4::time::text,5),'–',left($5::time::text,5)),
+   select $1,$2,concat(p.nama_pos,' · ',to_char($3::date,'DD/MM/YYYY'),' · ',left($4::time::text,5),'–',left($5::time::text,5),' · Oleh ',$7::text),
           'Jadual Bertugas','Medium'
    from tbl_pos_kawalan p where p.id_pos = $6`,
-  [assignment.id_pengguna,title,assignment.tarikh_tugas,assignment.masa_mula,assignment.masa_tamat,assignment.id_pos]
+  [assignment.id_pengguna,title,assignment.tarikh_tugas,assignment.masa_mula,assignment.masa_tamat,assignment.id_pos,actorRole(actor)]
 );
+
+const logAssignmentChange = (client, assignment, actor, action, description) => client.query(
+  `insert into tbl_audit_trail
+     (id_pengguna, modul_sistem, jenis_aktiviti, penerangan_aktiviti, rekod_terlibat, status_aktiviti, tarikh_masa_aktiviti, nilai_baharu)
+   select $1, 'Jadual Bertugas', $2, $3, $4, 'Berjaya', now() at time zone 'Asia/Kuala_Lumpur',
+          jsonb_build_object('week_id', $5::int, 'date', $6::date, 'shift', $7::text,
+            'post', p.nama_pos, 'guard', u.nama_penuh,
+            'actor', jsonb_build_object('name', $8::text, 'role', $9::text))::text
+   from tbl_pos_kawalan p cross join tbl_pengguna u where p.id_pos = $10 and u.id_pengguna = $11`,
+  [actor.id_pengguna, action, description, `Tugasan #${assignment.id_jadual}`, assignment.id_jadual_mingguan,
+    assignment.tarikh_tugas, assignment.syif, actor.nama_penuh, actorRole(actor), assignment.id_pos, assignment.id_pengguna]
+);
+
+const insertAssignment = async (client, weekId, assignment, actor) => {
+  const result = await client.query(
+    `insert into tbl_jadual_bertugas
+       (id_jadual_mingguan, id_pengguna, id_pos, tarikh_tugas, syif, masa_mula, masa_tamat, status_bertugas, catatan, dicipta_oleh)
+     values ($1, $2, $3, $4, $5, $6, $7, 'Dijadualkan', $8, $9)
+     returning *`,
+    [weekId, assignment.id_pengguna, assignment.id_pos, assignment.tarikh_tugas, assignment.syif,
+      assignment.masa_mula, assignment.masa_tamat, assignment.catatan || null, actor.id_pengguna]
+  );
+  await logAssignmentChange(client, { ...result.rows[0], tarikh_tugas: assignment.tarikh_tugas }, actor, 'CREATE_ASSIGNMENT', 'Tugasan ditambah');
+  return result;
+};
+
+const saveDailyAssignments = async (req, res) => {
+  const { date, assignments } = req.body || {};
+  const isId = id => Number.isInteger(id) && id > 0 && id <= 2147483647;
+  const weekId = Number(req.params.id);
+  if (!isId(weekId) || !validDate(date) || !Array.isArray(assignments) || !assignments.length ||
+      assignments.length > 40 || assignments.some(row => !row || !isId(row.id_pengguna) || !isId(row.id_pos) ||
+        !validShifts.includes(row.syif) || !validTime(row.masa_mula) || !validTime(row.masa_tamat) ||
+        timeInSeconds(row.masa_mula) === timeInSeconds(row.masa_tamat))) {
+    return res.status(400).json({ message: 'Pilih antara 1 hingga 40 tugasan yang sah untuk satu hari.' });
+  }
+
+  const client = await pool.connect();
+  const reject = (status, message, details = {}) => { throw Object.assign(new Error(message), { status, details }); };
+  try {
+    await client.query('begin');
+    const week = (await client.query(weekQuery + ' for update', [weekId])).rows[0];
+    if (!week) reject(404, 'Jadual mingguan tidak ditemui.');
+    if (req.user.nama_peranan === roles.chief && week.status_jadual === 'Dikunci') reject(409, 'Jadual dikunci oleh Pentadbir Sistem.');
+    if (date < week.tarikh_mula || date > week.tarikh_tamat) reject(400, 'Tarikh tugasan mesti berada dalam tempoh jadual mingguan.');
+
+    const guardIds = [...new Set(assignments.map(row => row.id_pengguna))].sort((a, b) => a - b);
+    for (const id of guardIds) await client.query('select pg_advisory_xact_lock(7412, $1::int)', [id]);
+    const guards = await client.query(
+      `select u.id_pengguna, u.nama_penuh from tbl_pengguna u join tbl_peranan r using(id_peranan)
+       where u.id_pengguna = any($1::int[]) and u.status_akaun = 'Aktif' and r.nama_peranan = $2 for share of u`,
+      [guardIds, roles.guard]
+    );
+    if (guards.rowCount !== guardIds.length) reject(409, 'Ada pengawal yang tidak lagi aktif. Semak pilihan anda.');
+    const guardNames = new Map(guards.rows.map(row => [row.id_pengguna, row.nama_penuh]));
+
+    for (const row of assignments) {
+      const { id_pengguna, id_pos, syif, masa_mula, masa_tamat } = row;
+      const slot = (await client.query(
+        `select p.nama_pos, k.bilangan_diperlukan,
+                (select count(*)::int from tbl_jadual_bertugas s where s.id_jadual_mingguan = $1
+                 and s.tarikh_tugas = $2 and s.id_pos = $3 and s.syif = $4) as assigned
+         from tbl_keperluan_pos k join tbl_pos_kawalan p using(id_pos)
+         where k.id_pos = $3 and k.syif = $4 and k.status_aktif and p.status_pos = 'Aktif'
+         for share of k, p`,
+        [weekId, date, id_pos, syif]
+      )).rows[0];
+      const target = { id_pos, syif };
+      if (!slot || slot.assigned >= slot.bilangan_diperlukan) {
+        reject(409, `Kekosongan bagi ${slot?.nama_pos || 'pos ini'} · ${syif} telah berubah. Muat semula kekosongan.`, { target, refresh: true });
+      }
+      const assignment = { ...target, id_pengguna, tarikh_tugas: date, masa_mula, masa_tamat };
+      const conflict = await assignmentConflict(client, assignment);
+      if (conflict) reject(409, `${guardNames.get(id_pengguna)} bertindih dengan tugasan lain. Pilih pengawal lain.`, { target, conflict });
+      await insertAssignment(client, weekId, assignment, req.user);
+      if (week.status_jadual !== 'Draf') await notifyScheduleChange(client, assignment, 'Tugasan baharu', req.user);
+    }
+    await logAudit(client, req.user.id_pengguna, 'CREATE_DAILY_ASSIGNMENTS', `Jadual #${weekId}`, `${date}: ${assignments.length} tugasan disimpan`);
+    await client.query('commit');
+    res.status(201).json({ created: assignments.length });
+  } catch (error) {
+    await client.query('rollback');
+    if (!error.status) console.error('Save daily assignments error:', error.code || error.name);
+    res.status(error.status || 500).json({ message: error.status ? error.message : 'Gagal menyimpan tugasan harian.', ...error.details });
+  } finally {
+    client.release();
+  }
+};
+
+// Every roster write path must reject non-guard, inactive or unknown accounts and inactive posts,
+// matching the checks in saveDailyAssignments.
+const assignableTarget = async (client, id_pengguna, id_pos) => (await client.query(
+  `select exists(select 1 from tbl_pengguna u join tbl_peranan r using(id_peranan)
+                 where u.id_pengguna = $1 and u.status_akaun = 'Aktif' and r.nama_peranan = $3) as guard_ok,
+          exists(select 1 from tbl_pos_kawalan where id_pos = $2 and status_pos = 'Aktif') as post_ok`,
+  [id_pengguna, id_pos, roles.guard]
+)).rows[0];
 
 const saveAssignment = async (req, res) => {
   const {
@@ -371,7 +484,8 @@ const saveAssignment = async (req, res) => {
     masa_tamat,
     catatan,
   } = req.body;
-  if (!id_pengguna || !id_pos || !validDate(tarikh_tugas) || !validShifts.includes(syif) || !validTime(masa_mula) || !validTime(masa_tamat)) {
+  const isId = value => /^[1-9]\d{0,9}$/.test(String(value)) && Number(value) <= 2147483647;
+  if (!isId(id_pengguna) || !isId(id_pos) || !validDate(tarikh_tugas) || !validShifts.includes(syif) || !validTime(masa_mula) || !validTime(masa_tamat)) {
     return res.status(400).json({ message: 'Maklumat tugasan jadual tidak sah' });
   }
   if (timeInSeconds(masa_mula) === timeInSeconds(masa_tamat)) {
@@ -415,6 +529,17 @@ const saveAssignment = async (req, res) => {
       return res.status(400).json({ message: 'Tarikh tugasan mesti berada dalam tempoh jadual mingguan' });
     }
 
+    // An unchanged guard/post on an edit keeps historical assignments editable after deactivation.
+    const target = await assignableTarget(client, id_pengguna, id_pos);
+    if (!target.guard_ok && String(previous?.id_pengguna) !== String(id_pengguna)) {
+      if (client) await client.query('rollback');
+      return res.status(409).json({ message: 'Hanya Pengawal Keselamatan yang aktif boleh ditugaskan' });
+    }
+    if (!target.post_ok && String(previous?.id_pos) !== String(id_pos)) {
+      if (client) await client.query('rollback');
+      return res.status(409).json({ message: 'Pos kawalan tidak wujud atau tidak aktif' });
+    }
+
     await client.query('select pg_advisory_xact_lock(7412, $1::int)', [id_pengguna]);
     const conflict = await assignmentConflict(client, {
       id_pengguna,
@@ -438,23 +563,17 @@ const saveAssignment = async (req, res) => {
         [id_pengguna, id_pos, tarikh_tugas, syif, masa_mula, masa_tamat, catatan || null, updateId]
       );
     } else {
-      result = await client.query(
-        `insert into tbl_jadual_bertugas
-           (id_jadual_mingguan, id_pengguna, id_pos, tarikh_tugas, syif, masa_mula, masa_tamat, status_bertugas, catatan, dicipta_oleh)
-         values ($1, $2, $3, $4, $5, $6, $7, 'Dijadualkan', $8, $9)
-         returning *`,
-        [weekId, id_pengguna, id_pos, tarikh_tugas, syif, masa_mula, masa_tamat, catatan || null, req.user.id_pengguna]
-      );
+      result = await insertAssignment(client, weekId, { id_pengguna, id_pos, tarikh_tugas, syif, masa_mula, masa_tamat, catatan }, req.user);
     }
     if (week.status_jadual !== 'Draf') {
       const updated = { ...result.rows[0], tarikh_tugas };
       const reassigned = previous && previous.id_pengguna !== updated.id_pengguna;
-      if (reassigned) await notifyScheduleChange(client, previous, 'Tugasan dibatalkan');
+      if (reassigned) await notifyScheduleChange(client, previous, 'Tugasan dibatalkan', req.user);
       const changed = !previous || ['id_pengguna','id_pos','tarikh_tugas','syif','masa_mula','masa_tamat','catatan']
         .some(key => previous[key] !== updated[key]);
-      if (changed) await notifyScheduleChange(client, updated, !previous || reassigned ? 'Tugasan baharu' : 'Tugasan dikemas kini');
+      if (changed) await notifyScheduleChange(client, updated, !previous || reassigned ? 'Tugasan baharu' : 'Tugasan dikemas kini', req.user);
     }
-    await logAudit(client, req.user.id_pengguna, updateId ? 'UPDATE_ASSIGNMENT' : 'CREATE_ASSIGNMENT', `Tugasan #${result.rows[0].id_jadual}`, 'Jadual bertugas disimpan');
+    if (updateId) await logAssignmentChange(client, { ...result.rows[0], tarikh_tugas }, req.user, 'UPDATE_ASSIGNMENT', 'Tugasan disunting');
     await client.query('commit');
     res.status(updateId ? 200 : 201).json(result.rows[0]);
   } catch (error) {
@@ -483,8 +602,8 @@ const deleteAssignment = async (req, res) => {
       await client.query('rollback');
       return res.status(404).json({ message: 'Tugasan tidak ditemui atau jadual dikunci' });
     }
-    if (result.rows[0].status_jadual !== 'Draf') await notifyScheduleChange(client, result.rows[0], 'Tugasan dibatalkan');
-    await logAudit(client, req.user.id_pengguna, 'DELETE_ASSIGNMENT', `Tugasan #${req.params.id}`, 'Tugasan dipadam');
+    if (result.rows[0].status_jadual !== 'Draf') await notifyScheduleChange(client, result.rows[0], 'Tugasan dibatalkan', req.user);
+    await logAssignmentChange(client, result.rows[0], req.user, 'DELETE_ASSIGNMENT', 'Tugasan dipadam');
     await client.query('commit');
     res.json({ message: 'Tugasan dipadam' });
   } catch (error) {
@@ -651,11 +770,15 @@ const importSchedules = async (req, res) => {
     }
     if (!rows.length) return res.status(400).json({ message: 'CSV tidak mengandungi tugasan untuk diimport' });
     const indexOf = Object.fromEntries(expectedHeaders.map((header) => [header, headers.indexOf(header)]));
-    const weekResult = await client.query(weekQuery, [req.params.id]);
-    const week = weekResult.rows[0];
-    if (!week) return res.status(404).json({ message: 'Jadual mingguan tidak ditemui' });
     await client.query('begin');
     transactionStarted = true;
+    const weekResult = await client.query(weekQuery + ' for share', [req.params.id]);
+    const week = weekResult.rows[0];
+    if (!week) {
+      await client.query('rollback');
+      transactionStarted = false;
+      return res.status(404).json({ message: 'Jadual mingguan tidak ditemui' });
+    }
     let imported = 0;
     for (const [rowIndex, row] of rows.entries()) {
       const assignment = Object.fromEntries(expectedHeaders.map((header) => [header, row[indexOf[header]]?.trim() || '']));
@@ -666,15 +789,13 @@ const importSchedules = async (req, res) => {
         || assignment.tarikh_tugas > String(week.tarikh_tamat).slice(0, 10)) {
         throw new Error(`Baris ${rowIndex + 2}: data tugasan tidak sah atau di luar minggu jadual`);
       }
+      const target = await assignableTarget(client, assignment.id_pengguna, assignment.id_pos);
+      if (!target.guard_ok) throw new Error(`Baris ${rowIndex + 2}: pengguna bukan Pengawal Keselamatan yang aktif`);
+      if (!target.post_ok) throw new Error(`Baris ${rowIndex + 2}: pos kawalan tidak wujud atau tidak aktif`);
       await client.query('select pg_advisory_xact_lock(7412, $1::int)', [assignment.id_pengguna]);
       const conflict = await assignmentConflict(client, assignment);
       if (conflict) throw new Error(`Baris ${rowIndex + 2}: pengawal mempunyai tugasan bertindih`);
-      await client.query(
-        `insert into tbl_jadual_bertugas
-           (id_jadual_mingguan, id_pengguna, id_pos, tarikh_tugas, syif, masa_mula, masa_tamat, catatan, dicipta_oleh)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [req.params.id, assignment.id_pengguna, assignment.id_pos, assignment.tarikh_tugas, assignment.syif, assignment.masa_mula, assignment.masa_tamat, assignment.catatan || null, req.user.id_pengguna]
-      );
+      await insertAssignment(client, req.params.id, assignment, req.user);
       imported += 1;
     }
     await client.query(
@@ -761,6 +882,7 @@ module.exports = require('../utils/asyncHandlers')({
   checkConflict,
   copyWeek,
   saveAssignment,
+  saveDailyAssignments,
   deleteAssignment,
   importSchedules,
   uploadSchedulePdf,

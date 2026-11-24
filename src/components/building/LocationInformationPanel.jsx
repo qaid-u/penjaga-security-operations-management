@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { CalendarCheck, ChevronDown, ClipboardCheck, FileText } from 'lucide-react';
 import { Card, Button } from '../ui';
 import { apiMessage, klTimestamp } from './operationalIndicators';
 const missing = 'Maklumat tidak tersedia';
@@ -6,7 +7,7 @@ const attendance = { 'Checked In': 'Daftar masuk direkodkan', 'Checked Out': 'Da
 
 export function LocationInformationPanel({ location, operations }) {
   const q = operations.summary; const data = q.data;
-  return <Card title="Maklumat Lokasi" className="h-fit min-w-0">
+  return <Card className="building-location-content h-fit min-w-0">
     {!location ? <div className="space-y-3 py-5"><h3>Pilih lokasi bangunan</h3><p>Pilih pos daripada senarai untuk melihat rekod operasi dan label aras.</p></div> : <div className="space-y-4">
       <h3 className="text-lg">{location.name}</h3><p>{location.description}</p>
       <p className="rounded-lg border p-3 text-sm">Aras: {location.floor || 'Belum disahkan'}<br />Kedudukan 3D belum disahkan. Penanda visual bukan lokasi tepat atau pengesahan bilik dalaman.</p>
@@ -20,20 +21,20 @@ export function LocationInformationPanel({ location, operations }) {
         <p>{data.location.nama_paparan} · {data.location.kawasan}<br />Aras: {data.location.label_aras || missing}</p>
         {!data.linked ? <p className="rounded-lg bg-slate-100 p-3">{data.reason}. Tiada rekod operasi dipautkan; ini tidak menandakan insiden.</p> : data.in_scope === false ? <p>Pos ini di luar penapis semasa. Tetapkan semula penapis untuk melihat rekodnya.</p> : <>
           <section className="rounded-lg border p-3"><strong>{data.post.nama_pos}</strong><p>{data.post.nama_bangunan || missing}<br />{data.post.lokasi || missing}<br />Waktu operasi: {data.post.waktu_operasi || missing}<br />Status pos: {data.post.status_pos || missing}</p></section>
-          <details open><summary className="cursor-pointer font-semibold">Jadual & rekod kehadiran</summary>
+          <details open className="building-record-section" data-kind="schedule"><summary><CalendarCheck size={17} aria-hidden="true" /><span>Jadual & rekod kehadiran</span><ChevronDown size={15} aria-hidden="true" /></summary>
             <p className="my-2 text-xs">{data.metrics.schedule.confirmed} disahkan / dikunci · {data.metrics.schedule.draft} belum disahkan. Kehadiran bukan lokasi fizikal atau GPS.</p>
             {!data.assignments.length && <p>Tiada tugasan direkodkan bagi tempoh ini.</p>}
             <div className="max-h-72 overflow-auto space-y-3">{data.assignments.map((a) => <div key={a.id_jadual} className="border-b pb-3 text-sm"><strong>{a.nama_penuh}</strong><p>{a.syif} · {a.status_jadual}<br />{klTimestamp(a.starts_at)} — {klTimestamp(a.ends_at)}<br />Status tugasan: {a.status_bertugas}<br />{attendance[a.attendance_state] || missing}<br />Masuk: {klTimestamp(a.masa_check_in)}<br />Keluar: {klTimestamp(a.masa_check_out)}</p></div>)}</div>
             {data.metrics.schedule.assignments > data.assignments.length && <p className="text-xs">Memaparkan {data.assignments.length} daripada {data.metrics.schedule.assignments} tugasan. Lihat modul jadual untuk selebihnya.</p>}
           </details>
-          <details open><summary className="cursor-pointer font-semibold">Laporan & klasifikasi tersimpan ({data.metrics.incidents.total})</summary>
+          <details open className="building-record-section" data-kind="reports"><summary><FileText size={17} aria-hidden="true" /><span>Laporan & klasifikasi tersimpan ({data.metrics.incidents.total})</span><ChevronDown size={15} aria-hidden="true" /></summary>
             <p className="my-2 text-xs">Metadata NLP prototaip; bukan ramalan insiden atau penilaian keselamatan bangunan.</p>
             <p className="text-sm">{['Low','Medium','High','Critical','Unknown'].map((level) => `${level}: ${data.metrics.incidents[level]}`).join(' · ')}</p>
             {!data.reports.length && <p>Tiada laporan dalam julat ini.</p>}
             <ul className="mt-3 max-h-64 overflow-auto space-y-2">{data.reports.map((r) => <li key={r.id_laporan} className="border-b pb-2"><strong>{r.tajuk_laporan}</strong><p className="text-xs">{r.tarikh_laporan} · {r.status_laporan}<br />{r.tahap_risiko} · {r.kategori_dikesan || 'Kategori belum tersedia'}</p></li>)}</ul>
             <p className="text-xs">Sehingga 10 laporan terkini. Naratif dan bukti hanya melalui modul laporan yang dibenarkan.</p>
           </details>
-          <details open><summary className="cursor-pointer font-semibold">Tindakan susulan</summary>
+          <details open className="building-record-section" data-kind="actions"><summary><ClipboardCheck size={17} aria-hidden="true" /><span>Tindakan susulan</span><ChevronDown size={15} aria-hidden="true" /></summary>
             <p className="my-2 text-sm">Jumlah {data.metrics.follow_up.total} · Terbuka {data.metrics.follow_up.open} · Dalam tindakan {data.metrics.follow_up.in_progress} · Selesai {data.metrics.follow_up.completed}</p>
             <p className="text-xs">Berkaitan laporan dalam julat dipilih. Dalam tindakan termasuk dalam kiraan terbuka.</p>
             <ul className="max-h-60 overflow-auto space-y-2">{data.actions.map((a) => <li key={a.id_tindakan} className="border-b py-2 text-sm">Tindakan #{a.id_tindakan} · {a.status_tindakan} · {a.tahap_keutamaan}<p className="text-xs">Kemajuan terakhir: {a.jenis_progress || missing}<br />{klTimestamp(a.tarikh_progress)}{a.perlu_respon_ketua && ' · Respons Ketua diminta'}</p></li>)}</ul>

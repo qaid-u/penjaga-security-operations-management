@@ -20,7 +20,7 @@ import { OperationalAnalytics } from './OperationalAnalytics';
 import { IncidentHistory } from './IncidentHistory';
 import { cameraPresets } from './buildingZones';
 import { Button, Field, Select } from '../ui';
-import { Box, Maximize2 } from 'lucide-react';
+import { Box, ChevronDown, MapPin, Maximize2, X } from 'lucide-react';
 import { getBuilding } from './buildingModels';
 import { markerPosition } from './postPlacements';
 
@@ -73,11 +73,18 @@ function LoadedViewer({ onRetry, supported, building, initialPost }) {
   const modelReady = supported && !lost && !error && Boolean(data);
   const stage = useRef(null);
   const location = viewData.hotspots.find((item) => item.id === selected);
+  const focusPanel = () => requestAnimationFrame(() => {
+    panel.current?.focus({ preventScroll: true });
+    if (window.matchMedia('(max-width: 1439px)').matches) panel.current?.scrollIntoView({ block: 'start' });
+  });
   const select = (id, openPanel = true) => {
     trigger.current = document.activeElement;
     setSelected(id); setSheet(openPanel && Boolean(id));
     if (modelReady && markerPosition(viewData.hotspots.find((item) => item.id === id))) setCommand((old) => ({ ...old, preset: 'selected', reset: old.reset + 1 }));
-    if (openPanel) requestAnimationFrame(() => panel.current?.focus({ preventScroll: true }));
+    if (openPanel && id) {
+      if (document.fullscreenElement === stage.current) document.exitFullscreen().then(focusPanel, focusPanel);
+      else focusPanel();
+    }
   };
   const reset = () => { setSelected(null); setSheet(false); change('zone',''); setCommand((old) => ({ ...old, preset: 'overview', reset: old.reset + 1 })); };
   const onZone = (id) => { change('zone',id); if (id) select(id); else { setSelected(null); setSheet(false); setCommand((old) => ({ ...old, preset: 'overview', reset: old.reset+1 })); } };
@@ -94,7 +101,11 @@ function LoadedViewer({ onRetry, supported, building, initialPost }) {
   const positionedHotspots = visibleHotspots.filter((item) => markerPosition(item));
   const markerNotice = !modelReady ? null : !positionedHotspots.length ? 'Penanda anggaran tidak tersedia · Gunakan senarai pos' : !showHotspots ? 'Penanda anggaran disembunyikan · Gunakan senarai pos' : `${positionedHotspots.length} penanda anggaran · Keyakinan rendah · Bukan lokasi tepat`;
   const modelState = !supported || lost || error ? 'unavailable' : data ? 'ready' : 'loading';
-  const closeSheet = () => { setSheet(false); trigger.current?.focus?.({preventScroll:true}); };
+  const closeSheet = () => {
+    if (!sheet) return;
+    setSheet(false);
+    requestAnimationFrame(() => (trigger.current?.isConnected ? trigger.current : panel.current?.querySelector('button'))?.focus());
+  };
   return <div className="building-workspace" data-building={building.id}>
     <div className="building-stage-layout">
     <section ref={stage} className="building-stage" aria-label={`Model interaktif ${building.name}`}>
@@ -115,21 +126,41 @@ function LoadedViewer({ onRetry, supported, building, initialPost }) {
         <div className="building-stage-stamp" data-state={modelState} aria-live="polite"><span className={modelReady ? 'is-ready' : ''} />{modelState === 'ready' ? 'Model sedia' : modelState === 'unavailable' ? 'Model tidak tersedia' : 'Memuatkan model'}<small>{building.meshes} komponen · {building.region}</small></div>
       </div>
       <div className="building-camera-strip"><Field label="Pratetap kamera"><Select disabled={!modelReady} value={modelReady ? command.preset || 'selected' : 'overview'} onChange={(e) => setCommand((old) => ({...old,preset:e.target.value,reset:old.reset+1}))}>{Object.entries(cameraPresets).map(([key,label]) => <option key={key} value={key} disabled={key === 'selected' && (!modelReady || !markerPosition(location))}>{key === 'selected' ? 'Anggaran pos dipilih' : label}</option>)}</Select></Field><p>Seret untuk putar · Skrol / cubit untuk zum<br /><span aria-live="polite">Pos dipilih: {location?.name || 'Tiada'}</span></p></div>
-      <details open id="building-location-list" tabIndex={-1} className="building-post-list" aria-label="Pos keselamatan"><summary className="mb-3 cursor-pointer font-semibold">Pos keselamatan — {building.shortName}</summary>
+    </section>
+    <div ref={panel} tabIndex={-1} aria-label="Panel lokasi" data-sheet={sheet} className="building-info-panel" onKeyDown={(e) => { if (e.key === 'Escape') closeSheet(); }}>
+      <div className="building-record-header">
+        <MapPin size={22} aria-hidden="true" />
+        <div><h3>Maklumat Lokasi</h3><small>{building.shortName} · {building.postCount} pos rasmi</small></div>
+        {location && <button type="button" className="building-location-toggle"
+          aria-label={sheet ? 'Tutup maklumat lokasi' : 'Buka maklumat lokasi'} aria-expanded={sheet} aria-controls="building-location-content"
+          onClick={() => { if (sheet) closeSheet(); else select(location.id); }}>
+          {sheet ? <X size={18} aria-hidden="true" /> : <ChevronDown size={18} aria-hidden="true" />}
+        </button>}
+      </div>
+      <div id="building-location-content" hidden={Boolean(location) && !sheet}>
+        <LocationInformationPanel location={location} operations={operations} />
+      </div>
+    </div>
+    <details open id="building-location-list" tabIndex={-1} className="building-post-list" aria-label="Pos keselamatan"><summary className="mb-3 cursor-pointer font-semibold">Pos keselamatan — {building.shortName}</summary>
         <p className="mb-3 text-xs">{building.postCount} pos rasmi · Penanda ialah anggaran visual. Kedudukan 3D belum disahkan.</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {visibleHotspots.map((item) => <button key={item.id} type="button" aria-pressed={selected === item.id} onClick={() => select(item.id)} className={`flex min-h-11 items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm ${selected === item.id ? 'app-nav-active' : 'app-button-ghost'}`}><span className="font-mono">{String(item.number).padStart(2, '0')}</span><span>{item.name}<small className="block text-secondary-token">{item.area} · {locationIndicator(item.id).text}</small></span></button>)}
+          {visibleHotspots.map((item) => {
+            const status = locationIndicator(item.id);
+            return <button key={item.id} type="button" aria-pressed={selected === item.id} onClick={() => select(item.id)}
+              className={`flex min-h-11 items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm ${selected === item.id ? 'app-nav-active' : 'app-button-ghost'}`}>
+              <span className="font-mono">{String(item.number).padStart(2, '0')}</span>
+              <span>{item.name}<small className="building-post-status"><i style={{ backgroundColor: status.color }} aria-hidden="true" />{item.area} · {status.text}</small></span>
+            </button>;
+          })}
         </div>
       </details>
-    </section>
-    <div ref={panel} tabIndex={-1} aria-label="Panel lokasi" data-sheet={sheet} className="building-info-panel" onKeyDown={(e) => { if (e.key === 'Escape') closeSheet(); }}><div className="building-record-header"><span>REKOD BANGUNAN</span><strong>{building.shortName}</strong><small>{building.postCount} pos rasmi · {building.region}</small></div><Button variant="ghost" className="building-sheet-close" onClick={closeSheet}>Tutup maklumat lokasi</Button><LocationInformationPanel location={location} operations={operations} /></div>
   </div>
   <section className="building-operations" aria-label="Data operasi bangunan"><div className="building-operations-heading"><div><p className="building-eyebrow">DATA & REKOD</p><h2>Operasi {building.shortName}</h2></div><p>Rekod pangkalan data mengikut bangunan dipilih.<br />Bukan pemantauan GPS atau ramalan insiden.</p></div>
     <OperationalToolbar period={period} setPeriod={setPeriod} mode={mode} setMode={setMode} operations={operations} />
     <AdvancedFilters data={viewData} filters={filters} change={change} mode={mode} operations={operations} period={period} setPeriod={setPeriod} onZone={onZone} reset={resetFilters} />
     {user?.nama_peranan === ROLE.admin && mode === 'mapping' && <LocationMappingPanel locations={operations.overview.data?.locations} userId={user.id_pengguna} building={building} />}
   <OperationalAnalytics query={operations.overview} mode={mode} onMetric={onMetric} />
-  {(mode === 'incidents' || mode === 'followup') && <IncidentHistory key={JSON.stringify([building.id,period,filters,mode])} query={operations.incidents} page={page} setPage={setPage} onLocate={(id) => select(id,false)} zone={filters.zone} />}
+  {(mode === 'incidents' || mode === 'followup') && <IncidentHistory key={JSON.stringify([building.id,period,filters,mode])} query={operations.incidents} page={page} setPage={setPage} onLocate={(id, openPanel = false) => select(id,openPanel)} zone={filters.zone} />}
   </section>
   </div>;
 }

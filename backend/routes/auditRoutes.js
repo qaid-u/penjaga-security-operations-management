@@ -3,10 +3,11 @@ const express = require('express');
 const pool = require('../config/db');
 const { auth, requireRole, roles } = require('../middleware/auth');
 const { escapeCSV, dateToString } = require('../utils/helpers');
+const { csvBudget } = require('../middleware/rateLimit');
 
 const router = express.Router();
 
-router.get('/', auth, requireRole(roles.admin), async (req, res) => {
+router.get('/', auth, requireRole(roles.admin), csvBudget, async (req, res) => {
   let range;
   try { range = dateRange(req.query); } catch(error) { return res.status(400).json({message:error.message}); }
   const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);

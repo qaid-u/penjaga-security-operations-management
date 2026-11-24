@@ -16,13 +16,19 @@ async function session(page, role, handler) {
 const week={id_jadual_mingguan:1,tarikh_mula:'2026-10-26',tarikh_tamat:'2026-11-01',status_jadual:'Draf'};
 
 test('daily schedule shows actual assigned guards, refreshes dates and confirms deletion',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
   const dates=[];let deletes=0;
   const errors=await session(page,'Pentadbir Sistem',async(route,url)=>{
     if(url.pathname==='/api/jadual/mingguan'){await route.fulfill({json:[week]});return true;}
-    if(url.pathname==='/api/jadual/mingguan/1'){await route.fulfill({json:week});return true;}
+    if(url.pathname==='/api/jadual/mingguan/1'){
+      const activity=deletes?[{id_audit:1,action:'DELETE_ASSIGNMENT',changed_at:'2026-10-26T04:00:00Z',
+        change:{guard:'Assigned Guard',post:'Main post',date:'2026-10-26',shift:'Pagi',actor:{name:'Test Admin',role:'Admin'}}}]:[];
+      await route.fulfill({json:{...week,activity}});return true;
+    }
     if(url.pathname.endsWith('/coverage-summary')){
+      if(url.searchParams.get('overview')==='week'){await route.fulfill({json:{days:[],hasRequirements:false}});return true;}
       const date=url.searchParams.get('date');dates.push(date);
-      const assignments=deletes||date==='2026-10-27'?[]:[{id_jadual:9,id_pengguna:3,nama_penuh:'Assigned Guard',tarikh_tugas:date,masa_mula:'07:00',masa_tamat:'16:00',status_bertugas:'Dijadualkan'}];
+      const assignments=deletes||date==='2026-10-27'?[]:[{id_jadual:9,id_pengguna:3,nama_penuh:'Assigned Guard',tarikh_tugas:date,masa_mula:'07:00',masa_tamat:'16:00',status_bertugas:'Dijadualkan',change_action:'UPDATE_ASSIGNMENT',changed_by:{name:'Test Chief',role:'Ketua'}}];
       await route.fulfill({json:{totalRequired:2,totalAssigned:assignments.length,shortage:2-assignments.length,activeDutyCount:0,absentGuardCount:0,coverageByPost:[{id_pos:1,nama_pos:'Main post',syif:'Pagi',required:2,assigned:assignments.length,assignments}],uncoveredPosts:[]}});return true;
     }
     if(url.pathname==='/api/jadual/assignments/9'&&route.request().method()==='DELETE'){deletes++;await route.fulfill({json:{}});return true;}
@@ -31,6 +37,7 @@ test('daily schedule shows actual assigned guards, refreshes dates and confirms 
   await page.goto('/jadual');
   await page.locator('.ops-post-record > summary').first().click();
   await expect(page.getByText('Assigned Guard',{exact:true})).toBeVisible();
+  await expect(page.getByText('Disunting oleh Ketua',{exact:true})).toBeVisible();
   expect(dates.at(-1)).toMatch(/^2026-(10-(2[6-9]|3[01])|11-01)$/);
   await page.getByLabel('Tarikh tugasan').fill('2026-10-27');
   await expect.poll(()=>dates.at(-1)).toBe('2026-10-27');
@@ -46,6 +53,9 @@ test('daily schedule shows actual assigned guards, refreshes dates and confirms 
   await page.getByRole('dialog',{name:'Padam tugasan?'}).getByRole('button',{name:'Padam tugasan',exact:true}).click();
   await expect.poll(()=>deletes).toBe(1);
   await expect(page.getByText('Assigned Guard',{exact:true})).toHaveCount(0);
+  await page.getByText('Sejarah perubahan jadual',{exact:true}).click();
+  await expect(page.getByText('Dipadam oleh Admin',{exact:true})).toBeVisible();
+  await expect(page.getByText('Assigned Guard · Main post',{exact:true})).toBeVisible();
   expect(errors).toEqual([]);
 });
 

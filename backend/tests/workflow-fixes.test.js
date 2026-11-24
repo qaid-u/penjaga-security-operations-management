@@ -21,7 +21,7 @@ test('workflow regressions use disposable schema and real authenticated APIs',as
   let server;
   try{
     await admin.query(`create schema ${schema}`);
-    for(const file of ['schema.sql','roles.sql','migrations/003_lokasi_3d.sql','migrations/004_nlp_review.sql','migrations/007_database_integrity.sql'])await pool.query(await fs.readFile(path.join(__dirname,'../database',file),'utf8'));
+    for(const file of ['schema.sql','roles.sql','migrations/003_lokasi_3d.sql','migrations/004_nlp_review.sql','migrations/007_database_integrity.sql','migrations/010_password_change_sessions.sql'])await pool.query(await fs.readFile(path.join(__dirname,'../database',file),'utf8'));
     const password='Original-password-123';
     const hash=await bcrypt.hash(password,10);
     await pool.query(`insert into tbl_pengguna(id_pengguna,id_peranan,nama_penuh,nama_pengguna,emel,kata_laluan) values
@@ -161,12 +161,29 @@ test('workflow regressions use disposable schema and real authenticated APIs',as
       assert.equal((await request(url,3,'POST',{currentPassword:password,newPassword:'short'})).status,400);
       assert.equal((await request(url,3,'POST',{currentPassword:password,newPassword:'界'.repeat(25)})).status,400);
       assert.equal((await request(url,3,'POST',{currentPassword:password,newPassword:password})).status,400);
-      assert.equal((await request(url,3,'POST',{currentPassword:password,newPassword:next})).status,200);
+      const earlierSession=jwt.sign({id:3,iat:Math.floor(Date.now()/1000)-60},jwtSecret,{expiresIn:'5m'});
+      const me=async token=>(await fetch(base+'/auth/me',{headers:{Authorization:`Bearer ${token}`}})).status;
+      assert.equal(await me(earlierSession),200);
+      const changed=await request(url,3,'POST',{currentPassword:password,newPassword:next});
+      assert.equal(changed.status,200);
+      assert.equal(await me(earlierSession),401,'sessions issued before the change are revoked');
+      assert.equal(await me(changed.data.token),200,'the replacement token keeps this device signed in');
       const saved=(await pool.query('select kata_laluan from tbl_pengguna where id_pengguna=3')).rows[0].kata_laluan;
       assert.notEqual(saved,next);assert.equal(await bcrypt.compare(next,saved),true);assert.equal(await bcrypt.compare(password,saved),false);
       assert.equal((await pool.query("select count(*)::int n from tbl_audit_trail where jenis_aktiviti='CHANGE_PASSWORD'")).rows[0].n,1);
       assert.equal((await request(url,3,'POST',{currentPassword:next,newPassword:password})).status,429);
       assert.equal((await request('/auth/login',null,'POST',{username:'guard',password:next})).status,200);
+    });
+    await t.test('single assignments accept only active guards at active posts', async () => {
+      await pool.query("insert into tbl_pos_kawalan(id_pos,nama_pos,status_pos) values(3,'Closed post','Tidak Aktif')");
+      await pool.query("insert into tbl_pengguna(id_pengguna,id_peranan,nama_penuh,nama_pengguna,emel,kata_laluan,status_akaun) values(5,3,'Retired guard','retired','retired@example.invalid','x','Tidak Aktif')");
+      const date = (await pool.query('select (current_date+3)::text as d')).rows[0].d;
+      const url = '/jadual/mingguan/1/assignments';
+      const base = { id_pengguna: 4, id_pos: 1, tarikh_tugas: date, syif: 'Pagi', masa_mula: '07:00', masa_tamat: '16:00' };
+      for (const id_pengguna of [2, 5, 999]) assert.equal((await request(url, 1, 'POST', { ...base, id_pengguna })).status, 409);
+      assert.equal((await request(url, 1, 'POST', { ...base, id_pos: 3 })).status, 409);
+      for (const id_pengguna of ['4 OR 1=1', 'abc', -1]) assert.equal((await request(url, 1, 'POST', { ...base, id_pengguna })).status, 400);
+      assert.equal((await pool.query("select count(*)::int n from tbl_jadual_bertugas where tarikh_tugas=$1::date", [date])).rows[0].n, 0);
     });
     await t.test('copy previews a draft, rechecks overlaps and notifies only affected guards after publication', async () => {
       await pool.query(`
@@ -197,19 +214,92 @@ test('workflow regressions use disposable schema and real authenticated APIs',as
       assert.equal((await request(url, 2, 'POST', { ids: [91, 90], version: previewAgain.data.version })).status, 409);
       const remaining = (await pool.query('select id_jadual from tbl_jadual_bertugas where id_jadual_mingguan=$1', [copy.data.id])).rows;
       assert.equal(remaining.length, 1);
+      const history = async () => (await request(target, 2)).data.activity;
+      const added = (await history())[0];
+      assert.equal(added.action, 'CREATE_ASSIGNMENT');
+      assert.deepEqual(added.change.actor, { name: 'Chief', role: 'Ketua' });
       const notices = async () => (await pool.query("select id_pengguna, tajuk_notifikasi from tbl_notifikasi where jenis_notifikasi='Jadual Bertugas' order by id_notifikasi")).rows;
       assert.deepEqual(await notices(), []);
       assert.equal((await request(target + '/confirm', 1, 'POST')).status, 200);
       const assignment = { ...preview.data.rows[0], id_pos: 2 };
-      const edit = await request('/jadual/assignments/' + remaining[0].id_jadual, 2, 'PUT', assignment);
+      const edit = await request('/jadual/assignments/' + remaining[0].id_jadual, 1, 'PUT', assignment);
       assert.equal(edit.status, 200);
+      const coverage = await request(target + '/coverage-summary?date=' + assignment.tarikh_tugas, 2);
+      assert.equal(coverage.status, 200);
+      assert.equal(coverage.data.coverage[0].change_action, 'UPDATE_ASSIGNMENT');
+      assert.deepEqual(coverage.data.coverage[0].changed_by, { name: 'Admin', role: 'Admin' });
+      const guardSchedule = await request('/jadual/my-schedule', 3);
+      assert.equal(guardSchedule.data.find(row => row.id_jadual === remaining[0].id_jadual).changed_by_role, 'Admin');
       assert.equal((await request('/jadual/assignments/' + remaining[0].id_jadual, 2, 'DELETE')).status, 200);
+      const changes = await history();
+      assert.deepEqual(changes.map(row => [row.action, row.change.actor.role]), [
+        ['DELETE_ASSIGNMENT', 'Ketua'], ['UPDATE_ASSIGNMENT', 'Admin'], ['CREATE_ASSIGNMENT', 'Ketua'],
+      ]);
+      assert.equal(changes[0].change.post, 'Post B');
+      assert.equal(changes[0].change.guard, 'Guard');
       assert.deepEqual(await notices(), [
         { id_pengguna: 3, tajuk_notifikasi: 'Jadual bertugas tersedia' },
         { id_pengguna: 3, tajuk_notifikasi: 'Tugasan dikemas kini' },
         { id_pengguna: 3, tajuk_notifikasi: 'Tugasan dibatalkan' },
       ]);
+      const labelled = (await pool.query("select mesej_notifikasi from tbl_notifikasi where jenis_notifikasi='Jadual Bertugas' order by id_notifikasi desc limit 2")).rows;
+      assert.match(labelled[0].mesej_notifikasi, /Oleh Ketua$/);
+      assert.match(labelled[1].mesej_notifikasi, /Oleh Admin$/);
       assert.equal((await request(url, 2)).status, 409);
+    });
+    await t.test('daily assignment batch preserves vacancies and rolls back all rows on overlap', async () => {
+      const date = (await pool.query('select (current_date + 22)::text as date')).rows[0].date;
+      const url = '/jadual/mingguan/90/daily-assignments';
+      const assignment = (post, guard) => ({
+        id_pos: post, id_pengguna: guard, syif: 'Pagi', masa_mula: '07:00', masa_tamat: '16:00',
+      });
+      const send = (assignments, user = 2) => request(url, user, 'POST', { date, assignments });
+      const count = async () => (await pool.query(
+        'select count(*)::int as count from tbl_jadual_bertugas where id_jadual_mingguan = 90 and tarikh_tugas = $1', [date]
+      )).rows[0].count;
+
+      assert.equal((await send([assignment(1, 3)], 3)).status, 403);
+      const overlap = await send([assignment(1, 3), assignment(2, 3)]);
+      assert.equal(overlap.status, 409);
+      assert.equal(overlap.data.conflict.nama_pos, 'Post A');
+      assert.equal(await count(), 0);
+      const saved = await send([assignment(1, 3), assignment(2, 4)]);
+      assert.equal(saved.status, 201, saved.data.message);
+      assert.equal(saved.data.created, 2);
+      const full = await send([assignment(1, 4)]);
+      assert.equal(full.status, 409);
+      assert.equal(full.data.refresh, true);
+      assert.equal(await count(), 2);
+    });
+    await t.test('private reads minimize data and CSV aliases share an account budget', async () => {
+      const anonymous = await request('/reports', null);
+      assert.equal(anonymous.status, 401);
+      assert.equal(anonymous.headers.get('cache-control'), 'private, no-store');
+      assert.match(anonymous.headers.get('x-robots-tag'), /noindex/);
+
+      const guardMeta = await request('/meta', 4);
+      assert.equal(guardMeta.status, 200);
+      assert.deepEqual(guardMeta.data.guards, []);
+      assert.equal(guardMeta.data.automaticLearning, undefined);
+      const chiefMeta = await request('/meta', 2);
+      assert.ok(chiefMeta.data.guards.some(guard => guard.id_pengguna === 4));
+
+      const list = await request('/reports', 4);
+      assert.equal(list.status, 200);
+      const item = list.data.data[0];
+      assert.equal(item.kandungan_laporan, undefined);
+      assert.equal(item.nlp_context, undefined);
+      const detail = await request('/reports/' + item.id_laporan, 4);
+      assert.equal(detail.status, 200);
+      assert.ok(detail.data.report.kandungan_laporan);
+
+      for (let index = 0; index < 12; index++) {
+        assert.equal((await request(index % 2 ? '/reports?format=csv' : '/reports/export.csv', 4)).status, 200);
+      }
+      const blocked = await request('/reports/export.csv', 4);
+      assert.equal(blocked.status, 429);
+      assert.ok(Number(blocked.headers.get('retry-after')) > 0);
+      assert.equal((await request('/reports/export.csv', 2)).status, 200);
     });
   }finally{
     if(server)await new Promise(resolve=>server.close(resolve));

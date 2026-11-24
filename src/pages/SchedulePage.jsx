@@ -1,16 +1,30 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Upload, MapPin, Search, ChevronDown, CalendarDays, Users, SlidersHorizontal, Plus, CheckCircle2, CircleAlert, Clock3, LockKeyhole, Sun, Sunset, Moon, BriefcaseBusiness, Pencil, Trash2 } from 'lucide-react';
+import { Upload, MapPin, Search, ChevronDown, CalendarDays, Users, SlidersHorizontal, Plus, CheckCircle2, CircleAlert, Clock3, LockKeyhole, Sun, Sunset, Moon, BriefcaseBusiness, Pencil, Trash2, History } from 'lucide-react';
 import api from '../api/axios';
 import { ROLE, notifyError, notifySuccess, shiftTimes, shiftTimeLabel, statusTone } from '../utils/helpers';
 import { PageHeader, Card, AlertMessage, Button, Field, Select, Input, Badge, EmptyState, LoadingState, ConfirmModal, Pagination } from '../components/ui';
 import ScheduleAssignmentDialog from '../components/ScheduleAssignmentDialog';
 import ScheduleCopyDialog from '../components/ScheduleCopyDialog';
+import ScheduleDailyAssignments from '../components/ScheduleDailyAssignments';
 import './schedule.css';
 
 const shiftIcons = { Pagi: Sun, Petang: Sunset, Malam: Moon, 'Office Hour': BriefcaseBusiness };
 const dateLabel = (value, options = { day: 'numeric', month: 'long', year: 'numeric' }) => value ? new Intl.DateTimeFormat('ms-MY', { ...options, timeZone: 'Asia/Kuala_Lumpur' }).format(new Date(value.slice(0, 10) + 'T12:00:00+08:00')) : '';
 const shiftOrder = ['Pagi', 'Petang', 'Malam', 'Office Hour'];
+const assignmentChanges = {
+  CREATE_ASSIGNMENT: { label: 'Ditambah', tone: 'Low', Icon: Plus },
+  UPDATE_ASSIGNMENT: { label: 'Disunting', tone: 'Medium', Icon: Pencil },
+  DELETE_ASSIGNMENT: { label: 'Dipadam', tone: 'High', Icon: Trash2 },
+};
+const changeTime = new Intl.DateTimeFormat('ms-MY', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kuala_Lumpur' });
+
+function AssignmentChangeLabel({ action, actor }) {
+  const entry = assignmentChanges[action];
+  if (!entry || !actor?.role) return null;
+  const { label, tone, Icon } = entry;
+  return <Badge tone={tone}><span className="inline-flex items-center gap-1"><Icon size={12} aria-hidden="true" />{label} oleh {actor.role}</span></Badge>;
+}
 
 export function SchedulePage({ auth }) {
   const canManage = [ROLE.admin, ROLE.chief].includes(auth.user?.nama_peranan);
@@ -31,6 +45,7 @@ export function SchedulePage({ auth }) {
   const [pdfFile, setPdfFile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [dailyOpen, setDailyOpen] = useState(false);
 
   const metaQuery = useQuery({ queryKey: ['meta'], queryFn: async ({ signal }) => (await api.get('/meta', { signal })).data, enabled: canManage });
   const weeksQuery = useQuery({ queryKey: ['schedule-weeks'], queryFn: async ({ signal }) => (await api.get('/jadual/mingguan', { signal })).data, enabled: canManage });
@@ -271,6 +286,7 @@ export function SchedulePage({ auth }) {
                   <div className="flex flex-wrap gap-1">
                     {item.status_jadual === 'Draf' && <Badge tone="Medium">Draf</Badge>}
                     <Badge tone={statusTone(item.status_bertugas)}>{item.status_kehadiran || item.status_bertugas}</Badge>
+                    <AssignmentChangeLabel action={item.change_action} actor={{ role: item.changed_by_role }} />
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -374,12 +390,36 @@ export function SchedulePage({ auth }) {
               <Button type="button" variant="ghost" onClick={() => setCopyOpen(true)}>Salin ke minggu depan</Button>
             </div>
           </section>
+          <details className="workspace-disclosure schedule-week-activity">
+            <summary><History size={17} aria-hidden="true" /> Sejarah perubahan jadual <ChevronDown size={16} className="ml-auto" aria-hidden="true" /></summary>
+            <p className="workspace-note mb-3">Sehingga 20 perubahan terkini untuk minggu dipilih.</p>
+            {weekQuery.isLoading ? <p role="status">Memuatkan perubahan…</p>
+              : weekQuery.isError ? <AlertMessage>Sejarah perubahan belum dapat dimuatkan.</AlertMessage>
+              : selectedWeek.activity?.length ? <ul className="space-y-2">
+                {selectedWeek.activity.map(({ id_audit, action, changed_at, change }) => (
+                  <li className="schedule-activity-row" key={id_audit}>
+                    <AssignmentChangeLabel action={action} actor={change.actor} />
+                    <strong>{change.guard} · {change.post}</strong>
+                    <small>{dateLabel(change.date)} · {change.shift}</small>
+                    <small>{change.actor.name} · <time dateTime={changed_at}>{changeTime.format(new Date(changed_at))}</time></small>
+                  </li>
+                ))}
+              </ul> : <p>Tiada perubahan direkodkan untuk minggu ini.</p>}
+          </details>
           {coverage && <>
             <dl className="schedule-overview" aria-label="Ringkasan harian">
               <div><Users size={19} aria-hidden="true"/><dt>Ditugaskan</dt><dd>{coverage.totalAssigned}<small>tugasan</small></dd></div>
               <div className={coverage.shortage > 0 ? 'schedule-shortage' : 'schedule-covered'}>{coverage.shortage > 0 ? <CircleAlert size={19} aria-hidden="true"/> : <CheckCircle2 size={19} aria-hidden="true"/>}<dt>Masih diperlukan</dt><dd>{coverage.shortage}<small>pengawal</small></dd></div>
               <div><CheckCircle2 size={19} aria-hidden="true"/><dt>Sedang hadir</dt><dd>{coverage.activeDutyCount}<small>pengawal</small></dd></div>
             </dl>
+            {coverage.shortage > 0 && !lockedForChief && (
+              <div className="schedule-quick-fill">
+                <div><strong>{coverage.shortage} kekosongan pada tarikh ini</strong><p>Pilih pengawal untuk beberapa pos dan syif sekali gus.</p></div>
+                <Button type="button" onClick={() => setDailyOpen(true)} disabled={!meta.guards.length}>
+                  <Users size={17} aria-hidden="true" /> Isi kekosongan harian
+                </Button>
+              </div>
+            )}
             <details className="workspace-disclosure ops-coverage-disclosure"><summary>Butiran liputan hari ini <ChevronDown size={15} aria-hidden="true"/></summary><Card title="Ringkasan Liputan"><p className="mb-3 workspace-note">Untuk {dateLabel(quickDate)} di semua pos dan syif.</p><dl className="workspace-coverage-stats">{[['Keperluan',coverage.totalRequired],['Ditugaskan',coverage.totalAssigned],['Kekurangan',coverage.shortage],['Sedang hadir',coverage.activeDutyCount],['Tidak hadir',coverage.absentGuardCount]].map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><p className="mt-3 text-sm">Kekurangan dikira bagi setiap pos dan syif. Lebihan pengawal di satu pos tidak menampung kekurangan di pos lain.</p></Card></details>
             <Card className="schedule-post-browser" title="Pos kawalan" action={<span className="schedule-caption">{postGroups.length} pos</span>}>
               <div className="schedule-find"><div className="ops-search-row"><Search size={18} aria-hidden="true"/><Input aria-label="Cari pos atau bangunan" placeholder="Cari pos atau bangunan" value={postSearch} onChange={e=>{setPostSearch(e.target.value);setPostPage(1);}}/>{postSearch && <button type="button" onClick={() => {setPostSearch('');setPostPage(1);}} aria-label="Kosongkan carian">×</button>}</div><details className="schedule-filters"><summary><SlidersHorizontal size={16} aria-hidden="true"/> Tapis{(buildingFilter || assignmentFilters.shift) && <span className="schedule-filter-dot"/>}<ChevronDown size={14} aria-hidden="true"/></summary><div className="schedule-filter-fields"><Field label="Bangunan"><Select value={buildingFilter} onChange={e=>{setBuildingFilter(e.target.value);setPostPage(1);}}><option value="">Semua bangunan</option>{[...new Set(meta.posts.map(p=>p.nama_bangunan).filter(Boolean))].sort().map(b=><option key={b}>{b}</option>)}</Select></Field><Field label="Syif dan masa"><Select value={assignmentFilters.shift} onChange={e=>{setAssignmentFilters({...assignmentFilters,shift:e.target.value});setPostPage(1);}}><option value="">Semua syif</option>{shiftOrder.map(shift => <option key={shift}>{shift}</option>)}</Select></Field><Button variant="ghost" onClick={resetFilters}>Reset penapis</Button></div></details></div>
@@ -393,7 +433,22 @@ export function SchedulePage({ auth }) {
                     const ShiftIcon = shiftIcons[row.syif] || Clock3;
                     return <section className="schedule-shift" key={row.syif} aria-label={post.name+' · '+row.syif}>
                       <div className="schedule-shift-heading"><span className="schedule-shift-icon"><ShiftIcon size={19} aria-hidden="true"/></span><div><h3>{row.syif}</h3><p>{shiftTimeLabel(row.syif)}{row.syif === 'Malam' && ' · tamat esok'}</p></div><span className="schedule-shift-count"><strong>{row.assigned}{Number(row.required) > 0 && <>/{row.required}</>}</strong><small>ditugaskan</small></span></div>
-                      {row.assignments?.length > 0 ? <div className="schedule-assigned">{row.assignments.map(guard => <div className="schedule-guard" key={guard.id_jadual}><span className="schedule-avatar" aria-hidden="true">{guard.nama_penuh?.trim().slice(0,1)}</span><div className="schedule-guard-name"><strong>{guard.nama_penuh}</strong><small>{guard.masa_mula?.slice(0,5)} – {guard.masa_tamat?.slice(0,5)} · {guard.status_bertugas}</small></div><div className="schedule-guard-actions"><button type="button" title={'Edit '+guard.nama_penuh} aria-label={'Edit '+guard.nama_penuh} disabled={lockedForChief} onClick={() => openAssignment({...guard,id_pos:row.id_pos,syif:row.syif})}><Pencil size={16} aria-hidden="true"/></button><button type="button" title={'Padam '+guard.nama_penuh} aria-label={'Padam '+guard.nama_penuh} disabled={lockedForChief} onClick={() => setDeleteTarget(guard)}><Trash2 size={16} aria-hidden="true"/></button></div></div>)}</div> : <p className="schedule-no-guards">Belum ada pengawal ditugaskan.</p>}
+                      {row.assignments?.length > 0 ? <div className="schedule-assigned">{row.assignments.map(guard => (
+                        <div className="schedule-guard" key={guard.id_jadual}>
+                          <span className="schedule-avatar" aria-hidden="true">{guard.nama_penuh?.trim().slice(0,1)}</span>
+                          <div className="schedule-guard-name">
+                            <strong>{guard.nama_penuh}</strong>
+                            <small>{guard.masa_mula?.slice(0,5)} – {guard.masa_tamat?.slice(0,5)} · {guard.status_bertugas}</small>
+                            {guard.changed_by && <div className="mt-1" title={guard.changed_by.name}>
+                              <AssignmentChangeLabel action={guard.change_action} actor={guard.changed_by} />
+                            </div>}
+                          </div>
+                          <div className="schedule-guard-actions">
+                            <button type="button" title={'Edit '+guard.nama_penuh} aria-label={'Edit '+guard.nama_penuh} disabled={lockedForChief} onClick={() => openAssignment({...guard,id_pos:row.id_pos,syif:row.syif})}><Pencil size={16} aria-hidden="true"/></button>
+                            <button type="button" title={'Padam '+guard.nama_penuh} aria-label={'Padam '+guard.nama_penuh} disabled={lockedForChief} onClick={() => setDeleteTarget(guard)}><Trash2 size={16} aria-hidden="true"/></button>
+                          </div>
+                        </div>
+                      ))}</div> : <p className="schedule-no-guards">Belum ada pengawal ditugaskan.</p>}
                       <div className="schedule-shift-footer"><span className={shortage > 0 ? 'schedule-need-text' : 'schedule-complete-text'}>{shortage > 0 ? `Perlu ${shortage} pengawal lagi` : Number(row.required) > 0 ? 'Keperluan syif dipenuhi' : 'Tiada minimum ditetapkan'}</span><Button variant={shortage > 0 ? 'primary' : 'ghost'} disabled={lockedForChief} onClick={() => openAssignmentForRequirement(row)}><Plus size={16} aria-hidden="true"/>{shortage > 0 ? 'Tugaskan pengawal' : 'Tambah pengawal'}</Button></div>
                     </section>;
                   })}</div>
@@ -409,6 +464,14 @@ export function SchedulePage({ auth }) {
 
       <ConfirmModal open={Boolean(deleteTarget)} title="Padam tugasan?" message={deleteTarget ? 'Padam tugasan ' + deleteTarget.nama_penuh + ' pada ' + deleteTarget.tarikh_tugas?.slice(0,10) + '?' : ''} confirmLabel="Padam tugasan" danger pending={saving} onCancel={() => setDeleteTarget(null)} onConfirm={() => deleteAssignment(deleteTarget.id_jadual)} />
       {assignmentForm && <ScheduleAssignmentDialog form={assignmentForm} setForm={setAssignmentForm} posts={meta.posts} guards={meta.guards} start={start} end={end} saving={saving} conflict={conflict} clearConflict={() => setConflict(null)} onSave={saveAssignment} onClose={() => setAssignmentForm(null)} />}
+      {dailyOpen && <ScheduleDailyAssignments weekId={selectedWeekId} date={quickDate} dateLabel={dateLabel}
+        rows={coverageQuery.data?.coverageByPost || []} guards={meta.guards} onClose={() => setDailyOpen(false)}
+        reload={async () => (await coverageQuery.refetch({ throwOnError: true })).data.coverageByPost}
+        onSaved={created => {
+          setDailyOpen(false);
+          notifySuccess(`${created} tugasan harian disimpan.`);
+          loadWeekData();
+        }} />}
       {copyOpen && <ScheduleCopyDialog weekId={selectedWeekId} dateLabel={dateLabel}
         onClose={() => setCopyOpen(false)}
         onSaved={({ id, start, copied }) => {

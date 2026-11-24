@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const helmet = require('helmet');
 const pool = require('./config/db');
+const { ipBudget, downloadBudget } = require('./middleware/rateLimit');
 
 // Production environment validation
 if (process.env.NODE_ENV === 'production') {
@@ -28,6 +29,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 const port = process.env.PORT || 3000;
+const host = process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
 
 // Security headers
 app.use(helmet({
@@ -51,10 +53,14 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true }));
 // Trust forwarded client IPs only behind an explicitly configured proxy boundary.
 app.set('trust proxy', process.env.TRUST_PROXY === '1' ? 1 : false);
+app.use(['/api', '/uploads'], (_req, res, next) => {
+  res.set({ 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' });
+  next();
+}, ipBudget);
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '64kb', parameterLimit: 100 }));
 
 const uploadDir = path.join(__dirname, 'uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -183,7 +189,7 @@ app.patch('/api/posts/:id', auth, requireRole(roles.admin), async (req, res) => 
   } finally { client?.release(); }
 });
 
-app.get('/uploads/:filename', auth, async (req, res) => {
+app.get('/uploads/:filename', auth, downloadBudget, async (req, res) => {
   const filename = req.params.filename;
   if (path.basename(filename) !== filename || filename.startsWith('.')) {
     return res.status(404).json({ message: 'Fail tidak ditemui' });
@@ -240,7 +246,7 @@ app.use((err, req, res, _next) => {
   res.status(status).json({ message });
 });
 
-const server = app.listen(port, () => console.log(`Penjaga API Server running on port ${port}`));
+const server = app.listen(port, host, () => console.log(`Penjaga API Server running on port ${port}`));
 const stopNlpWorker = require('./services/nlpJobs').startWorker(pool);
 server.on('close', stopNlpWorker);
 const stopAutoTrainer=require('./services/automaticLearning').startAutoTrainer(pool);

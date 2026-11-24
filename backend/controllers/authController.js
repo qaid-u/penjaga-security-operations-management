@@ -65,10 +65,20 @@ const changePassword = async (req, res) => {
       await client.query('rollback');
       return res.status(400).json({ message: 'Kata laluan baharu mesti berbeza daripada kata laluan semasa.' });
     }
-    await client.query('update tbl_pengguna set kata_laluan=$1, tarikh_kemaskini=now() where id_pengguna=$2', [await bcrypt.hash(newPassword, 10), req.user.id_pengguna]);
+    // Truncated to whole seconds so it compares exactly with the JWT `iat` claim.
+    await client.query(
+      "update tbl_pengguna set kata_laluan=$1, tarikh_kemaskini=now(), kata_laluan_ditukar=date_trunc('second', now()) where id_pengguna=$2",
+      [await bcrypt.hash(newPassword, 10), req.user.id_pengguna]
+    );
     await logAudit(client, req.user.id_pengguna, 'CHANGE_PASSWORD', 'System', 'Kata laluan ditukar');
     await client.query('commit');
-    res.json({ message: 'Kata laluan berjaya ditukar' });
+    // Every earlier session is now invalid, so hand this device a fresh token.
+    const token = jwt.sign(
+      { id: req.user.id_pengguna, username: req.user.nama_pengguna, role: req.user.nama_peranan },
+      jwtSecret,
+      { expiresIn: '12h' }
+    );
+    res.json({ message: 'Kata laluan berjaya ditukar', token });
   } catch (error) {
     if (client) await client.query('rollback');
     console.error('Change password error:', error.code || error.name);

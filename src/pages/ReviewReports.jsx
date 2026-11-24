@@ -7,13 +7,13 @@ import api from '../api/axios';
 import { ROLE, notifyAction, notifyError, notifySuccess, statusTone } from '../utils/helpers';
 import { PageHeader, Field, Card, Button, AlertMessage, Select, Input, Badge, EmptyState, ConfirmModal, Pagination, LoadingState } from '../components/ui';
 import { ReportDetailContent } from '../components/ReportDetailContent';
+import { ReportClassificationValidation } from '../components/ReportClassificationValidation';
 
 export function ReviewReports({ auth }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const canReviewReports = auth.user?.nama_peranan === ROLE.chief;
   const [comments, setComments] = useState({});
   const [followUpFlags, setFollowUpFlags] = useState({});
-  const [confirmedCategories,setConfirmedCategories]=useState({});
   const [pinnedReports, setPinnedReports] = useState([]);
   const [detail, setDetail] = useState(null);
   const [confirmReview, setConfirmReview] = useState(null);
@@ -38,19 +38,15 @@ export function ReviewReports({ auth }) {
   });
 
   const reviewMutation = useMutation({
-    mutationFn: async ({ id, status, comment, requiresFollowUp,confirmedCategory }) => {
-      return api.patch(`/reports/${id}/review`, { status, comment, requiresFollowUp,confirmedCategory });
+    mutationFn: async ({ id, status, comment, requiresFollowUp }) => {
+      return api.patch(`/reports/${id}/review`, { status, comment, requiresFollowUp });
     },
-    onSuccess: (res, variables) => {
+    onSuccess: (_res, variables) => {
       setComments((prev) => ({ ...prev, [variables.id]: '' }));
       setFollowUpFlags((prev) => ({ ...prev, [variables.id]: false }));
-      setConfirmedCategories(prev=>({...prev,[variables.id]:''}));
       setConfirmReview(null);
       setPage(1);
       notifySuccess(variables.status === 'approved' ? 'Laporan diluluskan' : 'Laporan ditolak');
-      if(res.data.learning?.eligible)notifySuccess('Kategori disahkan disimpan untuk pembelajaran sistem.');
-      if(res.data.learning?.reason==='demo')notifySuccess('Rekod demo disemak; ia tidak digunakan untuk latihan model.');
-      if(res.data.learning?.reason==='insufficient_text')notifySuccess('Kategori disimpan. Kandungan terlalu ringkas untuk latihan model.');
       queryClient.invalidateQueries({ queryKey: ['reports'] });
       if (detail?.report?.id_laporan === variables.id) loadDetail(variables.id);
     },
@@ -105,7 +101,7 @@ export function ReviewReports({ auth }) {
       notifyError({ message: 'Sila tentukan sama ada laporan ini memerlukan tindakan susulan atau tidak.' });
       return;
     }
-    reviewMutation.mutate({ id, status, comment: comments[id] || '', requiresFollowUp: Boolean(followUpFlags[id]),confirmedCategory:status==='approved'?confirmedCategories[id]||undefined:undefined });
+    reviewMutation.mutate({ id, status, comment: comments[id] || '', requiresFollowUp: Boolean(followUpFlags[id]) });
   };
 
   return (
@@ -180,11 +176,18 @@ export function ReviewReports({ auth }) {
               </div>
               <Button variant="ghost" onClick={closeDetail}><X size={16} /> Tutup</Button>
             </div>
-            <ReportDetailContent detail={detail} />
+            <ReportDetailContent detail={detail} classificationValidation={
+              canReviewReports && reviewMeta?.classificationValidation && ['Dihantar', 'Diluluskan'].includes(detail.report.status_laporan)
+                ? <ReportClassificationValidation key={`validation-${detail.report.id_laporan}`} detail={detail}
+                    categories={reviewMeta.categories || []} trainingEnabled={reviewMeta.automaticLearning?.enabled}
+                    onSaved={confirmedCategory => {
+                      const id = detail.report.id_laporan;
+                      setDetail(current => current?.report.id_laporan === id ? { ...current, confirmedCategory } : current);
+                    }} />
+                : null
+            } />
             {canReviewReports && detail.report.status_laporan === 'Dihantar' && <section className="workspace-review-decision" aria-label="Keputusan semakan">
               <h3>Keputusan Ketua Pengawal</h3>
-              {reviewMeta?.automaticLearning?.ready&&<><Field label="Kategori disahkan (pilihan)"><Select value={confirmedCategories[detail.report.id_laporan]||''} onChange={event=>setConfirmedCategories(current=>({...current,[detail.report.id_laporan]:event.target.value}))}><option value="">Belum disahkan — jangan gunakan untuk latihan</option>{(reviewMeta?.categories||[]).map(category=><option key={category.id_kategori_insiden} value={category.nama_kategori}>{category.nama_kategori}</option>)}</Select></Field>
-              <p className="workspace-note mt-2 mb-4">Pilih kategori berdasarkan laporan asal jika anda pasti. {reviewMeta.automaticLearning.enabled?'Kategori yang disahkan bersama kelulusan membantu sistem belajar secara automatik.':'Kategori disahkan disimpan bersama semakan laporan.'} Rekod demo dikecualikan.</p></>}
               <Field label="Catatan semakan"><Input value={comments[detail.report.id_laporan] || ''} onChange={e => setComments({ ...comments, [detail.report.id_laporan]: e.target.value })} /></Field>
               <fieldset className="mt-4"><legend className="text-sm font-medium">Adakah tindakan susulan diperlukan?</legend>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">{[[false, 'Tidak perlu tindakan susulan'], [true, 'Perlu tindakan susulan']].map(([value, label]) => <label key={String(value)} className="flex min-h-11 cursor-pointer items-center gap-3 text-sm"><input type="radio" name="follow-up-decision" checked={followUpFlags[detail.report.id_laporan] === value} onChange={() => setFollowUpFlags({ ...followUpFlags, [detail.report.id_laporan]: value })} />{label}</label>)}</div>

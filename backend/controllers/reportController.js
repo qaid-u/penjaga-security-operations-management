@@ -7,6 +7,7 @@ const { processNLP } = require('../ml/nlpService');
 const { parseClarificationInput } = require('../ml/clarificationInput');
 const { reportFilters } = require('../utils/reportFilters');
 const { escapeCSV } = require('../utils/helpers');
+const learningService = require('../services/automaticLearning');
 
 const reportSelect = `
   select l.id_laporan,l.id_pengguna,l.id_pos,l.id_kategori_insiden,l.tajuk_laporan,l.syif,
@@ -42,8 +43,13 @@ const getReports = async (req, res) => {
     );
     const total = countResult.rows[0].total;
     if (isCsv && total > 10000) return res.status(400).json({ message: 'Eksport maksimum 10000 laporan. Sila kecilkan penapis.' });
+    const columns = isCsv
+      ? 'id_laporan, masa_laporan, tajuk_laporan, nama_penuh, nama_pos, syif, status_laporan, kategori_dikesan, tahap_risiko, kandungan_laporan'
+      : `id_laporan, id_pengguna, id_pos, masa_laporan, tajuk_laporan, nama_penuh, nama_pos, syif, status_laporan,
+         kategori_dikesan, tahap_risiko, lampiran_fail, ada_tindakan_susulan, perlu_tindakan_susulan, analysis_status,
+         nlp_review_status, jsonb_build_object('sourceChecks', jsonb_build_object('status', nlp_metadata#>>'{sourceChecks,status}')) as nlp_metadata`;
     const result = await client.query(
-      `${base} select *, to_char(tarikh_laporan, 'YYYY-MM-DD') as tarikh_laporan from report_rows${where}
+      `${base} select ${columns}, to_char(tarikh_laporan, 'YYYY-MM-DD') as tarikh_laporan from report_rows${where}
        order by report_rows.tarikh_laporan desc, masa_laporan desc, id_laporan desc
        limit $${params.length + 1} offset $${params.length + 2}`,
       [...params, isCsv ? 10000 : limit, isCsv ? 0 : offset]
@@ -98,7 +104,7 @@ const getReport = async (req, res) => {
       await client.query('select * from tbl_tindakan_susulan where id_laporan = $1 order by id_tindakan', [req.params.id]),
     ];
     const analysis = report.id_nlp ? (await client.query('select * from tbl_hasil_nlp where id_nlp=$1',[report.id_nlp])).rows[0] : null;
-    const confirmedCategory=await require('../services/automaticLearning').confirmedCategory(client,report.id_laporan);
+    const confirmedCategory = await learningService.confirmedCategory(client, report);
     res.json({ report, reviews: reviews.rows, checklist: checklist.rows, actions: actions.rows, analysis, analysisJob:report.analysis_job,confirmedCategory });
   } catch (error) {
     console.error('Get report detail error:', error.code || error.name);
@@ -190,6 +196,43 @@ const createReport = async (req, res) => {
   }
 };
 
+const validateClassification = async (req, res) => {
+  const { category, allowTraining = false } = req.body || {};
+  if (!/^[1-9]\d*$/.test(req.params.id) || Number(req.params.id) > 2147483647 ||
+      typeof category !== 'string' || !category.trim() || category.length > 100 ||
+      typeof allowTraining !== 'boolean') {
+    return res.status(400).json({ message: 'Kategori atau pilihan latihan tidak sah.' });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const { rows: [report] } = await client.query(
+      'select * from tbl_laporan_harian where id_laporan=$1 for update', [req.params.id]
+    );
+    if (!report) {
+      await client.query('rollback');
+      return res.status(404).json({ message: 'Laporan tidak ditemui.' });
+    }
+    if (!['Dihantar', 'Diluluskan'].includes(report.status_laporan)) {
+      await client.query('rollback');
+      return res.status(409).json({ message: 'Kategori hanya boleh disahkan untuk laporan dihantar atau diluluskan.' });
+    }
+    const learning = await learningService.captureLabel(client, report, category.trim(), req.user.id_pengguna, { trainingAllowed: allowTraining });
+    const confirmedCategory = await learningService.confirmedCategory(client, report);
+    await logAudit(client, req.user.id_pengguna, 'VALIDATE_CLASSIFICATION', `Laporan #${report.id_laporan}`,
+      `Kategori disahkan: ${confirmedCategory.category}`);
+    await client.query('commit');
+    if (learning.eligible && report.status_laporan === 'Diluluskan') learningService.wakeAutoTrainer(pool);
+    res.json({ confirmedCategory, learning });
+  } catch (error) {
+    await client.query('rollback');
+    if (!error.status) console.error('Classification validation error:', error.code || error.name);
+    res.status(error.status || 500).json({ message: error.status ? error.message : 'Kategori gagal disahkan.' });
+  } finally {
+    client.release();
+  }
+};
+
 const reviewReport = async (req, res) => {
   const { id } = req.params;
   const { status, comment = '', requiresFollowUp = false, confirmedCategory } = req.body;
@@ -253,10 +296,10 @@ const reviewReport = async (req, res) => {
         [id, `Laporan #${id} diluluskan dan memerlukan tindakan susulan.`]
       );
     }
-    const learning=confirmedCategory?await require('../services/automaticLearning').captureLabel(client,report,confirmedCategory,req.user.id_pengguna):null;
+    const learning = confirmedCategory ? await learningService.captureLabel(client, report, confirmedCategory, req.user.id_pengguna) : null;
     await logAudit(client, req.user.id_pengguna, 'REVIEW_REPORT', `Laporan #${id}`, `Status: ${normalizedStatus}`);
     await client.query('commit');
-    if(learning?.eligible)require('../services/automaticLearning').wakeAutoTrainer(pool);
+    if (normalizedStatus === 'Diluluskan') learningService.wakeAutoTrainer(pool);
     res.json({ message: `Laporan ${normalizedStatus}`,learning });
   } catch (error) {
     if (client) await client.query('rollback');
@@ -267,4 +310,4 @@ const reviewReport = async (req, res) => {
   }
 };
 
-module.exports = require('../utils/asyncHandlers')({ getReports, getReport, createReport, reviewReport });
+module.exports = require('../utils/asyncHandlers')({ getReports, getReport, createReport, reviewReport, validateClassification });

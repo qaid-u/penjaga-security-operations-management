@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const privatePaths = /(?:^|\/)(?:\.env(?:\.[^/]+)?|\.git|\.github|\.npmrc|\.vercel|\.openai|[^/]+\.(?:local|log|dump|backup|pem|key|crt)|backend|artifacts|docs|test-results|playwright-report)(?:\/|$)/i
+
 function denyPrivatePaths() {
   return {
     name: 'deny-private-paths',
@@ -9,7 +11,7 @@ function denyPrivatePaths() {
         let pathname;
         try { pathname = decodeURIComponent((req.url || '/').split('?')[0]).replaceAll('\\', '/'); }
         catch { res.statusCode = 400; res.end('Invalid URL'); return; }
-        if (/^\/+((backend|artifacts|\.phase\d+-(?:runtime|build)\.local)(\/|$)|\.env([./]|$)|docs\/psm-evaluation\/data(\/|$))/i.test(pathname)) {
+        if (privatePaths.test(pathname)) {
           res.statusCode = 403;
           res.setHeader('Content-Type', 'text/plain; charset=utf-8');
           res.end('Access denied');
@@ -25,7 +27,7 @@ function denyPrivatePaths() {
 export default defineConfig({
   plugins: [denyPrivatePaths(), react()],
   server: {
-    fs: { deny: ['**/.env', '**/.env.*', '**/.git/**', '**/backend/**', '**/.phase*-runtime.local/**', '**/.phase*-build.local/**', '**/docs/psm-evaluation/data/**', '**/artifacts/**'] },
-    watch: { ignored: ['**/backend/**', '**/.phase*-runtime.local/**', '**/.phase*-build.local/**', '**/artifacts/**', '**/docs/**'] },
+    fs: { deny: ['**/.env*', '**/.npmrc', '**/*.{crt,pem,key,dump,backup,local,log}', '**/.git/**', '**/.github/**', '**/.vercel/**', '**/.openai/**', '**/*.local/**', '**/backend/**', '**/docs/**', '**/artifacts/**', '**/test-results/**', '**/playwright-report/**'] },
+    watch: { ignored: ['**/backend/**', '**/.*.local/**', '**/artifacts/**', '**/docs/**', '**/test-results/**', '**/playwright-report/**'] },
   },
 })

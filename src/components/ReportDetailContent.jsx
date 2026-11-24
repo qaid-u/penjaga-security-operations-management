@@ -3,7 +3,7 @@ import { ReportLifecycle } from './ReportLifecycle';
 import { statusTone } from '../utils/helpers';
 import { ClassificationSummary } from './ClassificationSummary';
 
-export function ReportDetailContent({ detail }) {
+export function ReportDetailContent({ detail, classificationValidation }) {
   if (!detail) return null;
 
   const renderHighlightedContent = (text, keywords = []) => {
@@ -36,7 +36,10 @@ export function ReportDetailContent({ detail }) {
       </div>
 
       <ClassificationSummary key={detail.report.id_laporan} report={detail.report} analysis={detail.analysis} job={detail.analysisJob}/>
-      {detail.confirmedCategory?.category&&<p className="workspace-note">Kategori disahkan Ketua Pengawal: <strong>{detail.confirmedCategory.category}</strong></p>}
+      {detail.confirmedCategory?.category && <p className="workspace-note">
+        Kategori disahkan Ketua Pengawal: <strong>{detail.confirmedCategory.category}</strong>
+        {detail.confirmedCategory.reviewer && <> · {detail.confirmedCategory.reviewer}</>}
+      </p>}
 
       <div className="grid gap-3 md:grid-cols-2">
         <div className="document-field"><span>Pengawal</span><strong>{detail.report.nama_penuh || '-'}</strong></div>
@@ -53,6 +56,7 @@ export function ReportDetailContent({ detail }) {
         <AttachmentLinks value={detail.report.lampiran_fail} label="Buka lampiran bukti" />
       </section>
 
+      {classificationValidation}
       <EvidencePreview value={detail.report.lampiran_fail} />
 
       <ReportLifecycle report={detail.report} actions={detail.actions} />

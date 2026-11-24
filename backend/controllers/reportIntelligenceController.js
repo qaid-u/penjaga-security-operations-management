@@ -4,14 +4,12 @@ const {processNLP}=require('../ml/nlpService');
 const {tokenize}=require('../ml/textModel');
 const {enqueue,wakeWorker,schemaReady}=require('../services/nlpJobs');
 const {logAudit}=require('../utils/audit');
-const bursts=new Map();
+const {createRateLimiter}=require('../middleware/rateLimit');
+const userKey = req => req.user.id_pengguna;
+const draftBudget = createRateLimiter({ max: 40, windowMs: 60_000, key: userKey });
+const analysisBudget = createRateLimiter({ max: 6, windowMs: 3_600_000, key: userKey });
+const similarityBudget = createRateLimiter({ max: 30, windowMs: 60_000, key: userKey });
 function id(value){if(!/^[1-9]\d*$/.test(String(value))||Number(value)>2147483647)throw Object.assign(new Error('ID tidak sah'),{status:400});return Number(value);}
-function limit(req,key,max,windowMs){
-  const now=Date.now();const name=`${key}:${req.user.id_pengguna}`;let entry=bursts.get(name);
-  if(!entry||entry.until<=now){entry={count:0,until:now+windowMs};bursts.set(name,entry);}
-  if(bursts.size>5000)for(const [k,v]of bursts)if(v.until<=now)bursts.delete(k);
-  if(++entry.count>max)throw Object.assign(new Error('Terlalu banyak permintaan. Cuba sebentar lagi.'),{status:429});
-}
 async function ownedReport(req,db=pool){
   const result=await db.query('select * from tbl_laporan_harian where id_laporan=$1',[id(req.params.id)]);
   if(!result.rowCount)throw Object.assign(new Error('Laporan tidak ditemui'),{status:404});
@@ -21,7 +19,6 @@ async function ownedReport(req,db=pool){
 }
 const handle=fn=>async(req,res)=>{try{await fn(req,res);}catch(error){if(!error.status)console.error('Report intelligence error:',error.code||error.name);res.status(error.status||503).json({message:error.status?error.message:'Maklumat analisis belum tersedia. Semak sambungan dan migrasi NLP.'});}};
 const assist=handle(async(req,res)=>{
-  limit(req,'assist',40,60000);
   if(typeof req.body.text!=='string'||req.body.text.trim().length<5||req.body.text.length>20000)throw Object.assign(new Error('Tulis antara 5 dan 20000 aksara untuk menyemak draf'),{status:400});
   const selectedPostId=req.body.id_pos===undefined?undefined:id(req.body.id_pos);
   if(selectedPostId&&!((await pool.query("select 1 from tbl_pos_kawalan where id_pos=$1 and status_pos='Aktif'",[selectedPostId])).rowCount))throw Object.assign(new Error('Pos tidak tersedia'),{status:400});
@@ -35,7 +32,6 @@ const analysis=handle(async(req,res)=>{
   res.set('Cache-Control','no-store').json({analysis:result.rows[0]||null,job:job.rows[0]||null});
 });
 const reanalyse=handle(async(req,res)=>{
-  limit(req,'reanalyse',6,3600000);
   const client=await pool.connect();let job;
   try{
     await client.query('begin');const report=await ownedReport(req,client);
@@ -80,7 +76,7 @@ const similar=handle(async(req,res)=>{
   res.set('Cache-Control','no-store').json({items:rank(`${report.tajuk_laporan} ${report.kandungan_laporan}`,rows),method:'tfidf',candidateLimit:500,notice:'Padanan teks berkaitan; bukan pengesahan kejadian berulang atau carian semantik.'});
 });
 const search=handle(async(req,res)=>{
-  limit(req,'search',30,60000);const q=req.query.q;
+  const q=req.query.q;
   if(typeof q!=='string'||q.trim().length<2||q.length>500)throw Object.assign(new Error('Carian mesti antara 2 dan 500 aksara'),{status:400});
   res.set('Cache-Control','no-store').json({items:rank(q,await candidates(req)),method:'tfidf',candidateLimit:500});
 });
@@ -101,4 +97,4 @@ const status=handle(async(_req,res)=>{
   const model=await require('../services/automaticLearning').activeModel(pool,require('../ml/nlpService').loadModel());
   res.set('Cache-Control','no-store').json({ready,provider:cfg.provider,model:cfg.model,configured:cfg.configured,enabled:cfg.enabled,promptVersion:cfg.promptVersion,localModel:{type:model?.modelType||null,version:model?.version||null},queue:counts});
 });
-module.exports={assist,analysis,reanalyse,feedback,similar,search,briefing,status,rank,ownedReport};
+module.exports={assist,analysis,reanalyse,feedback,similar,search,briefing,status,rank,ownedReport,draftBudget,analysisBudget,similarityBudget};

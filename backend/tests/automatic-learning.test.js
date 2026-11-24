@@ -47,11 +47,38 @@ test('automatic learning collects explicit chief labels and safely versions priv
       const ordinary=await create('A field observation awaiting a clear category.');assert.equal((await approve(ordinary)).status,200);
       assert.equal((await pool.query('select count(*)::int n from tbl_model_labels')).rows[0].n,0);
       const demo=await create('Smoke observed near equipment.','[DEMO] Test');const result=await approve(demo,'Kebakaran');assert.equal(result.status,200);assert.equal(result.data.learning.eligible,false);
+      assert.equal((await request(`/reports/${demo.id_laporan}`)).data.confirmedCategory.training_allowed, false);
       const unusable=await create('catatan syif laporan');const brief=await approve(unusable,'Kebakaran');assert.equal(brief.status,200);assert.equal(brief.data.learning.reason,'insufficient_text');
       const invalid=await create('A second report for role checks.');assert.equal((await approve(invalid,'Kebakaran',1)).status,403);assert.equal((await approve(invalid,'Kebakaran',3)).status,403);
       assert.equal((await approve(invalid,'Not a category')).status,400);
       assert.equal((await request(`/reports/${invalid.id_laporan}`,2)).data.report.status_laporan,'Dihantar');
       assert.equal((await learning.runTraining(pool)).status,'waiting');
+    });
+    await t.test('chief can validate independently and validation alone never becomes training data', async () => {
+      const report = await create('Peralatan di pondok pemeriksaan tidak berfungsi dan penyelenggara dihubungi.');
+      const url = `/reports/${report.id_laporan}/classification`;
+      const body = { category: 'Kerosakan Kemudahan' };
+      assert.equal((await request(url, 1, 'PATCH', body)).status, 403);
+      assert.equal((await request(url, 3, 'PATCH', body)).status, 403);
+      const result = await request(url, 2, 'PATCH', body);
+      assert.equal(result.status, 200);
+      assert.equal(result.data.confirmedCategory.category, body.category);
+      assert.equal(result.data.confirmedCategory.reviewer, 'learning_2');
+      assert.equal(result.data.confirmedCategory.training_allowed, false);
+      const detail = await request(`/reports/${report.id_laporan}`);
+      assert.equal(detail.data.report.status_laporan, 'Dihantar');
+      assert.equal(detail.data.reviews.length, 0);
+      assert.equal((await approve(report)).status, 200);
+      assert.equal((await learning.eligibleLabels(pool)).length, 0);
+      const updated = await request(url, 2, 'PATCH', { category: 'Kebakaran' });
+      assert.equal(updated.status, 200);
+      assert.equal(updated.data.confirmedCategory.category, 'Kebakaran');
+
+      const optedIn = await request(url, 2, 'PATCH', { ...body, allowTraining: true });
+      assert.equal(optedIn.data.confirmedCategory.training_allowed, true);
+      assert.equal((await learning.eligibleLabels(pool)).length, 1);
+      await request(url, 2, 'PATCH', body);
+      assert.equal((await learning.eligibleLabels(pool)).length, 0);
     });
     await t.test('confirmed labels are private, immutable-source and family-separated',async()=>{
       const library=require('../ml/data/classification-scenarios.json');const extra=require('../ml/data/classification-expansion.json');

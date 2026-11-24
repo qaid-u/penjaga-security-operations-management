@@ -7,10 +7,40 @@ const codes=['category','negation','event_status','urgency','unsupported_fact','
 const schema={type:'object',properties:{status:{type:'string',enum:statuses},reason:{type:'string'},proposedCategory:{type:['string','null']},findings:{type:'array',maxItems:6,items:{type:'object',properties:{code:{type:'string',enum:codes},message:{type:'string'},quote:{type:'string'}},required:['code','message','quote'],additionalProperties:false}}},required:['status','reason','proposedCategory','findings'],additionalProperties:false};
 function configuration(env=process.env){
   const model=env.GEMINI_REVIEW_MODEL||DEFAULT_MODEL;
-  const enabled=env.NLP_AI_REVIEW_ENABLED!=='false';
+  const enabled=env.NLP_AI_REVIEW_ENABLED==='true';
   return {provider:'gemini',model,configured:enabled&&Boolean(env.GEMINI_API_KEY?.trim()),enabled,timeout:Math.min(60000,Math.max(1000,Number(env.NLP_REVIEW_TIMEOUT_MS)||20000)),promptVersion:VERSION};
 }
 function unavailable(code,config){return {status:'unavailable',provider:'gemini',model:config.model,promptVersion:VERSION,findings:[],reason:code,reviewedAt:new Date().toISOString()};}
+
+async function readProviderBody(response) {
+  const limit = 65_536;
+  if (Number(response.headers?.get('content-length')) > limit) {
+    await response.body?.cancel();
+    throw new Error('RESPONSE_TOO_LARGE');
+  }
+  const reader = response.body?.getReader();
+  if (!reader) {
+    const text = await response.text();
+    if (Buffer.byteLength(text) > limit) throw new Error('RESPONSE_TOO_LARGE');
+    return text;
+  }
+  try {
+    const chunks = [];
+    let bytes = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return Buffer.concat(chunks, bytes).toString('utf8');
+      bytes += value.byteLength;
+      if (bytes > limit) {
+        await reader.cancel();
+        throw new Error('RESPONSE_TOO_LARGE');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
 function validateReview(value,text,categories){
   if(!value||typeof value!=='object'||Array.isArray(value)||!statuses.includes(value.status)||typeof value.reason!=='string'||value.reason.length>1200||!Array.isArray(value.findings)||value.findings.length>6)throw new Error('INVALID_REVIEW');
   if(Object.keys(value).some(key=>!['status','reason','proposedCategory','findings'].includes(key)))throw new Error('INVALID_REVIEW');
@@ -49,12 +79,12 @@ async function reviewAnalysis({text,analysis,categories,locations=[]},{env=proce
   const payload={originalReport:text,analysis:{category:analysis.topCategory,eventStatus:analysis.eventStatus,riskLevel:analysis.riskLevel,riskScore:analysis.riskScore,title:analysis.title,summary:analysis.summary,extraction:analysis.extraction,events:eventReview,eventReviewLimited:Boolean(analysis.eventsTruncated||(analysis.events||[]).length>24),clarificationAnswers:(analysis.dialogue?.answers||[]).slice(0,100)},allowedCategories:categories.map(c=>({name:c.name||c.nama_kategori,priority:c.priority||c.tahap_keutamaan})),approvedLocations:locations.map(l=>({id:l.id_lokasi,name:l.nama_paparan}))};
   try{
     const response=await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent`,{
-      method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},
+      method:'POST',redirect:'error',signal:controller.signal,headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},
       body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:JSON.stringify(payload)}]}],generationConfig:{temperature:0.1,maxOutputTokens:2048,responseMimeType:'application/json',responseJsonSchema:schema}})
     });
     if(!response.ok)return unavailable(response.status===429?'RATE_LIMITED':response.status===401||response.status===403?'AUTHENTICATION_FAILED':response.status===404?'MODEL_UNAVAILABLE':'PROVIDER_ERROR',config);
     // Keep a strict response bound and never log provider bodies (which can echo secrets/data).
-    const raw=await response.text();if(raw.length>65536)return unavailable('RESPONSE_TOO_LARGE',config);
+    const raw=await readProviderBody(response);
     const data=JSON.parse(raw);const candidate=data.candidates?.[0];
     if(candidate?.finishReason&&candidate.finishReason!=='STOP')return unavailable('INCOMPLETE_RESPONSE',config);
     const output=candidate?.content?.parts?.filter(p=>p.text&&!p.thought).map(p=>p.text).join('');
@@ -62,7 +92,7 @@ async function reviewAnalysis({text,analysis,categories,locations=[]},{env=proce
     const checked=validateReview(JSON.parse(output),text,categories);
     if(checked.status==='unable_to_assess')return {...unavailable('INSUFFICIENT_CONTEXT',config),explanation:checked.reason};
     return {...checked,provider:'gemini',model:config.model,promptVersion:VERSION,reviewedAt:new Date().toISOString()};
-  }catch(error){return unavailable(error.name==='AbortError'?'TIMEOUT':['INVALID_REVIEW','INVALID_CATEGORY','UNSUPPORTED_EVIDENCE','INCONSISTENT_REVIEW','MISSING_EVIDENCE'].includes(error.message)?error.message:'INVALID_RESPONSE',config);}
+  }catch(error){return unavailable(error.name==='AbortError'?'TIMEOUT':['INVALID_REVIEW','INVALID_CATEGORY','UNSUPPORTED_EVIDENCE','INCONSISTENT_REVIEW','MISSING_EVIDENCE','RESPONSE_TOO_LARGE'].includes(error.message)?error.message:'INVALID_RESPONSE',config);}
   finally{clearTimeout(timeout);}
 }
 module.exports={reviewAnalysis,validateReview,configuration,DEFAULT_MODEL,VERSION};

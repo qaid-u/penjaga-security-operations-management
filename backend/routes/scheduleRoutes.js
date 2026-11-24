@@ -9,6 +9,7 @@ const {
   checkConflict,
   copyWeek,
   saveAssignment,
+  saveDailyAssignments,
   deleteAssignment,
   importSchedules,
   uploadSchedulePdf,
@@ -32,6 +33,7 @@ router.get('/keperluan-pos', auth, requireRole(roles.admin, roles.chief), getPos
 router.post('/keperluan-pos', auth, requireRole(roles.admin, roles.chief), addPosReq);
 router.post('/check-conflict', auth, requireRole(roles.admin, roles.chief), checkConflict);
 router.post('/mingguan/:id/assignments', auth, requireRole(roles.admin, roles.chief), saveAssignment);
+router.post('/mingguan/:id/daily-assignments', auth, requireRole(roles.admin, roles.chief), saveDailyAssignments);
 router.put('/assignments/:id', auth, requireRole(roles.admin, roles.chief), saveAssignment);
 router.delete('/assignments/:id', auth, requireRole(roles.admin, roles.chief), deleteAssignment);
 router.post('/mingguan/:id/import-csv', auth, requireRole(roles.admin), scheduleUpload.single('jadual_fail'), validateScheduleUpload, importSchedules);
