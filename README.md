@@ -58,7 +58,7 @@ You can also use `DATABASE_URL=postgres://user:password@localhost:5432/penjaga_d
 
 ## Run Backend
 
-To start or reuse both local services with database/model readiness checks, run `npm run dev:system` from the repository root. Open `http://127.0.0.1:5173/login`. This requires configured PostgreSQL credentials and an initialized schema. It does not seed incidents, reset accounts or apply migrations automatically. See [working report flow](docs/testing/OPERATIONAL_FLOW.md).
+To start or reuse both local services with database/model readiness checks, run `npm run dev:system` from the repository root. Open `http://localhost:5173/login` (Vite listens on `localhost`, which may resolve to IPv6 `::1`, so `127.0.0.1:5173` can fail). This requires configured PostgreSQL credentials and an initialized schema. It does not seed incidents, reset accounts or apply migrations automatically. See [working report flow](docs/testing/OPERATIONAL_FLOW.md).
 
 ```bash
 cd backend
@@ -93,7 +93,7 @@ npm run dev
 Open:
 
 ```bash
-http://localhost:5173
+http://localhost:5173/login
 ```
 
 ## Quality Checks
@@ -134,20 +134,25 @@ Password123!
 | Pengawal Keselamatan | siti | siti@penjaga.local |
 | Pengawal Keselamatan | kumar | kumar@penjaga.local |
 
+Usernames are matched case-insensitively and surrounding spaces are ignored, so `Amir` and ` amir ` both sign in as `amir`. Sign in with the username, not the full display name. Accounts with status `Tidak Aktif` are blocked until an administrator reactivates them. Logging out asks for confirmation first.
+
 ## Main Screens
 
-- Login
-- Dashboard Analitik
-- Dashboard Pengawal
-- Laporan Harian, mobile-friendly
-- Semakan Laporan
-- Tindakan Susulan
-- Audit Trail
-- User Management
-- Pos Kawalan Management
-- Notification Page
-- Latihan NLP
-- Import Jadual CSV/PDF
+| Screen | Path | Roles |
+| --- | --- | --- |
+| Log masuk | `/login` | Public |
+| Ringkasan (dashboard) | `/dashboard` | Pentadbir Sistem, Ketua Pengawal |
+| Ringkasan pengawal | `/pengawal` | Pengawal Keselamatan |
+| Jadual bertugas (incl. CSV import, attendance) | `/jadual` | All roles |
+| Laporan harian, mobile-friendly | `/laporan` | Pengawal Keselamatan |
+| Semakan / pemantauan laporan (incl. NLP results) | `/semakan` | Pentadbir Sistem, Ketua Pengawal |
+| Tindakan susulan | `/tindakan` | Pentadbir Sistem, Ketua Pengawal |
+| Pusat Kawalan 3D | `/3d-command-centre` | Pentadbir Sistem, Ketua Pengawal |
+| Pengguna | `/pengguna` | Pentadbir Sistem |
+| Pos kawalan | `/pos` | Pentadbir Sistem |
+| Rekod aktiviti (audit trail) | `/audit` | Pentadbir Sistem |
+| Notifikasi | `/notifikasi` | All roles |
+| Tukar kata laluan | `/kata-laluan` | All roles |
 
 ## Operational Reference
 
@@ -186,7 +191,7 @@ When a Pengawal Keselamatan submits a daily report, the backend:
 9. Saves the result into `tbl_hasil_nlp`
 10. Creates a notification for Ketua Pengawal when the risk is High or Critical
 
-Pentadbir Sistem can tune the active NLP keywords and risk level in the Latihan NLP screen. New reports use the latest saved keyword rules.
+Active NLP keywords and risk levels are stored in `tbl_kategori_insiden`; new reports use the latest saved keyword rules. There is no separate NLP management screen — NLP results are shown in report review.
 
 ## Train NLP Model
 
@@ -269,7 +274,7 @@ Base URL: `http://localhost:3000/api`
 - As `ketua`, approve a High/Critical report and confirm NLP details are hidden.
 - As `ketua`, submit a follow-up progress note without changing official status.
 - As `admin`, view Ketua progress notes and update official follow-up action status.
-- As `admin`, open Analisis NLP and confirm full NLP details are visible.
+- As `admin`, open Pemantauan laporan and confirm full NLP details are visible.
 - As `admin`, create a user and disable or enable an account.
 - As `admin`, create a new pos kawalan.
 - As `admin`, open Audit Trail and confirm important actions are logged.
@@ -286,6 +291,8 @@ Base URL: `http://localhost:3000/api`
 - `/notifikasi`
 
 ## Deployment
+
+A sign-in-disabled frontend preview is hosted on Vercel at <https://penjaga-security-preview.vercel.app>. It is built with `VITE_PREVIEW_ONLY=true` and has no backend; a working Vercel deployment needs a hosted HTTPS API set in `VITE_API_URL` (see `DEPLOYMENT.md`).
 
 See `DEPLOYMENT.md` for production environment variables, build/start steps, readiness checks, smoke testing, backups, and release checklist.
 
