@@ -1,3 +1,9 @@
+const { types } = require('pg');
+
+// A DATE has no time or zone. pg's default turns it into local midnight, which JSON
+// then writes in UTC: the previous day anywhere east of UTC. Keep it as YYYY-MM-DD.
+types.setTypeParser(types.builtins.DATE, value => value);
+
 function dbOptions(env = process.env) {
   const options = {
     connectionTimeoutMillis:5000,
