@@ -1,4 +1,5 @@
 /* Clear hierarchy for the operational workspace; login retains its own styling. */
+.workspace-shell { font-family:Manrope,'Segoe UI',sans-serif; }
 .workspace-shell { --color-bg-content:#f5f7f9; --color-border-focus:#2563a6; display:flex; min-height:100vh; background:#f5f7f9; }
 .workspace-sidebar { width:246px; flex-shrink:0; position:sticky; top:0; height:100dvh; display:flex; flex-direction:column; background:#fff; border-right:1px solid #e4e9ef; z-index:45; }
 .workspace-brand { display:flex; align-items:center; gap:12px; padding:27px 23px; color:#183c59; }
@@ -232,3 +233,13 @@
 
 .ops-export-range { display:flex; align-items:center; gap:9px; padding:12px; border-radius:9px; color:#246879; background:#edf6f8; font-size:13px; }
 .workspace-skip:focus:not(:focus-visible) { top:-80px; }
+
+/* Phones and tablets: iOS Safari zooms into any field under 16px, and small controls are easy to miss. */
+@media (max-width:767px), (pointer:coarse) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea { font-size:16px !important; }
+  .workspace-text-link { display:inline-flex; align-items:center; min-height:44px; }
+  .workspace-shell .insights-dashboard .ds-trend-switch button { min-height:44px; padding-inline:14px; }
+  .workspace-shell .schedule-page .ops-coverage-disclosure > summary, .workspace-shell .nlp-disclosure > summary { min-height:44px; align-content:center; }
+  /* Placeholder text does not trigger zoom, so keep it small enough not to be cut off. */
+  .workspace-shell .schedule-find .app-input::placeholder { font-size:13px; }
+}

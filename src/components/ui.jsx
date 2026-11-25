@@ -17,7 +17,7 @@ export function Card({ title, children, action, className = '' }) {
   return (
     <section className={`app-surface rounded-2xl border p-5 ${className}`}>
       {(title || action) && (
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className={title ? 'gov-card-title text-[var(--color-brand-navy)]' : ''}>{title}</h2>
           {action}
         </div>
@@ -54,7 +54,7 @@ export function Button({ children, variant = 'primary', ...props }) {
     ghost: 'app-button-ghost border',
     danger: 'app-button-danger',
   };
-  return <button {...props} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60 ${variants[variant]} ${props.className || ''}`}>{children}</button>;
+  return <button {...props} className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60 ${variants[variant]} ${props.className || ''}`}>{children}</button>;
 }
 
 export function ChecklistChoice({ active, children, onClick }) {
@@ -159,7 +159,7 @@ export function PasswordInput({ value, onChange, required = false }) {
   return (
     <div className="relative">
       <Input type={visible ? 'text' : 'password'} value={value} onChange={onChange} required={required} className="pr-12" />
-      <button type="button" className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md app-nav" onClick={() => setVisible((state) => !state)} aria-label={visible ? 'Sembunyikan kata laluan' : 'Tunjuk kata laluan'}>
+      <button type="button" className="absolute right-0.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-md app-nav" onClick={() => setVisible((state) => !state)} aria-label={visible ? 'Sembunyikan kata laluan' : 'Tunjuk kata laluan'}>
         {visible ? <EyeOff size={16} /> : <Eye size={16} />}
       </button>
     </div>

@@ -42,7 +42,7 @@ export function UsersPage({ auth }) {
   const filteredUsers = users.filter((user) => !query || [user.nama_penuh, user.nama_pengguna, user.emel, user.nama_peranan].some((value) => String(value || '').toLowerCase().includes(query)));
   
   return (
-    <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[0.8fr_1.2fr]">
       <Card title="Tambah Pengguna">
         <form onSubmit={create} className="space-y-3">
           <Field label="Peranan">
@@ -61,12 +61,12 @@ export function UsersPage({ auth }) {
         </form>
       </Card>
       
-      <Card title="Senarai Pengguna" action={<Input placeholder="Cari nama / username" value={search} onChange={(e) => setSearch(e.target.value)} className="min-w-64" />}>
+      <Card title="Senarai Pengguna" action={<Input placeholder="Cari nama / username" value={search} onChange={(e) => setSearch(e.target.value)} className="sm:min-w-64" />}>
         {filteredUsers.length ? filteredUsers.map((u) => { 
           const isSelf = Number(u.id_pengguna) === Number(auth.user?.id_pengguna); 
           return (
             <div key={u.id_pengguna} className="app-row mb-2 grid gap-2 rounded-md border p-3 text-sm md:grid-cols-[1fr_220px_auto]">
-              <span>
+              <span className="min-w-0 break-words">
                 <span className="font-medium text-primary-token">{u.nama_penuh}</span>
                 {isSelf && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Akaun saya</span>}<br />
                 {u.nama_pengguna} - {u.emel}

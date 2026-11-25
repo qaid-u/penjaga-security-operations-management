@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Component, Suspense, useEffect, useRef, useState } from 'react';
 import { NavLink, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, CalendarDays, FileText, FileCheck, ClipboardCheck, History, Users, MapPin, Bell, KeyRound, Shield, X, Menu, LogOut, Box } from 'lucide-react';
 import { NotificationCount } from '../components/NotificationCount';
@@ -7,6 +7,17 @@ import { ROLE } from '../utils/helpers';
 import { Button, Card } from '../components/ui';
 import '../components/building/model-showcase.css';
 import '../components/workspace.css';
+
+// A page chunk can fail to download on a weak connection or after a new deployment.
+class PageBoundary extends Component {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    return this.state.failed
+      ? <Card title="Halaman tidak dapat dipaparkan"><p role="alert">Semak sambungan internet, kemudian muat semula.</p><Button className="mt-4" onClick={() => window.location.reload()}>Muat semula</Button></Card>
+      : this.props.children;
+  }
+}
 
 export function Shell({ auth, children }) {
   const unread = useUnreadNotifications();
@@ -77,7 +88,7 @@ export function Shell({ auth, children }) {
     </aside>
     <div className="workspace-body">
       <header className="workspace-topbar"><button className="workspace-menu-toggle" aria-label="Buka menu" aria-expanded={open} onClick={() => setOpen(true)}><Menu size={22} /></button><div className="workspace-breadcrumb"><span>PENJAGA</span><span aria-hidden="true">/</span><strong>{current?.label || 'Operasi'}</strong></div><div className="workspace-topbar-end"><span>{role}</span><NavLink to="/notifikasi" aria-label="Buka notifikasi" className="workspace-icon-button"><Bell size={19} /><NotificationCount count={unread.data?.unread} /></NavLink></div></header>
-      <main id="main-content" tabIndex={-1} className="workspace-main">{children}</main>
+      <main id="main-content" tabIndex={-1} className="workspace-main"><PageBoundary key={pathname}><Suspense fallback={<p role="status">Memuatkan halaman...</p>}>{children}</Suspense></PageBoundary></main>
       <footer className="workspace-footer">PENJAGA · Pengurusan operasi keselamatan</footer>
     </div>
     <nav aria-label="Navigasi mudah alih" className="workspace-mobile-nav">{mobileNav.map(item => { const Icon=item.icon; return <NavLink key={item.to} to={item.to} className={({isActive}) => isActive ? 'is-active' : ''}><Icon size={20} aria-hidden="true" /><span>{item.short}</span></NavLink>; })}<button onClick={() => setOpen(true)} aria-label="Buka menu penuh"><Menu size={20} /><span>Menu</span></button></nav>

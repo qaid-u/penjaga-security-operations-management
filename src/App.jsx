@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo } from 'react';
+import { lazy, useEffect, useMemo } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -8,19 +8,19 @@ import { ROLE } from './utils/helpers';
 import { Protected } from './layouts/Shell';
 
 import { Login } from './pages/Login';
-import { Dashboard } from './pages/Dashboard';
-import { GuardDashboard } from './pages/GuardDashboard';
-import { SchedulePage } from './pages/SchedulePage';
-import { DailyReport } from './pages/DailyReport';
-import { ReviewReports } from './pages/ReviewReports';
-import { FollowUp } from './pages/FollowUp';
 
-import { AuditTrail } from './pages/AuditTrail';
-import { UsersPage } from './pages/UsersPage';
-import { PostsPage } from './pages/PostsPage';
-import { NotificationsPage } from './pages/NotificationsPage';
-import { ChangePasswordPage } from './pages/ChangePasswordPage';
-
+// Each page is its own chunk so a phone only downloads the screens it opens.
+const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
+const GuardDashboard = lazy(() => import('./pages/GuardDashboard').then((m) => ({ default: m.GuardDashboard })));
+const SchedulePage = lazy(() => import('./pages/SchedulePage').then((m) => ({ default: m.SchedulePage })));
+const DailyReport = lazy(() => import('./pages/DailyReport').then((m) => ({ default: m.DailyReport })));
+const ReviewReports = lazy(() => import('./pages/ReviewReports').then((m) => ({ default: m.ReviewReports })));
+const FollowUp = lazy(() => import('./pages/FollowUp').then((m) => ({ default: m.FollowUp })));
+const AuditTrail = lazy(() => import('./pages/AuditTrail').then((m) => ({ default: m.AuditTrail })));
+const UsersPage = lazy(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })));
+const PostsPage = lazy(() => import('./pages/PostsPage').then((m) => ({ default: m.PostsPage })));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
+const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage').then((m) => ({ default: m.ChangePasswordPage })));
 const ThreeDCommandCentre = lazy(() => import('./pages/ThreeDCommandCentre'));
 
 function App() {
@@ -50,7 +50,7 @@ function App() {
         }}
       />
       <Routes>
-        <Route path="/3d-command-centre" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief]}><Suspense fallback={<p role="status">Memuatkan pusat kawalan 3D...</p>}><ThreeDCommandCentre /></Suspense></Protected>} />
+        <Route path="/3d-command-centre" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief]}><ThreeDCommandCentre /></Protected>} />
         <Route path="/login" element={auth.user ? <Navigate to={defaultPath} replace /> : <Login auth={auth} />} />
         <Route path="/dashboard" element={<Protected auth={auth} roles={[ROLE.admin, ROLE.chief]}><Dashboard auth={auth} /></Protected>} />
         <Route path="/pengawal" element={<Protected auth={auth} roles={[ROLE.guard]}><GuardDashboard /></Protected>} />

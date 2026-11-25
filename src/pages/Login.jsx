@@ -7,6 +7,8 @@ import './login.css';
 const LoginBuilding=lazy(()=>import('../components/LoginBuilding'));
 const base=import.meta.env.BASE_URL;
 const previewOnly = import.meta.env.VITE_PREVIEW_ONLY === 'true';
+// The 3D backdrop is decorative but costs several MB, so phones and data-saver users keep the still image.
+const wantsLoginModel=()=>window.matchMedia('(min-width: 768px) and (min-height: 501px)').matches&&!navigator.connection?.saveData;
 class LoginBackdropBoundary extends Component {
   state={failed:false};
   static getDerivedStateFromError(){return {failed:true};}
@@ -18,6 +20,7 @@ export function Login({ auth }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [visible,setVisible]=useState(false);
+  const [showModel]=useState(wantsLoginModel);
   const navigate = useNavigate();
 
   const submit = async (event) => {
@@ -35,7 +38,7 @@ export function Login({ auth }) {
 
   return (
     <main className="penjaga-login">
-      <div className="login-landscape" aria-hidden="true"><img className="login-building-preview" src={`${base}models/library/previews/djm.webp`} alt=""/><LoginBackdropBoundary><Suspense fallback={null}><LoginBuilding/></Suspense></LoginBackdropBoundary></div>
+      <div className="login-landscape" aria-hidden="true"><img className="login-building-preview" src={`${base}models/library/previews/djm.webp`} alt=""/>{showModel&&<LoginBackdropBoundary><Suspense fallback={null}><LoginBuilding/></Suspense></LoginBackdropBoundary>}</div>
       <header className="login-masthead"><div className="login-wordmark"><img src={`${base}favicon.svg`} width="48" height="48" alt=""/><div><strong>PENJAGA</strong><span>OPERASI KESELAMATAN</span></div></div><span className="login-edition">PORTAL PETUGAS</span></header>
       <div className="login-layout">
         <section className="login-story" aria-label="PENJAGA, pengurusan operasi keselamatan"><p className="login-kicker"><span/>KESELAMATAN BERMULA DENGAN KESIAPSIAGAAN</p><h2>Kenali kawasan.<br/><em>Kawal operasi.</em></h2><p className="login-story-copy">Jadual, laporan dan tindakan.<br/>Terhubung dalam satu ruang kerja.</p><div className="login-location"><MapPin size={16}/><div><strong>Bangunan Dato’ Jaafar Muhammad</strong><span>Kota Iskandar, Johor · Model eksterior 3D</span></div></div></section>
