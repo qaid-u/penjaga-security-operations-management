@@ -59,7 +59,7 @@ Without `011` the API still starts and works, but a token stays valid after sign
 - The API container runs as an unprivileged user. **New:** it drops all Linux capabilities and blocks privilege escalation.
 - Only Nginx publishes a port; PostgreSQL is not exposed by Docker Compose.
 - **New:** Nginx hides its version and sends HSTS, `Permissions-Policy` and `Cross-Origin-Opener-Policy`. Compose serves plain HTTP on port 80, and browsers ignore HSTS over HTTP: **put TLS in front of it before real use.**
-- CI runs `npm audit`. **New:** Dependabot proposes weekly dependency, container image and GitHub Action updates.
+- CI runs `npm audit`. Automatic Dependabot version updates are not configured, so review dependency, container image and GitHub Action updates by hand.
 - The Docker policy expects the API on the same origin (`/api`). If you host the API elsewhere, add its origin to `connect-src`, `img-src` and `media-src` in `nginx.conf`.
 
 ## 5. Security monitoring
