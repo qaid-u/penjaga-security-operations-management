@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const roles = require('../config/roles');
 const { accountBudget } = require('./rateLimit');
+const { isRevoked } = require('../utils/tokenRevocation');
+const { recordAccessDenied } = require('../utils/securityEvents');
 
 // Without a configured secret, use a random per-process secret instead of a publicly known
 // constant, so a deployment that forgets JWT_SECRET (or NODE_ENV=production) cannot be forged.
@@ -39,7 +41,9 @@ const auth = async (req, res, next) => {
     if (passwordChangedAt != null && !(Number(decoded.iat) >= Number(passwordChangedAt))) {
       return res.status(401).json({ message: 'Sesi tamat atau token tidak sah' });
     }
+    if (await isRevoked(pool, decoded.jti)) return res.status(401).json({ message: 'Sesi tamat atau token tidak sah' });
     req.user = user;
+    req.token = { jti: decoded.jti, exp: decoded.exp };
     accountBudget(req, res, next);
   } catch (error) {
     console.error('Authentication lookup error:', error.code || error.name);
@@ -51,6 +55,7 @@ const requireRole = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ message: 'Tidak dibenarkan' });
     if (!allowedRoles.includes(req.user.nama_peranan)) {
+      recordAccessDenied(req);
       return res.status(403).json({ message: 'Peranan tidak dibenarkan' });
     }
     next();

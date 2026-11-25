@@ -3,6 +3,7 @@ const path = require('path');
 const { createHash } = require('node:crypto');
 const pool = require('../config/db');
 const { logAudit } = require('../utils/audit');
+const { currentRequest } = require('../utils/requestContext');
 const { roles } = require('../middleware/auth');
 const { todaySql, eligibleSql, checkInSql } = require('../utils/attendance');
 
@@ -379,14 +380,14 @@ const notifyScheduleChange = (client, assignment, title, actor) => client.query(
 
 const logAssignmentChange = (client, assignment, actor, action, description) => client.query(
   `insert into tbl_audit_trail
-     (id_pengguna, modul_sistem, jenis_aktiviti, penerangan_aktiviti, rekod_terlibat, status_aktiviti, tarikh_masa_aktiviti, nilai_baharu)
+     (id_pengguna, modul_sistem, jenis_aktiviti, penerangan_aktiviti, rekod_terlibat, status_aktiviti, tarikh_masa_aktiviti, nilai_baharu, alamat_ip, peranti_pengguna)
    select $1, 'Jadual Bertugas', $2, $3, $4, 'Berjaya', now() at time zone 'Asia/Kuala_Lumpur',
           jsonb_build_object('week_id', $5::int, 'date', $6::date, 'shift', $7::text,
             'post', p.nama_pos, 'guard', u.nama_penuh,
-            'actor', jsonb_build_object('name', $8::text, 'role', $9::text))::text
+            'actor', jsonb_build_object('name', $8::text, 'role', $9::text))::text, $12::text, $13::text
    from tbl_pos_kawalan p cross join tbl_pengguna u where p.id_pos = $10 and u.id_pengguna = $11`,
   [actor.id_pengguna, action, description, `Tugasan #${assignment.id_jadual}`, assignment.id_jadual_mingguan,
-    assignment.tarikh_tugas, assignment.syif, actor.nama_penuh, actorRole(actor), assignment.id_pos, assignment.id_pengguna]
+    assignment.tarikh_tugas, assignment.syif, actor.nama_penuh, actorRole(actor), assignment.id_pos, assignment.id_pengguna, currentRequest().ip, currentRequest().userAgent]
 );
 
 const insertAssignment = async (client, weekId, assignment, actor) => {

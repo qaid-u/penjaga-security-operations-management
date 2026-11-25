@@ -1,5 +1,6 @@
 import { PeriodControls } from '../components/PeriodControls';
 import { ExportButton } from '../components/ExportButton';
+import { SecuritySummary } from '../components/SecuritySummary';
 import { useMemo, useState, useEffect } from 'react';
 import { Filter, History } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -55,7 +56,8 @@ export function AuditTrail() {
   const totalPages = data?.meta?.totalPages || 1;
 
   return (
-    <div className="desktop-ops">
+    <div className="desktop-ops space-y-5">
+      <SecuritySummary />
       <Card title="Audit Trail" action={<ExportButton endpoint="/audit" filename="audit-trail.csv" filters={filters}/>}>
         <p className="mb-4 workspace-note"><History size={15} className="inline mr-2"/>Semak aktiviti sistem atau eksport rekod mengikut minggu, bulan dan tahun.</p>
         <PeriodControls key={periodReset} onChange={range=>{setFilters(current=>({...current,...range,from:range.from,to:range.to,dateMode:'all',date:'',month:'',year:''}));setPage(1);}}/><details className="workspace-disclosure mb-4"><summary><Filter size={15} className="inline mr-2"/>Tapis rekod audit</summary><div className="space-y-3">

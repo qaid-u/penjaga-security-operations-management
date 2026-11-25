@@ -5,7 +5,33 @@ const { auth, requireRole, roles } = require('../middleware/auth');
 const { escapeCSV, dateToString } = require('../utils/helpers');
 const { csvBudget } = require('../middleware/rateLimit');
 
+const { MODULE_EVENTS } = require('../utils/securityEvents');
+
 const router = express.Router();
+
+router.get('/security-summary', auth, requireRole(roles.admin), async (_req, res) => {
+  const recent = "tarikh_masa_aktiviti > now()::timestamp - interval '24 hours'";
+  try {
+    const counts = await pool.query(
+      `select jenis_aktiviti, count(*)::int as total from tbl_audit_trail
+       where jenis_aktiviti = any($1::text[]) and ${recent} group by jenis_aktiviti`,
+      [MODULE_EVENTS]
+    );
+    const sources = await pool.query(
+      `select alamat_ip, count(*)::int as total from tbl_audit_trail
+       where jenis_aktiviti = any($1::text[]) and ${recent} and alamat_ip is not null and alamat_ip <> 'System'
+       group by alamat_ip order by total desc, alamat_ip limit 3`,
+      [MODULE_EVENTS]
+    );
+    const totals = Object.fromEntries(MODULE_EVENTS.map((name) => [name, 0]));
+    for (const row of counts.rows) totals[row.jenis_aktiviti] = row.total;
+    const alert = totals.LOGIN_RATE_LIMITED > 0 || totals.LOGIN_FAILED >= 10 || totals.ACCESS_DENIED >= 10;
+    res.json({ windowHours: 24, totals, sources: sources.rows, alert });
+  } catch (error) {
+    console.error('Security summary error:', error.code || error.name);
+    res.status(500).json({ message: 'Gagal memuatkan ringkasan keselamatan' });
+  }
+});
 
 router.get('/', auth, requireRole(roles.admin), csvBudget, async (req, res) => {
   let range;

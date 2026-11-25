@@ -6,6 +6,9 @@ const fs = require('fs');
 const helmet = require('helmet');
 const pool = require('./config/db');
 const { ipBudget, downloadBudget } = require('./middleware/rateLimit');
+const { requestContext } = require('./utils/requestContext');
+const { logAudit } = require('./utils/audit');
+const { passwordProblem } = require('./utils/passwordPolicy');
 
 // Production environment validation
 if (process.env.NODE_ENV === 'production') {
@@ -32,8 +35,11 @@ const port = process.env.PORT || 3000;
 const host = process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
 
 // Security headers
+// The API serves data and attachments only, so its policy allows no scripts, styles or framing.
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: { useDefaults: false, directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },
+  frameguard: { action: 'deny' },
 }));
 
 // Configurable CORS origins
@@ -41,16 +47,18 @@ const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(',').map(s => s.trim())
   : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
 
+// Outside production, any port on this machine is also accepted for the Vite and test servers.
+const loopbackOrigin = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
-    if (process.env.NODE_ENV !== 'production' || allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin) || (process.env.NODE_ENV !== 'production' && loopbackOrigin.test(origin))) {
       return callback(null, true);
     }
     return callback(Object.assign(new Error('Origin tidak dibenarkan'),{status:403}));
   },
-  credentials: true,
 }));
 
 // Trust forwarded client IPs only behind an explicitly configured proxy boundary.
@@ -61,6 +69,7 @@ app.use(['/api', '/uploads'], (_req, res, next) => {
 }, ipBudget);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '64kb', parameterLimit: 100 }));
+app.use(requestContext);
 
 const uploadDir = path.join(__dirname, 'uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -81,12 +90,16 @@ app.use('/api/3d', require('./routes/threeDRoutes'));
 
 const { auth, requireRole, roles } = require('./middleware/auth');
 
+const positiveId = (value) => /^[1-9]\d*$/.test(String(value)) && Number(value) <= 2147483647;
+const fits = (value, max) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max;
+
 app.get('/api/users', auth, requireRole(roles.admin), async (req, res) => {
   let client;
   try {
     client = await pool.connect();
     const result = await client.query(
-      `select p.id_pengguna, p.id_peranan, p.nama_penuh, p.no_kad_pengenalan,
+      // Identity card numbers are not shown by any screen, so they never leave the database.
+      `select p.id_pengguna, p.id_peranan, p.nama_penuh,
               p.no_telefon, p.emel, p.nama_pengguna, p.status_akaun, p.tarikh_dicipta,
               r.nama_peranan
        from tbl_pengguna p join tbl_peranan r on r.id_peranan = p.id_peranan
@@ -101,21 +114,31 @@ app.get('/api/users', auth, requireRole(roles.admin), async (req, res) => {
 
 app.post('/api/users', auth, requireRole(roles.admin), async (req, res) => {
   const { id_peranan, nama_penuh, nama_pengguna, emel, no_telefon, kata_laluan } = req.body;
-  if (!id_peranan || typeof nama_penuh !== 'string' || typeof nama_pengguna !== 'string' || typeof emel !== 'string' || typeof kata_laluan !== 'string' || !nama_penuh.trim() || !nama_pengguna.trim() || !emel.trim() || kata_laluan.length < 10) {
-    return res.status(400).json({ message: 'Maklumat pengguna tidak lengkap atau kata laluan kurang daripada 10 aksara' });
+  if (!positiveId(id_peranan) || !fits(nama_penuh, 120) || !fits(nama_pengguna, 60) || !fits(emel, 120) || !/^[^\s@]+@[^\s@]+$/.test(emel.trim())
+    || (no_telefon != null && no_telefon !== '' && !fits(no_telefon, 30))) {
+    return res.status(400).json({ message: 'Maklumat pengguna tidak lengkap atau tidak sah' });
   }
+  const problem = passwordProblem(kata_laluan, { username: nama_pengguna });
+  if (problem) return res.status(400).json({ message: problem });
   let client;
   try {
     client = await pool.connect();
     const hash = await require('bcrypt').hash(kata_laluan, 10);
+    await client.query('begin');
     const result = await client.query(
       `insert into tbl_pengguna (id_peranan, nama_penuh, nama_pengguna, emel, no_telefon, kata_laluan)
        values ($1, $2, $3, $4, $5, $6)
        returning id_pengguna, id_peranan, nama_penuh, nama_pengguna, emel, no_telefon, status_akaun`,
       [id_peranan, nama_penuh.trim(), nama_pengguna.trim(), emel.trim(), no_telefon || null, hash]
     );
+    // The account change and its audit row are saved together or not at all.
+    await logAudit(client, req.user.id_pengguna, 'CREATE_USER', `Pengguna #${result.rows[0].id_pengguna}`,
+      `Akaun dicipta: ${result.rows[0].nama_pengguna} (peranan ${id_peranan})`);
+    await client.query('commit');
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    await client?.query('rollback').catch(() => {});
+    if (error.code === '23503') return res.status(400).json({ message: 'Peranan tidak sah' });
     if (error.code === '23505') return res.status(409).json({ message: 'Nama pengguna atau e-mel telah digunakan' });
     console.error('Create user error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal menambah pengguna' });
@@ -127,9 +150,18 @@ app.patch('/api/users/:id', auth, requireRole(roles.admin), async (req, res) => 
   if (status_akaun !== undefined && !['Aktif', 'Tidak Aktif'].includes(status_akaun)) {
     return res.status(400).json({ message: 'Status akaun tidak sah' });
   }
+  if (!positiveId(req.params.id) || (id_peranan !== undefined && !positiveId(id_peranan))) {
+    return res.status(400).json({ message: 'Maklumat pengguna tidak sah' });
+  }
+  // An administrator cannot lock themselves out or drop their own privileges.
+  if (Number(req.params.id) === req.user.id_pengguna
+    && (status_akaun === 'Tidak Aktif' || (id_peranan !== undefined && Number(id_peranan) !== req.user.id_peranan))) {
+    return res.status(409).json({ message: 'Anda tidak boleh menukar peranan atau menyahaktifkan akaun sendiri' });
+  }
   let client;
   try {
     client = await pool.connect();
+    await client.query('begin');
     const result = await client.query(
       `update tbl_pengguna
        set id_peranan = coalesce($1, id_peranan), status_akaun = coalesce($2, status_akaun), tarikh_kemaskini = now()
@@ -137,9 +169,18 @@ app.patch('/api/users/:id', auth, requireRole(roles.admin), async (req, res) => 
        returning id_pengguna, id_peranan, nama_penuh, nama_pengguna, emel, status_akaun`,
       [id_peranan || null, status_akaun || null, req.params.id]
     );
-    if (!result.rowCount) return res.status(404).json({ message: 'Pengguna tidak ditemui' });
-    res.json(result.rows[0]);
+    if (!result.rowCount) {
+      await client.query('rollback');
+      return res.status(404).json({ message: 'Pengguna tidak ditemui' });
+    }
+    const saved = result.rows[0];
+    await logAudit(client, req.user.id_pengguna, 'UPDATE_USER', `Pengguna #${saved.id_pengguna}`,
+      `Akaun dikemas kini: ${saved.nama_pengguna} (peranan ${saved.id_peranan}, status ${saved.status_akaun})`);
+    await client.query('commit');
+    res.json(saved);
   } catch (error) {
+    await client?.query('rollback').catch(() => {});
+    if (error.code === '23503') return res.status(400).json({ message: 'Peranan tidak sah' });
     console.error('Update user error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal mengemas kini pengguna' });
   } finally { client?.release(); }
@@ -163,12 +204,16 @@ app.post('/api/posts', auth, requireRole(roles.admin), async (req, res) => {
   let client;
   try {
     client = await pool.connect();
-    await client.query(
-      `insert into tbl_pos_kawalan (nama_pos, nama_bangunan, lokasi, waktu_operasi) values ($1, $2, $3, $4)`,
+    await client.query('begin');
+    const created = await client.query(
+      `insert into tbl_pos_kawalan (nama_pos, nama_bangunan, lokasi, waktu_operasi) values ($1, $2, $3, $4) returning id_pos`,
       [nama_pos, nama_bangunan, lokasi, waktu_operasi]
     );
+    await logAudit(client, req.user.id_pengguna, 'CREATE_POST', `Pos #${created.rows[0].id_pos}`, `Pos dicipta: ${nama_pos}`);
+    await client.query('commit');
     res.json({ message: 'Pos ditambah' });
   } catch (error) {
+    await client?.query('rollback').catch(() => {});
     console.error('Create post error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal menambah pos kawalan' });
   } finally { client?.release(); }
@@ -177,13 +222,21 @@ app.post('/api/posts', auth, requireRole(roles.admin), async (req, res) => {
 app.patch('/api/posts/:id', auth, requireRole(roles.admin), async (req, res) => {
   const { status_pos } = req.body;
   if (!['Aktif', 'Tidak Aktif'].includes(status_pos)) return res.status(400).json({ message: 'Status pos tidak sah' });
+  if (!positiveId(req.params.id)) return res.status(400).json({ message: 'ID pos tidak sah' });
   let client;
   try {
     client = await pool.connect();
+    await client.query('begin');
     const result = await client.query('update tbl_pos_kawalan set status_pos = $1 where id_pos = $2 returning id_pos', [status_pos, req.params.id]);
-    if (!result.rowCount) return res.status(404).json({ message: 'Pos kawalan tidak ditemui' });
+    if (!result.rowCount) {
+      await client.query('rollback');
+      return res.status(404).json({ message: 'Pos kawalan tidak ditemui' });
+    }
+    await logAudit(client, req.user.id_pengguna, 'UPDATE_POST', `Pos #${req.params.id}`, `Status pos: ${status_pos}`);
+    await client.query('commit');
     res.json({ message: 'Dikemas kini' });
   } catch (error) {
+    await client?.query('rollback').catch(() => {});
     console.error('Update post error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal mengemas kini pos kawalan' });
   } finally { client?.release(); }

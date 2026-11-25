@@ -22,6 +22,11 @@ services:
     container_name: penjaga_backend
     restart: unless-stopped
     command: ["sh", "-c", "node scripts/migrate.js --init && exec node server.js"]
+    # The API runs as the unprivileged node user on port 3000 and needs no Linux capabilities.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       database:
         condition: service_healthy

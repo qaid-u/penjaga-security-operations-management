@@ -2,9 +2,12 @@
 require('dotenv').config();
 const bcrypt = require('bcrypt');
 const pool = require('../config/db');
+const { passwordProblem } = require('../utils/passwordPolicy');
 async function main() {
   const { BOOTSTRAP_USERNAME:username, BOOTSTRAP_PASSWORD:password, BOOTSTRAP_EMAIL:email, BOOTSTRAP_NAME:name } = process.env;
-  if (!username || !email || !name || !password || password.length < 10) throw new Error('Set BOOTSTRAP_USERNAME, BOOTSTRAP_EMAIL, BOOTSTRAP_NAME and BOOTSTRAP_PASSWORD (10+ characters).');
+  if (!username || !email || !name || !password) throw new Error('Set BOOTSTRAP_USERNAME, BOOTSTRAP_EMAIL, BOOTSTRAP_NAME and BOOTSTRAP_PASSWORD (10+ characters).');
+  const problem = passwordProblem(password, { username });
+  if (problem) throw new Error(problem);
   const client = await pool.connect();
   try {
     await client.query('begin');

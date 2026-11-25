@@ -1,9 +1,18 @@
 const bcrypt = require('bcrypt');
+const { randomBytes, randomUUID } = require('node:crypto');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { jwtSecret } = require('../middleware/auth');
-const { clearLoginAttempts } = require('../middleware/rateLimit');
+const { clearLoginAttempts, clearAccountAttempts } = require('../middleware/rateLimit');
+const { passwordProblem } = require('../utils/passwordPolicy');
+const { revoke } = require('../utils/tokenRevocation');
 const { logAudit } = require('../utils/audit');
+
+// Compared when the username does not exist, so both cases take about the same time.
+const decoyHash = bcrypt.hashSync(randomBytes(32).toString('hex'), 10);
+
+const signSession = (id, username, role) =>
+  jwt.sign({ id, username, role }, jwtSecret, { expiresIn: '12h', jwtid: randomUUID() });
 
 const login = async (req, res) => {
   const { username, password } = req.body;
@@ -16,22 +25,21 @@ const login = async (req, res) => {
       [username.trim()]
     );
     const user = result.rows[0];
-    if (!user) {
-      await logAudit(client, null, 'LOGIN_FAILED', 'System', `Gagal log masuk: ${username} (Tidak Wujud)`, 'Gagal');
+    const match = await bcrypt.compare(password, user?.kata_laluan || decoyHash);
+    if (!user || !match) {
+      const reason = user ? 'Katalaluan salah' : 'Akaun tidak wujud';
+      await logAudit(client, user?.id_pengguna ?? null, 'LOGIN_FAILED', 'System', `${reason}: ${username}`, 'Gagal');
       return res.status(401).json({ message: 'Kredensial tidak sah' });
     }
+    // Checked only after the password, so account status is not revealed to someone guessing usernames.
     if (user.status_akaun !== 'Aktif') {
       await logAudit(client, user.id_pengguna, 'LOGIN_BLOCKED', 'System', `Akaun disekat: ${username}`, 'Gagal');
       return res.status(403).json({ message: 'Akaun anda tidak aktif. Sila hubungi admin.' });
     }
-    const match = await bcrypt.compare(password, user.kata_laluan);
-    if (!match) {
-      await logAudit(client, user.id_pengguna, 'LOGIN_FAILED', 'System', `Katalaluan salah: ${username}`, 'Gagal');
-      return res.status(401).json({ message: 'Kredensial tidak sah' });
-    }
-    const token = jwt.sign({ id: user.id_pengguna, username: user.nama_pengguna, role: user.nama_peranan }, jwtSecret, { expiresIn: '12h' });
+    const token = signSession(user.id_pengguna, user.nama_pengguna, user.nama_peranan);
     const ip = req.ip || req.connection.remoteAddress;
     clearLoginAttempts(ip);
+    clearAccountAttempts(username);
     await logAudit(client, user.id_pengguna, 'LOGIN_SUCCESS', 'System', 'Log masuk berjaya');
     res.json({ token, user: { id_pengguna: user.id_pengguna, nama_penuh: user.nama_penuh, nama_pengguna: user.nama_pengguna, emel: user.emel, nama_peranan: user.nama_peranan } });
   } catch (error) {
@@ -48,10 +56,11 @@ const getMe = async (req, res) => {
 
 const changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-  if (typeof currentPassword !== 'string' || !currentPassword || currentPassword.length > 1024 ||
-      typeof newPassword !== 'string' || newPassword.length < 10 || Buffer.byteLength(newPassword, 'utf8') > 72) {
-    return res.status(400).json({ message: 'Kata laluan baharu mesti sekurang-kurangnya 10 aksara dan maksimum 72 bait.' });
+  if (typeof currentPassword !== 'string' || !currentPassword || currentPassword.length > 1024) {
+    return res.status(400).json({ message: 'Sila masukkan kata laluan semasa.' });
   }
+  const problem = passwordProblem(newPassword, { username: req.user.nama_pengguna });
+  if (problem) return res.status(400).json({ message: problem });
   let client;
   try {
     client = await pool.connect();
@@ -73,11 +82,7 @@ const changePassword = async (req, res) => {
     await logAudit(client, req.user.id_pengguna, 'CHANGE_PASSWORD', 'System', 'Kata laluan ditukar');
     await client.query('commit');
     // Every earlier session is now invalid, so hand this device a fresh token.
-    const token = jwt.sign(
-      { id: req.user.id_pengguna, username: req.user.nama_pengguna, role: req.user.nama_peranan },
-      jwtSecret,
-      { expiresIn: '12h' }
-    );
+    const token = signSession(req.user.id_pengguna, req.user.nama_pengguna, req.user.nama_peranan);
     res.json({ message: 'Kata laluan berjaya ditukar', token });
   } catch (error) {
     if (client) await client.query('rollback');
@@ -86,4 +91,15 @@ const changePassword = async (req, res) => {
   } finally { client?.release(); }
 };
 
-module.exports = require('../utils/asyncHandlers')({ login, getMe, changePassword });
+const logout = async (req, res) => {
+  try {
+    const revoked = await revoke(pool, req.token);
+    await logAudit(pool, req.user.id_pengguna, 'LOGOUT', 'System', 'Log keluar');
+    res.json({ revoked });
+  } catch (error) {
+    console.error('Logout error:', error.code || error.name);
+    res.status(500).json({ message: 'Log keluar gagal direkodkan' });
+  }
+};
+
+module.exports = require('../utils/asyncHandlers')({ login, getMe, changePassword, logout });
