@@ -37,7 +37,8 @@ test('phone user management fits the screen with fields that do not trigger zoom
   expect(sizes.length).toBeGreaterThan(0);
   expect(Math.min(...sizes)).toBeGreaterThanOrEqual(16);
   const toggle = await page.getByRole('button', { name: 'Tunjuk kata laluan' }).boundingBox();
-  expect(Math.min(toggle.width, toggle.height)).toBeGreaterThanOrEqual(44);
+  // Rounded because a centred control can measure a fraction under its CSS size.
+  expect(Math.round(Math.min(toggle.width, toggle.height))).toBeGreaterThanOrEqual(44);
 });
 
 test('a page that fails to download offers a reload and keeps navigation', async ({ page }) => {
