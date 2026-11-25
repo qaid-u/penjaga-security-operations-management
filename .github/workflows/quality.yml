@@ -22,7 +22,7 @@ jobs:
       PLAYWRIGHT_CHANNEL: chromium
       PHASE6_DEMO_PASSWORD: ci-phase6-synthetic-only
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
