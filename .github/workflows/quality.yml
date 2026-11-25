@@ -44,7 +44,7 @@ jobs:
       - run: npm run demo:phase6:prepare
       - run: npm run test:phase6
       - run: npm audit --audit-level=high && npm --prefix backend audit --audit-level=high
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: browser-failure-evidence
