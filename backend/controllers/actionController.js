@@ -37,6 +37,36 @@ const getActions = async (req, res) => {
   }
 };
 
+const clearPendingRequests = (client, actionId) => client.query(
+  'update tbl_progress_tindakan set perlu_respon_ketua = false where id_tindakan = $1 and perlu_respon_ketua',
+  [actionId]
+);
+
+// upToId is the newest note on the administrator's screen, so a later reply stays unread.
+const markProgressSeen = async (req, res) => {
+  const upToId = req.body?.upToId;
+  if (!/^[1-9]\d{0,8}$/.test(req.params.id) || !Number.isSafeInteger(upToId) || upToId < 1 || upToId > 2147483647) {
+    return res.status(400).json({ message: 'Maklumat catatan tidak sah' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    const action = await client.query('select 1 from tbl_tindakan_susulan where id_tindakan = $1', [req.params.id]);
+    if (!action.rowCount) return res.status(404).json({ message: 'Tindakan tidak ditemui' });
+    const result = await client.query(
+      `update tbl_progress_tindakan set dilihat_admin = true
+       where id_tindakan = $1 and id_progress <= $2 and jenis_progress = 'Kemaskini Ketua' and not dilihat_admin`,
+      [req.params.id, upToId]
+    );
+    res.json({ updated: result.rowCount });
+  } catch (error) {
+    console.error('Mark progress seen error:', error.code || error.name);
+    res.status(500).json({ message: 'Status bacaan gagal dikemas kini' });
+  } finally {
+    client?.release();
+  }
+};
+
 const createAction = async (req, res) => {
   const { id_laporan, pegawai_bertanggungjawab, tindakan_diambil, tahap_keutamaan, tarikh_mula, catatan_tindakan } = req.body;
   if (!id_laporan || typeof pegawai_bertanggungjawab !== 'string' || typeof tindakan_diambil !== 'string' || !pegawai_bertanggungjawab.trim() || !tindakan_diambil.trim()) {
@@ -102,6 +132,7 @@ const updateAction = async (req, res) => {
   let client;
   try {
     client = await pool.connect();
+    await client.query('begin');
     const result = await client.query(
       `update tbl_tindakan_susulan
        set status_tindakan = $1::text,
@@ -111,10 +142,17 @@ const updateAction = async (req, res) => {
        where id_tindakan = $3 returning *`,
       [status_tindakan, catatan_tindakan?.trim() || null, req.params.id]
     );
-    if (!result.rowCount) return res.status(404).json({ message: 'Tindakan tidak ditemui' });
+    if (!result.rowCount) {
+      await client.query('rollback');
+      return res.status(404).json({ message: 'Tindakan tidak ditemui' });
+    }
+    // A closed action no longer waits for the chief. Reopening it does not revive old requests.
+    if (status_tindakan === 'Selesai') await clearPendingRequests(client, req.params.id);
     await logAudit(client, req.user.id_pengguna, 'UPDATE_ACTION', `Tindakan #${req.params.id}`, `Status: ${status_tindakan}`);
+    await client.query('commit');
     res.json(result.rows[0]);
   } catch (error) {
+    if (client) await client.query('rollback');
     console.error('Update action error:', error.code || error.name);
     res.status(500).json({ message: 'Gagal mengemas kini tindakan' });
   } finally {
@@ -149,6 +187,8 @@ const saveProgress = async (req, res, type) => {
       await client.query('rollback');
       return res.status(404).json({ message: 'Tindakan tidak ditemui' });
     }
+    // The chief's reply answers every request still open on this action.
+    if (type === 'Kemaskini Ketua') await clearPendingRequests(client, req.params.id);
     await client.query(
       `insert into tbl_notifikasi(id_pengguna,id_laporan,id_tindakan,tajuk_notifikasi,mesej_notifikasi,jenis_notifikasi,tahap_keutamaan)
        select u.id_pengguna,a.id_laporan,a.id_tindakan,$1,$2,$3,'Medium'
@@ -173,4 +213,4 @@ const saveProgress = async (req, res, type) => {
 const addProgress = (req, res) => saveProgress(req, res, 'Kemaskini Ketua');
 const requestUpdate = (req, res) => saveProgress(req, res, 'Permintaan Admin');
 
-module.exports = require('../utils/asyncHandlers')({ getActions, createAction, updateAction, addProgress, requestUpdate });
+module.exports = require('../utils/asyncHandlers')({ getActions, createAction, updateAction, addProgress, requestUpdate, markProgressSeen });

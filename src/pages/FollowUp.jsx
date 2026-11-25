@@ -66,6 +66,17 @@ export function FollowUp({ auth }) {
     }
   };
 
+  const markSeen = async (action) => {
+    const unseen = (action.progress_notes || []).filter((note) => note.jenis_progress === 'Kemaskini Ketua' && !note.dilihat_admin);
+    if (!unseen.length) return;
+    try {
+      await api.post(`/actions/${action.id_tindakan}/progress/seen`, { upToId: Math.max(...unseen.map((note) => note.id_progress)) });
+      queryClient.invalidateQueries({ queryKey: ['actions'] });
+    } catch {
+      // The notes stay marked as unseen and are sent again the next time the history is opened.
+    }
+  };
+
   const submitProgress = async (id) => {
     try {
       const body = new FormData();
@@ -161,7 +172,7 @@ export function FollowUp({ auth }) {
                 <p className="mt-1">Pegawai: {a.pegawai_bertanggungjawab}</p>
                 <Button className="mt-3 w-full justify-center sm:w-auto" variant="ghost" onClick={() => loadReportDetail(a.id_laporan)}><Eye size={16} /> Lihat laporan asal</Button>
                 {a.progress_notes?.some(progress => progress.perlu_respon_ketua) && <p className="mt-3"><Badge tone="Medium">Perlu respon Ketua</Badge></p>}
-                <details className="workspace-disclosure mt-4"><summary>Kemas kini & sejarah <small>{a.progress_notes?.length || 0} catatan</small></summary>
+                <details className="workspace-disclosure mt-4" onToggle={(e) => { if (canManageFollowUp && e.currentTarget.open) markSeen(a); }}><summary>Kemas kini & sejarah <small>{a.progress_notes?.length || 0} catatan</small></summary>
                 {a.catatan_tindakan && <p className="mt-1">Catatan: {a.catatan_tindakan}</p>}
                 {a.progress_notes?.length > 0 && (
                   <div className="mt-3 space-y-2">
@@ -174,7 +185,7 @@ export function FollowUp({ auth }) {
                         </div>
                         <p className="mt-2">{progress.catatan_progress}</p>
                         <AttachmentLinks value={progress.lampiran_fail} label="Bukti" />
-                        <p className="text-data">{progress.nama_penuh} - {progress.nama_peranan} - {new Date(progress.tarikh_progress).toLocaleString()} - {progress.dilihat_admin ? 'Dilihat Admin' : 'Belum dilihat Admin'}</p>
+                        <p className="text-data">{progress.nama_penuh} - {progress.nama_peranan} - {new Date(progress.tarikh_progress).toLocaleString()}{progress.jenis_progress !== 'Permintaan Admin' && ` - ${progress.dilihat_admin ? 'Dilihat Admin' : 'Belum dilihat Admin'}`}</p>
                       </div>
                     ))}
                   </div>
