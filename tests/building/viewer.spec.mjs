@@ -62,6 +62,7 @@ test('guard is denied without fetching the model and anonymous users reach login
   await expect(page.getByRole('link', { name: 'Pusat Kawalan 3D' })).toHaveCount(0);
   expect(requests).toEqual([]);
   await page.evaluate(() => localStorage.clear());
+  page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Logout', exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
 });

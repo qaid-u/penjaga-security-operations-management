@@ -105,6 +105,7 @@ test('P6-02 actual synthetic application screenshots',async({page})=>{
   await page.getByLabel('Paparan operasi').selectOption('incidents');await capture('13-incident-mode');
   await page.getByLabel('Pos keselamatan bangunan').selectOption('POST_DJM_MAIN_LOBBY');await capture('14-zone-navigation');
   await page.getByRole('region',{name:'Sejarah laporan'}).screenshot({path:`${output}/15-incident-history.png`});
+  page.once('dialog',dialog=>dialog.accept());
   await page.getByRole('button',{name:'Logout',exact:true}).click();await login(page,'guard_a');await capture('03-guard-dashboard');
   await page.goto('/jadual');await page.waitForLoadState('networkidle');await capture('05-attendance');
   await page.goto('/laporan');await page.waitForLoadState('networkidle');await capture('06-report-submission');

@@ -22,6 +22,7 @@ test('R02 account switches never display the previous guard report cache',async(
   const consoleErrors=[];page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(message.text());});
   await login(page,'demo_guard_a');await page.getByRole('link',{name:'Hantar Laporan',exact:true}).click();
   await expect(page.getByText('DEMO Laporan 1',{exact:true})).toBeVisible();
+  page.once('dialog',dialog=>dialog.accept());
   await page.getByRole('button',{name:'Logout',exact:true}).click();
   await page.getByLabel('Nama pengguna').fill('demo_guard_b');await page.getByLabel('Kata laluan',{exact:true}).fill(process.env.PHASE5_DEMO_PASSWORD || 'Demo-Penjaga-2026!');await page.getByRole('button',{name:'Log Masuk',exact:true}).click();await expect(page).toHaveURL(/pengawal$/);
   await page.route('**/api/reports?**',async(route)=>{await new Promise((resolve)=>setTimeout(resolve,700));await route.continue();});
