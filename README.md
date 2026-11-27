@@ -1,47 +1,90 @@
-# PENJAGA - Sistem Pengurusan Operasi Keselamatan
+<div align="center">
 
-Functional full-stack prototype for:
+# PENJAGA
 
-**Sistem Pengurusan Operasi Keselamatan Berasaskan Kepintaran Buatan (PENJAGA)**
+### Sistem Pengurusan Operasi Keselamatan Berasaskan Kepintaran Buatan
 
-Report classification uses a locally trained Multinomial Naive Bayes model with contextual rules. Administrators read category/risk suggestions directly in reports; there is no separate NLP management screen. Training is a maintainer task using disclosed synthetic examples. See [classification model and data](docs/testing/AUTOMATIC_CLASSIFICATION.md). Optional external review remains a separate, explicitly configured backend feature; it is not required for local classification. Scheduling and forecasts are not predicted by this model.
+Security operations platform for guard scheduling, daily reporting, follow-up actions and a 3D building command centre, with **local NLP risk scoring** (Multinomial Naive Bayes plus contextual rules) on every report.
 
-New reports can also support automatic retraining after the chief explicitly confirms a category during approval. Batches start at 20 eligible new families, exclude demo data and activate a candidate only after regression checks. See [automatic learning](docs/testing/AUTOMATIC_LEARNING.md). Ordinary insertion/approval never trains on the model's own guesses.
-It also does not include CCTV integration, IoT sensor integration, or door access control integration.
+![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-339933?logo=nodedotjs&logoColor=white)
+![Express](https://img.shields.io/badge/Express-000000?logo=express&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
+![JWT](https://img.shields.io/badge/Auth-JWT-000000?logo=jsonwebtokens&logoColor=white)
 
-## Tech Stack
+[Live frontend preview](https://penjaga-security-preview.vercel.app) (sign-in disabled, no backend) | [Handover](docs/final/PROJECT_HANDOVER.md) | [Deployment](DEPLOYMENT.md)
 
-- Frontend: React, Vite, Tailwind CSS, React Router, Axios, Recharts
-- Backend: Node.js, Express.js, PostgreSQL, JWT, bcrypt
-- Database: PostgreSQL relational schema
+</div>
 
-## Install Dependencies
+---
+
+## 🎬 Demo
+
+Screenshots below are captured from the running system with synthetic demonstration data.
+
+<p align="center">
+  <img src="artifacts/integration/dashboard-model-showcase-card.png" alt="3D building showcase on the dashboard" width="100%"><br>
+  <sub><b>3D building showcase</b>: browse the building models, pick a security post and open the 3D command centre (UTC Johor shown, 8 of 8).</sub>
+</p>
+
+<p align="center">
+  <img src="docs/psm/evidence/02-admin-dashboard.png" alt="Admin analytics dashboard" width="49%">
+  <img src="docs/psm/evidence/10-3d-overview.png" alt="3D security command centre" width="49%"><br>
+  <sub><b>Left:</b> admin analytics dashboard (shift summary, open actions, NLP incident categories, risk distribution, report trend). <b>Right:</b> 3D command centre with numbered post markers, zone navigation and a location information panel.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/psm/evidence/06-report-submission.png" alt="Guard daily report form" width="49%">
+  <img src="docs/testing/evidence/phase7-ui/guard-report-assistant.png" alt="Automatic report summary after submission" width="49%"><br>
+  <sub><b>Left:</b> guard daily report form (post and shift, narrative, checklist, evidence attachments). <b>Right:</b> after submission, the automatic summary shows suggested report type, risk level, confidence hint and the sentence that drove the result.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/psm/evidence/07-nlp-categories.png" alt="NLP analysis review screen" width="70%"><br>
+  <sub><b>NLP analysis</b>: reports with their risk badge and approval status, searchable and filterable, with a summary view per report.</sub>
+</p>
+
+More screenshots: [`docs/psm/evidence/`](docs/psm/evidence/) (17 screens), [`docs/testing/evidence/`](docs/testing/evidence/) and [`artifacts/`](artifacts/README.md) (building model previews). Demo accounts are listed under [Default login credentials](#default-login-credentials-demo); the demo data is synthetic, not operational.
+
+## Features
+
+- Role-based access (Pentadbir Sistem, Ketua Pengawal, Pengawal Keselamatan) with JWT auth, bcrypt, audit trail and notifications.
+- Duty scheduling with CSV import and check-in/check-out attendance.
+- Mobile-friendly daily reports with checklist and evidence attachments; chief review (approve/reject with comment); follow-up actions.
+- **Local NLP**: trained Multinomial Naive Bayes model plus context-aware rules and database-configured keywords. Produces category, risk score (0-100), risk level and a short summary, stored in `tbl_hasil_nlp`; High/Critical risk notifies the Ketua Pengawal.
+- Reports can contain reported, suspected, negated, drill or unclear events, with optional clarification questions stored separately from the original narrative.
+- Optional Gemini review runs in an independent recoverable queue; it cannot suppress alerts or make official decisions.
+- Automatic retraining only after the chief explicitly confirms a category (batches of 20 eligible new families, demo data excluded, candidate activated only after regression checks). See [automatic learning](docs/testing/AUTOMATIC_LEARNING.md).
+- 3D command centre: eight building identities using six exterior models and 15 official security posts, with building-scoped operational records. See [building integration](docs/testing/BUILDING_LIBRARY_INTEGRATION.md).
+- Not included: CCTV, IoT sensor or door access control integration. Scheduling and forecasts are not predicted by the model.
+
+## Tech stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | React, Vite, Tailwind CSS, React Router, Axios, Recharts |
+| Backend | Node.js, Express.js, JWT, bcrypt |
+| Database | PostgreSQL relational schema |
+| NLP | Local multinomial Naive Bayes count model + rules (`backend/ml/`), optional Gemini review |
+| 3D | Blender-authored GLB exterior models ([catalogue](artifacts/README.md)) |
+
+## Quick start
 
 ```bash
 npm install
-cd backend
-npm install
-```
-
-## PostgreSQL Setup
-
-Create a database:
-
-```bash
+cd backend && npm install && cd ..
 createdb penjaga_db
-```
-
-Configure private database credentials in `backend/.env`, then initialize an empty database:
-
-```bash
+# put credentials in backend/.env (see Configuration below), then:
 npm --prefix backend run db:migrate -- --init
+npm run dev:system        # starts/reuses backend + frontend with readiness checks
 ```
 
-The dashboard features a visual building showcase. The 3D command centre offers eight building identities using six exterior models, with 15 official security posts and building-scoped operational records. Floor labels are shown only where supplied; indoor coordinates remain unconfirmed. Run the migration above and restart the backend after updating an existing installation. See [building integration](docs/testing/BUILDING_LIBRARY_INTEGRATION.md) and the [official DJM post configuration](docs/testing/DJM_OFFICIAL_POSTS.md).
+Open `http://localhost:5173/login` (use `localhost`; `127.0.0.1:5173` can fail because Vite may bind IPv6 `::1`). `dev:system` does not seed incidents, reset accounts or apply migrations automatically. See [working report flow](docs/testing/OPERATIONAL_FLOW.md).
 
-Editable Blender sources, deployed GLB exports and preview images are listed in the [exterior model catalogue](artifacts/README.md). BDMIM shares BDMSP geometry, and Rumah SS/Rumah VIP share one residence asset while retaining separate post records. Only the selected GLB is downloaded; the six optimized preview images total approximately 158 KB. DJM is the initial selection. Model files in `public/models/` are publicly downloadable; access to operational data still requires an administrator or chief-guard account.
-
-Optional backend environment file: `backend/.env`
+<details>
+<summary><b>Configuration (backend/.env)</b></summary>
 
 ```env
 PORT=3000
@@ -56,75 +99,23 @@ PGPASSWORD=your_private_database_password
 
 You can also use `DATABASE_URL=postgres://user:password@localhost:5432/penjaga_db`.
 
-## Run Backend
-
-To start or reuse both local services with database/model readiness checks, run `npm run dev:system` from the repository root. Open `http://localhost:5173/login` (Vite listens on `localhost`, which may resolve to IPv6 `::1`, so `127.0.0.1:5173` can fail). This requires configured PostgreSQL credentials and an initialized schema. It does not seed incidents, reset accounts or apply migrations automatically. See [working report flow](docs/testing/OPERATIONAL_FLOW.md).
+Run the services separately:
 
 ```bash
-cd backend
-npm start
+cd backend && npm start     # API
+npm run dev                 # frontend, http://localhost:5173/login
 ```
 
-API health check:
+Health: `http://localhost:3000/api/health`. Readiness (with DB): `http://localhost:3000/api/ready`. Deployment smoke test: `cd backend && npm run smoke`.
 
-```bash
-http://localhost:3000/api/health
-```
+Run the migration above and restart the backend after updating an existing installation. Model files in `public/models/` are publicly downloadable; operational data still requires an administrator or chief-guard account. Only the selected GLB is downloaded; the six optimized preview images total approximately 158 KB; DJM is the initial selection. Floor labels appear only where supplied; indoor coordinates remain unconfirmed. See [official DJM posts](docs/testing/DJM_OFFICIAL_POSTS.md).
 
-Readiness check with database connectivity:
+</details>
 
-```bash
-http://localhost:3000/api/ready
-```
+<details id="default-login-credentials-demo">
+<summary><b>Default login credentials (demo)</b></summary>
 
-Deployment smoke test:
-
-```bash
-cd backend
-npm run smoke
-```
-
-## Run Frontend
-
-```bash
-npm run dev
-```
-
-Open:
-
-```bash
-http://localhost:5173/login
-```
-
-## Quality Checks
-
-Phase 5 validation and academic evaluation materials are in [docs/psm-evaluation](docs/psm-evaluation/SYSTEM_TEST_PLAN.md). The implementation audit, measured performance, security results, empty participant templates and synthetic demonstration guide are separate from human evaluation outcomes, which are pending collection.
-
-```bash
-npm run test:building
-npm run test:evaluation
-npm run test:backend
-npm run test:building:browser
-npm run test:phase5:browser
-```
-
-The last suite requires the separate synthetic demonstration database described in [DEMONSTRATION_CHECKLIST.md](docs/psm-evaluation/DEMONSTRATION_CHECKLIST.md). It never seeds the operational database. Existing 3D integration fixtures are rolled back. Use Node 24 with the committed root/backend lockfiles. Configure `PLAYWRIGHT_CHANNEL=chromium` when using Playwright's bundled Chromium instead of the workstation's Edge.
-
-Run the main local verification suite:
-
-```bash
-npm run check
-```
-
-This runs frontend/backend linting, backend syntax checks, smoke-test syntax check, and the production frontend build.
-
-## Default Login Credentials
-
-All demo accounts use password:
-
-```text
-Password123!
-```
+All demo accounts use password `Password123!`.
 
 | Role | Username | Email |
 | --- | --- | --- |
@@ -134,9 +125,12 @@ Password123!
 | Pengawal Keselamatan | siti | siti@penjaga.local |
 | Pengawal Keselamatan | kumar | kumar@penjaga.local |
 
-Usernames are matched case-insensitively and surrounding spaces are ignored, so `Amir` and ` amir ` both sign in as `amir`. Sign in with the username, not the full display name. Accounts with status `Tidak Aktif` are blocked until an administrator reactivates them. Logging out asks for confirmation first.
+Usernames are matched case-insensitively and surrounding spaces are ignored. Sign in with the username, not the display name. Accounts with status `Tidak Aktif` are blocked until an administrator reactivates them. Logging out asks for confirmation first.
 
-## Main Screens
+</details>
+
+<details>
+<summary><b>Main screens</b></summary>
 
 | Screen | Path | Roles |
 | --- | --- | --- |
@@ -154,77 +148,31 @@ Usernames are matched case-insensitively and surrounding spaces are ignored, so 
 | Notifikasi | `/notifikasi` | All roles |
 | Tukar kata laluan | `/kata-laluan` | All roles |
 
-## Operational Reference
+</details>
 
-Jumlah anggota pembantu keselamatan bagi setiap syif:
+<details>
+<summary><b>How the NLP pipeline works</b></summary>
 
-| Hari | Syif | Waktu | Jumlah Anggota |
-| --- | --- | --- | --- |
-| Hari bekerja | Pagi | 07:00 AM - 04:00 PM | 24 orang, termasuk 12 orang syif pentadbiran |
-| Hari bekerja | Petang | 02:45 PM - 11:45 PM | 12 orang |
-| Hari bekerja | Malam | 11:00 PM - 08:00 AM | 12 orang |
-| Hari tidak bekerja | Pagi | 07:00 AM - 04:00 PM | 12 orang |
-| Hari tidak bekerja | Petang | 02:45 PM - 11:45 PM | 12 orang |
-| Hari tidak bekerja | Malam | 11:00 PM - 08:00 AM | 12 orang |
+`textModel.js` validates and runs the saved multinomial Naive Bayes count model. `reportAnalysis.js` combines its output with context-aware category rules and active keywords from `tbl_kategori_insiden` (new reports use the latest saved rules; there is no separate NLP management screen).
 
-Senarai pos kawalan rasmi dimasukkan dalam `backend/database/seed.sql`.
+When a guard submits a report, the backend: cleans the text, lowercases it, removes unnecessary symbols, detects configured keywords, classifies the incident category, calculates a risk score, assigns a risk level, generates a short summary, saves the result into `tbl_hasil_nlp`, and notifies Ketua Pengawal when risk is High or Critical.
 
-## Hybrid NLP and event clarification
+Risk levels: Low 0-30, Medium 31-60, High 61-80, Critical 81-100.
 
-The runtime combines trained inference with database-configured rules and source-context checks:
+Confidence is an uncalibrated relative model score or keyword coverage, not a probability of a real incident. Unsupported classifications remain Unknown. Local analysis and conservative risk alerts are committed first; optional external review comes after.
 
-- `textModel.js` validates and runs the saved multinomial Naive Bayes count model. `reportAnalysis.js` combines its output with context-aware category rules and active keywords from `tbl_kategori_insiden`.
-- Reports can contain separate reported, suspected, negated, drill or unclear events. Optional clarification answers are stored separately from the original narrative and validated against the draft and offered question sequence.
-- Confidence is an uncalibrated relative model score or keyword coverage, not a probability of a real incident. Unsupported classifications remain Unknown.
-- Local analysis and conservative risk alerts are committed first. Optional Gemini review runs in an independent recoverable queue and cannot suppress alerts or make official decisions.
-
-When a Pengawal Keselamatan submits a daily report, the backend:
-
-1. Cleans the text
-2. Converts it to lowercase
-3. Removes unnecessary symbols
-4. Detects configured keywords
-5. Classifies incident category
-6. Calculates a risk score
-7. Assigns risk level
-8. Generates a short summary
-9. Saves the result into `tbl_hasil_nlp`
-10. Creates a notification for Ketua Pengawal when the risk is High or Critical
-
-Active NLP keywords and risk levels are stored in `tbl_kategori_insiden`; new reports use the latest saved keyword rules. There is no separate NLP management screen — NLP results are shown in report review.
-
-## Train NLP Model
-
-Realistic dummy training data is stored in:
-
-```text
-backend/ml/data/nlp-training-samples.json
-```
-
-Train or retrain the local model:
+Training data (synthetic, disclosed): `backend/ml/data/nlp-training-samples.json`.
 
 ```bash
-npm run train:nlp
+npm run train:nlp     # writes backend/ml/model/nlp-model.json
 ```
 
-The generated model is saved to:
+Synthetic evaluation is development evidence, not independently measured operational accuracy. See [classification model and data](docs/testing/AUTOMATIC_CLASSIFICATION.md), `backend/ml/README.md`, [Phase 7](docs/NLP_PHASE7.md) and [Phase 8](docs/NLP_PHASE8.md). Provider availability and operational accuracy still require independent verification.
 
-```text
-backend/ml/model/nlp-model.json
-```
+</details>
 
-Training produces a versioned count model used by the runtime. Synthetic evaluation is development evidence, not independently measured operational accuracy. See `backend/ml/README.md`.
-
-Risk levels:
-
-- Low: 0-30
-- Medium: 31-60
-- High: 61-80
-- Critical: 81-100
-
-## API Endpoint List
-
-Base URL: `http://localhost:3000/api`
+<details>
+<summary><b>API endpoints</b> (base URL <code>http://localhost:3000/api</code>)</summary>
 
 | Method | Endpoint | Role |
 | --- | --- | --- |
@@ -263,43 +211,67 @@ Base URL: `http://localhost:3000/api`
 | POST | `/posts` | Pentadbir Sistem |
 | PATCH | `/posts/:id` | Pentadbir Sistem |
 
-## Simple Testing Checklist
+</details>
 
-- Login as `admin`; confirm redirect to dashboard.
-- Login as `ketua`; confirm dashboard, semakan laporan, and tindakan susulan are available.
-- Login as `ketua`; open Notifikasi and mark a high-risk notification as read.
-- Login as `amir`; submit a report containing `asap` or `terbakar`; confirm NLP shows Critical.
-- Submit a normal report containing `rondaan selesai keadaan terkawal tiada insiden`; confirm Low risk.
-- As `ketua`, approve or reject a submitted report with a comment.
-- As `ketua`, approve a High/Critical report and confirm NLP details are hidden.
-- As `ketua`, submit a follow-up progress note without changing official status.
-- As `admin`, view Ketua progress notes and update official follow-up action status.
-- As `admin`, open Pemantauan laporan and confirm full NLP details are visible.
-- As `admin`, create a user and disable or enable an account.
-- As `admin`, create a new pos kawalan.
-- As `admin`, open Audit Trail and confirm important actions are logged.
+<details>
+<summary><b>Quality checks and manual testing checklist</b></summary>
 
-## Screenshot Targets for Chapter 4
+Phase 5 validation and academic evaluation materials are in [docs/psm-evaluation](docs/psm-evaluation/SYSTEM_TEST_PLAN.md); human evaluation outcomes are pending collection.
 
-- `/login`
-- `/dashboard`
-- `/pengawal`
-- `/laporan` in a mobile viewport
-- `/semakan`
-- `/tindakan`
-- `/audit`
-- `/notifikasi`
+```bash
+npm run check                  # lint (front/back), backend syntax checks, smoke-test syntax, production build
+npm run test:building
+npm run test:evaluation
+npm run test:backend
+npm run test:building:browser
+npm run test:phase5:browser
+```
 
-## Deployment
+The last suite requires the separate synthetic demonstration database described in [DEMONSTRATION_CHECKLIST.md](docs/psm-evaluation/DEMONSTRATION_CHECKLIST.md); it never seeds the operational database, and 3D integration fixtures are rolled back. Use Node 24 with the committed lockfiles. Set `PLAYWRIGHT_CHANNEL=chromium` to use Playwright's bundled Chromium instead of Edge.
 
-A sign-in-disabled frontend preview is hosted on Vercel at <https://penjaga-security-preview.vercel.app>. It is built with `VITE_PREVIEW_ONLY=true` and has no backend; a working Vercel deployment needs a hosted HTTPS API set in `VITE_API_URL` (see `DEPLOYMENT.md`).
+Manual checklist:
 
-See `DEPLOYMENT.md` for production environment variables, build/start steps, readiness checks, smoke testing, backups, and release checklist.
+- `admin`: redirected to dashboard; creates users and posts, disables/enables accounts; Audit Trail logs important actions; Pemantauan laporan shows full NLP details; updates official follow-up status and sees Ketua progress notes.
+- `ketua`: dashboard, semakan laporan and tindakan susulan available; marks a high-risk notification as read; approves/rejects reports with a comment (NLP details hidden after approving High/Critical); submits follow-up progress notes without changing official status.
+- `amir`: a report containing `asap` or `terbakar` shows Critical; `rondaan selesai keadaan terkawal tiada insiden` shows Low.
 
-## Final delivery (Phase 6)
+</details>
 
-Start with [handover](docs/final/PROJECT_HANDOVER.md), [implementation audit](docs/final/PROJECT_IMPLEMENTATION_AUDIT.md) and [academic draft](docs/psm/FINAL_PSM_REPORT_DRAFT.md). Deployment remains subject to the documented release checks.
+<details>
+<summary><b>Operational reference: guard counts per shift</b></summary>
 
-## NLP upgrade development snapshot
+| Hari | Syif | Waktu | Jumlah Anggota |
+| --- | --- | --- | --- |
+| Hari bekerja | Pagi | 07:00 AM - 04:00 PM | 24 orang, termasuk 12 orang syif pentadbiran |
+| Hari bekerja | Petang | 02:45 PM - 11:45 PM | 12 orang |
+| Hari bekerja | Malam | 11:00 PM - 08:00 AM | 12 orang |
+| Hari tidak bekerja | Pagi | 07:00 AM - 04:00 PM | 12 orang |
+| Hari tidak bekerja | Petang | 02:45 PM - 11:45 PM | 12 orang |
+| Hari tidak bekerja | Malam | 11:00 PM - 08:00 AM | 12 orang |
 
-See [Phase 7](docs/NLP_PHASE7.md) and [Phase 8](docs/NLP_PHASE8.md) for trained inference, source checks and event clarification. Local classification and alerts now persist before optional external review. Provider availability and operational accuracy still require independent verification.
+The official post list is in `backend/database/seed.sql`.
+
+</details>
+
+<details>
+<summary><b>Deployment</b></summary>
+
+A sign-in-disabled frontend preview is hosted on Vercel at <https://penjaga-security-preview.vercel.app>. It is built with `VITE_PREVIEW_ONLY=true` and has no backend; a working Vercel deployment needs a hosted HTTPS API set in `VITE_API_URL`. See [`DEPLOYMENT.md`](DEPLOYMENT.md) for production environment variables, build/start steps, readiness checks, smoke testing, backups and the release checklist.
+
+</details>
+
+## Project structure
+
+```text
+src/            React frontend
+backend/        Express API, database migrations/seed, ml/ (NLP model + training)
+public/models/  Deployed GLB exterior models
+artifacts/      Blender sources, model previews, integration screenshots
+docs/           Testing, PSM report, evaluation, handover (docs/final)
+tests/          Test suites (Playwright configs at repo root)
+scripts/        Dev/system scripts
+```
+
+## Documentation
+
+[Handover](docs/final/PROJECT_HANDOVER.md) | [Implementation audit](docs/final/PROJECT_IMPLEMENTATION_AUDIT.md) | [Academic draft](docs/psm/FINAL_PSM_REPORT_DRAFT.md) | [Exterior model catalogue](artifacts/README.md)
